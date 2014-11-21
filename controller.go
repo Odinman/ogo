@@ -122,54 +122,48 @@ func (ctr *Controller) DefaultRoutes(c ControllerInterface) {
 func (ctr *Controller) RouteGet(rt *Route) {
 	key := strings.ToUpper(rt.Method) + " " + rt.Pattern
 	if _, ok := ctr.Routes[key]; ok {
-		// exists
-	} else {
-		goji.Get(rt.Pattern, handlerWrap(rt.Handler))
-		ctr.Routes[key] = rt
+		// exists, log overwrite
 	}
+	goji.Get(rt.Pattern, handlerWrap(rt.Handler))
+	ctr.Routes[key] = rt
 }
 func (ctr *Controller) RoutePost(rt *Route) {
 	key := strings.ToUpper(rt.Method) + " " + rt.Pattern
 	if _, ok := ctr.Routes[key]; ok {
-		// exists
-	} else {
-		goji.Post(rt.Pattern, handlerWrap(rt.Handler))
-		ctr.Routes[key] = rt
+		// exists, log overwrite
 	}
+	goji.Post(rt.Pattern, handlerWrap(rt.Handler))
+	ctr.Routes[key] = rt
 }
 func (ctr *Controller) RoutePut(rt *Route) {
 	key := strings.ToUpper(rt.Method) + " " + rt.Pattern
 	if _, ok := ctr.Routes[key]; ok {
-		// exists
-	} else {
-		goji.Put(rt.Pattern, handlerWrap(rt.Handler))
-		ctr.Routes[key] = rt
+		// exists, log overwrite
 	}
+	goji.Put(rt.Pattern, handlerWrap(rt.Handler))
+	ctr.Routes[key] = rt
 }
 func (ctr *Controller) RouteDelete(rt *Route) {
 	key := strings.ToUpper(rt.Method) + " " + rt.Pattern
 	if _, ok := ctr.Routes[key]; ok {
-		// exists
-	} else {
-		goji.Delete(rt.Pattern, handlerWrap(rt.Handler))
-		ctr.Routes[key] = rt
+		// exists, log overwrite
 	}
+	goji.Delete(rt.Pattern, handlerWrap(rt.Handler))
+	ctr.Routes[key] = rt
 }
 func (ctr *Controller) RoutePatch(rt *Route) {
 	key := strings.ToUpper(rt.Method) + " " + rt.Pattern
 	if _, ok := ctr.Routes[key]; ok {
-		// exists
-	} else {
-		goji.Patch(rt.Pattern, handlerWrap(rt.Handler))
-		ctr.Routes[key] = rt
+		// exists, log overwrite
 	}
+	goji.Patch(rt.Pattern, handlerWrap(rt.Handler))
+	ctr.Routes[key] = rt
 }
 func (ctr *Controller) RouteHead(rt *Route) {
 	key := strings.ToUpper(rt.Method) + " " + rt.Pattern
 	if _, ok := ctr.Routes[key]; ok {
-		// exists
-	} else {
-		goji.Head(rt.Pattern, handlerWrap(rt.Handler))
-		ctr.Routes[key] = rt
+		// exists, log overwrite
 	}
+	goji.Head(rt.Pattern, handlerWrap(rt.Handler))
+	ctr.Routes[key] = rt
 }
