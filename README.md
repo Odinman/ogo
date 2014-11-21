@@ -1,6 +1,6 @@
 ## ogo
 
-Odin's go daemon framework
+Odin's go daemon/HTTP framework
 
 ## Original Features
 
