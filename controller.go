@@ -49,11 +49,11 @@ func handlerWrap(f Handler) web.HandlerFunc { //这里封装了webC到本地的�
 	}
 }
 
-func (ctr *Controller) Init(endpoint string) {
+func (ctr *Controller) Init(endpoint string, c ControllerInterface) {
 	ctr.Endpoint = endpoint
 	ctr.Routes = make(map[string]*Route)
 	//默认路由
-	ctr.DefaultRoutes(ctr)
+	ctr.DefaultRoutes(c)
 }
 
 func (ctr *Controller) Get(c *HttpContext) {
