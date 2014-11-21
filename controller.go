@@ -25,6 +25,7 @@ type Controller struct {
 }
 
 type ControllerInterface interface {
+	Init(endpoint string)
 	Get(c *HttpContext)
 	Post(c *HttpContext)
 	Put(c *HttpContext)
@@ -46,6 +47,13 @@ func handlerWrap(f Handler) web.HandlerFunc { //这里封装了webC到本地的�
 	return func(c web.C, w http.ResponseWriter, r *http.Request) {
 		f(newContext(c, w, r))
 	}
+}
+
+func (ctr *Controller) Init(endpoint string) {
+	ctr.Endpoint = endpoint
+	ctr.Routes = make(map[string]*Route)
+	//默认路由
+	ctr.DefaultRoutes(ctr)
 }
 
 func (ctr *Controller) Get(c *HttpContext) {
