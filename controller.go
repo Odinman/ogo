@@ -21,6 +21,7 @@ type Route struct {
 type Controller struct {
 	Endpoint string
 	Routes   map[string]*Route
+	Request  int
 }
 
 type ControllerInterface interface {
