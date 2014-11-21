@@ -25,7 +25,7 @@ type Controller struct {
 }
 
 type ControllerInterface interface {
-	Init(endpoint string, c ControllerInterface)
+	//Init(endpoint string, c ControllerInterface)
 	Get(c *HttpContext)
 	Post(c *HttpContext)
 	Put(c *HttpContext)
