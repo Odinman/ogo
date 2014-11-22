@@ -15,7 +15,7 @@ Odin's go daemon/HTTP framework
 package main
 
 import (
-    "github.com/zhaocloud/ogo"
+    "github.com/Odinman/ogo"
     _ "<gopath_to_workers>/workers"
 )
 
@@ -30,7 +30,7 @@ func main() {
 package workers
 
 import (
-    "github.com/zhaocloud/ogo"
+    "github.com/Odinman/ogo"
 )
 
 type TestWorker struct {
@@ -58,7 +58,7 @@ func (w *TestWorker) Main() error {
 package main
 
 import (
-	"github.com/zhaocloud/ogo"
+	"github.com/Odinman/ogo"
 	_ "<gopath_to_controllers>/controller"
 )
 
@@ -74,7 +74,7 @@ package controller
 
 import (
 	"fmt"
-	"github.com/zhaocloud/ogo"
+	"github.com/Odinman/ogo"
 	"time"
 )
 

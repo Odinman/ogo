@@ -7,9 +7,9 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/zhaocloud/ogo/libs/config"
-	"github.com/zhaocloud/ogo/libs/logs"
-	"github.com/zhaocloud/ogo/utils"
+	"github.com/Odinman/ogo/libs/config"
+	"github.com/Odinman/ogo/libs/logs"
+	"github.com/Odinman/ogo/utils"
 )
 
 type Environment struct {
