@@ -25,7 +25,7 @@ type Controller struct {
 }
 
 type ControllerInterface interface {
-	Init(endpoint string)
+	//Init(endpoint string, c ControllerInterface)
 	Get(c *HttpContext)
 	Post(c *HttpContext)
 	Put(c *HttpContext)
@@ -49,11 +49,31 @@ func handlerWrap(f Handler) web.HandlerFunc { //这里封装了webC到本地的�
 	}
 }
 
-func (ctr *Controller) Init(endpoint string) {
+func (ctr *Controller) Init(endpoint string, c ControllerInterface) {
 	ctr.Endpoint = endpoint
-	ctr.Routes = make(map[string]*Route)
+	//ctr.Routes = make(map[string]*Route)
 	//默认路由
-	ctr.DefaultRoutes(ctr)
+	ctr.DefaultRoutes(c)
+	if len(ctr.Routes) > 0 { //如果有自定义路由, 则优先增加
+		for _, rt := range ctr.Routes {
+			switch strings.ToLower(rt.Method) {
+			case "get":
+				ctr.RouteGet(rt)
+			case "post":
+				ctr.RoutePost(rt)
+			case "put":
+				ctr.RoutePut(rt)
+			case "delete":
+				ctr.RouteDelete(rt)
+			case "patch":
+				ctr.RoutePatch(rt)
+			case "head":
+				ctr.RouteHead(rt)
+			default:
+				// unknow method
+			}
+		}
+	}
 }
 
 func (ctr *Controller) Get(c *HttpContext) {
@@ -76,100 +96,121 @@ func (ctr *Controller) Head(c *HttpContext) {
 }
 
 func (ctr *Controller) AddRoute(m string, p string, h Handler) {
-	rt := NewRoute(p, m, h)
-	switch strings.ToLower(m) {
-	case "get":
-		ctr.RouteGet(rt)
-	case "post":
-		ctr.RoutePost(rt)
-	case "put":
-		ctr.RoutePut(rt)
-	case "delete":
-		ctr.RouteDelete(rt)
-	case "patch":
-		ctr.RoutePatch(rt)
-	case "head":
-		ctr.RouteHead(rt)
-	default:
-		// unknow method
+	key := strings.ToUpper(m) + " " + p
+	if _, ok := ctr.Routes[key]; ok {
+		//手动加路由, 以最后加的为准,overwrite
 	}
+	ctr.Routes[key] = NewRoute(p, m, h)
+	//switch strings.ToLower(m) {
+	//case "get":
+	//	ctr.RouteGet(rt)
+	//case "post":
+	//	ctr.RoutePost(rt)
+	//case "put":
+	//	ctr.RoutePut(rt)
+	//case "delete":
+	//	ctr.RouteDelete(rt)
+	//case "patch":
+	//	ctr.RoutePatch(rt)
+	//case "head":
+	//	ctr.RouteHead(rt)
+	//default:
+	//	// unknow method
+	//}
 }
 
 // controller default route
 // 默认路由, 如果已经定义了则忽略，没有定义则加上
 //func (ctr *Controller) DefaultRoutes() {
 func (ctr *Controller) DefaultRoutes(c ControllerInterface) {
+	var pattern, method, key string
 	// GET /{endpoint}
-	ctr.RouteGet(NewRoute("/"+ctr.Endpoint, "GET", c.Get))
+	pattern = "/" + ctr.Endpoint
+	method = "GET"
+	key = method + " " + pattern
+	if _, ok := ctr.Routes[key]; ok {
+		// exists, warning, 默认路由不能覆盖自定义路由
+	} else {
+		rt := NewRoute(pattern, method, c.Get)
+		ctr.Routes[key] = rt
+	}
 
 	// GET /{endpoint}/{id}
-	ctr.RouteGet(NewRoute("/"+ctr.Endpoint+"/:_id_", "GET", c.Get))
+	pattern = "/" + ctr.Endpoint + "/:_id_"
+	method = "GET"
+	key = method + " " + pattern
+	if _, ok := ctr.Routes[key]; ok {
+		// exists, warning, 默认路由不能覆盖自定义路由
+	} else {
+		rt := NewRoute(pattern, method, c.Get)
+		ctr.Routes[key] = rt
+	}
 
 	// POST /{endpoint}
-	ctr.RoutePost(NewRoute("/"+ctr.Endpoint, "POST", c.Post))
+	pattern = "/" + ctr.Endpoint
+	method = "POST"
+	key = method + " " + pattern
+	if _, ok := ctr.Routes[key]; ok {
+		// exists, warning, 默认路由不能覆盖自定义路由
+	} else {
+		rt := NewRoute(pattern, method, c.Post)
+		ctr.Routes[key] = rt
+	}
 
 	// DELETE /{endpoint}/{id}
-	ctr.RouteDelete(NewRoute("/"+ctr.Endpoint+"/:_id_", "DELETE", c.Delete))
+	pattern = "/" + ctr.Endpoint + "/:_id_"
+	method = "DELETE"
+	key = method + " " + pattern
+	if _, ok := ctr.Routes[key]; ok {
+		// exists, warning, 默认路由不能覆盖自定义路由
+	} else {
+		rt := NewRoute(pattern, method, c.Delete)
+		ctr.Routes[key] = rt
+	}
 
 	// PATCH /{endpoint}/{id}
-	ctr.RouteDelete(NewRoute("/"+ctr.Endpoint+"/:_id_", "PATCH", c.Patch))
+	pattern = "/" + ctr.Endpoint + "/:_id_"
+	method = "PATCH"
+	key = method + " " + pattern
+	if _, ok := ctr.Routes[key]; ok {
+		// exists, warning, 默认路由不能覆盖自定义路由
+	} else {
+		rt := NewRoute(pattern, method, c.Patch)
+		ctr.Routes[key] = rt
+	}
 
 	// PUT /{endpoint}/{id}
-	ctr.RouteDelete(NewRoute("/"+ctr.Endpoint+"/:_id_", "PUT", c.Put))
-
+	pattern = "/" + ctr.Endpoint + "/:_id_"
+	method = "PUT"
+	key = method + " " + pattern
+	if _, ok := ctr.Routes[key]; ok {
+		// exists, warning, 默认路由不能覆盖自定义路由
+	} else {
+		rt := NewRoute(pattern, method, c.Put)
+		ctr.Routes[key] = rt
+	}
 }
 
 func (ctr *Controller) RouteGet(rt *Route) {
-	key := strings.ToUpper(rt.Method) + " " + rt.Pattern
-	if _, ok := ctr.Routes[key]; ok {
-		// exists
-	} else {
-		goji.Get(rt.Pattern, handlerWrap(rt.Handler))
-		ctr.Routes[key] = rt
-	}
+	goji.Get(rt.Pattern, handlerWrap(rt.Handler))
 }
+
 func (ctr *Controller) RoutePost(rt *Route) {
-	key := strings.ToUpper(rt.Method) + " " + rt.Pattern
-	if _, ok := ctr.Routes[key]; ok {
-		// exists
-	} else {
-		goji.Post(rt.Pattern, handlerWrap(rt.Handler))
-		ctr.Routes[key] = rt
-	}
+	goji.Post(rt.Pattern, handlerWrap(rt.Handler))
 }
+
 func (ctr *Controller) RoutePut(rt *Route) {
-	key := strings.ToUpper(rt.Method) + " " + rt.Pattern
-	if _, ok := ctr.Routes[key]; ok {
-		// exists
-	} else {
-		goji.Put(rt.Pattern, handlerWrap(rt.Handler))
-		ctr.Routes[key] = rt
-	}
+	goji.Put(rt.Pattern, handlerWrap(rt.Handler))
 }
+
 func (ctr *Controller) RouteDelete(rt *Route) {
-	key := strings.ToUpper(rt.Method) + " " + rt.Pattern
-	if _, ok := ctr.Routes[key]; ok {
-		// exists
-	} else {
-		goji.Delete(rt.Pattern, handlerWrap(rt.Handler))
-		ctr.Routes[key] = rt
-	}
+	goji.Delete(rt.Pattern, handlerWrap(rt.Handler))
 }
+
 func (ctr *Controller) RoutePatch(rt *Route) {
-	key := strings.ToUpper(rt.Method) + " " + rt.Pattern
-	if _, ok := ctr.Routes[key]; ok {
-		// exists
-	} else {
-		goji.Patch(rt.Pattern, handlerWrap(rt.Handler))
-		ctr.Routes[key] = rt
-	}
+	goji.Patch(rt.Pattern, handlerWrap(rt.Handler))
 }
+
 func (ctr *Controller) RouteHead(rt *Route) {
-	key := strings.ToUpper(rt.Method) + " " + rt.Pattern
-	if _, ok := ctr.Routes[key]; ok {
-		// exists
-	} else {
-		goji.Head(rt.Pattern, handlerWrap(rt.Handler))
-		ctr.Routes[key] = rt
-	}
+	goji.Head(rt.Pattern, handlerWrap(rt.Handler))
 }
