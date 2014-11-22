@@ -30,7 +30,7 @@ func init() { //初始化环境变量,配置信息
 	Env = new(Environment)
 	Env.Service = "daemon" //default is deamon
 	Env.HTTPPort = "80"    //default is 80
-	os.Setenv("PORT", Env.HTTPPort)
+	os.Setenv("GOJI_PORT", ":"+Env.HTTPPort)
 	workPath, _ := os.Getwd()
 	Env.WorkPath, _ = filepath.Abs(workPath)
 	Env.AppPath, _ = filepath.Abs(filepath.Dir(os.Args[0]))
