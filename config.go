@@ -10,7 +10,6 @@ import (
 	"github.com/Odinman/ogo/libs/config"
 	"github.com/Odinman/ogo/libs/logs"
 	"github.com/Odinman/ogo/utils"
-	"github.com/zenazn/goji/bind"
 )
 
 type Environment struct {
@@ -32,7 +31,6 @@ func init() { //初始化环境变量,配置信息
 	Env.Service = "daemon" //default is deamon
 	Env.HTTPPort = "80"    //default is 80
 	os.Setenv("GOJI_BIND", ":"+Env.HTTPPort)
-	bind.WithFlag()
 	workPath, _ := os.Getwd()
 	Env.WorkPath, _ = filepath.Abs(workPath)
 	Env.AppPath, _ = filepath.Abs(filepath.Dir(os.Args[0]))
