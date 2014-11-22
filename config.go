@@ -23,11 +23,14 @@ type Environment struct {
 	Daemonize     bool   // daemonize or not
 	DebugLevel    int    // debug level
 	PidFile       string // pidfile abs path
+	HTTPPort      string // http port
 }
 
 func init() { //初始化环境变量,配置信息
 	Env = new(Environment)
 	Env.Service = "daemon" //default is deamon
+	Env.HTTPPort = "80"    //default is 80
+	os.Setenv("PORT", Env.HTTPPort)
 	workPath, _ := os.Getwd()
 	Env.WorkPath, _ = filepath.Abs(workPath)
 	Env.AppPath, _ = filepath.Abs(filepath.Dir(os.Args[0]))
