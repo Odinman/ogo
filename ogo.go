@@ -5,6 +5,8 @@ package ogo
 import (
 	"errors"
 	"fmt"
+	"log"
+	"net/http"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -102,6 +104,14 @@ func Run() {
 			panic(mainErr)
 		}
 	} else {
+		goji.Use(func(h http.Handler) http.Handler {
+			handler := func(w http.ResponseWriter, r *http.Request) {
+				log.Println("Before request")
+				h.ServeHTTP(w, r)
+				log.Println("After request")
+			}
+			return http.HandlerFunc(handler)
+		})
 		goji.Serve()
 	}
 	//睡一段时间再结束
