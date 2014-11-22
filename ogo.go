@@ -5,8 +5,6 @@ package ogo
 import (
 	"errors"
 	"fmt"
-	"log"
-	"net/http"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -18,7 +16,7 @@ import (
 	"github.com/VividCortex/godaemon"
 	"github.com/nightlyone/lockfile"
 	"github.com/zenazn/goji"
-	//"github.com/zenazn/goji/web/middleware"
+	"github.com/zenazn/goji/web/middleware"
 )
 
 // ogo daemoin framework version.
@@ -105,28 +103,15 @@ func Run() {
 			panic(mainErr)
 		}
 	} else {
+		Debugger.Debug("will run http")
 
 		// 废除一些goji默认的middleware
-		//goji.Abandon(middleware.Logger)
-		//goji.Abandon(middleware.AutomaticOptions)
+		goji.Abandon(middleware.Logger)
+		goji.Abandon(middleware.AutomaticOptions)
 
 		//增加自定义的middleware
-		goji.Use(func(h http.Handler) http.Handler {
-			handler := func(w http.ResponseWriter, r *http.Request) {
-				log.Println("Before request")
-				h.ServeHTTP(w, r)
-				log.Println("After request")
-			}
-			return http.HandlerFunc(handler)
-		})
-		goji.Use(func(h http.Handler) http.Handler {
-			handler := func(w http.ResponseWriter, r *http.Request) {
-				log.Println("Before request 111")
-				h.ServeHTTP(w, r)
-				log.Println("After request 111")
-			}
-			return http.HandlerFunc(handler)
-		})
+		goji.Use(EnvInit)
+		goji.Use(Defer)
 
 		goji.Serve()
 	}
