@@ -92,22 +92,22 @@ type U struct {
 	ogo.Controller
 }
 
-func (u *U) Get(ctx *ogo.HttpContext) {
+func (u *U) Get(ctx *ogo.RESTContext) {
 	//ctx.Response.Write([]byte("123"))
 	u.Request += 1
 	fmt.Fprintf(ctx.Response, "Hello, this is Get, %s!, %d??", ctx.Context.URLParams["_id_"], u.Request)
 }
 
-func (u *U) Post(ctx *ogo.HttpContext) {
+func (u *U) Post(ctx *ogo.RESTContext) {
 	ctx.Response.Write([]byte("456"))
 }
 
-func (u *U) Test1(ctx *ogo.HttpContext) {
+func (u *U) Test1(ctx *ogo.RESTContext) {
 	//ctx.Response.Write([]byte("123"))
 	fmt.Fprintf(ctx.Response, "Test1, %s!, %s?", ctx.Context.URLParams["_id_"], ctx.Context.URLParams["_selector_"])
 }
 
-func (u *U) Test2(ctx *ogo.HttpContext) {
+func (u *U) Test2(ctx *ogo.RESTContext) {
 	u.Request += 1
 	//ctx.Response.Write([]byte("223"))
 	fmt.Fprintf(ctx.Response, "Test2, %s!, %s?, %d!!", ctx.Context.URLParams["_id_"], ctx.Context.URLParams["_selector_"], u.Request)

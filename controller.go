@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-type Handler func(c *HttpContext)
+type Handler func(c *RESTContext)
 
 type Route struct {
 	Pattern string
@@ -21,17 +21,17 @@ type Route struct {
 type Controller struct {
 	Endpoint string
 	Routes   map[string]*Route
-	Request  int
+	ReqCount int //访问计数
 }
 
 type ControllerInterface interface {
 	//Init(endpoint string, c ControllerInterface)
-	Get(c *HttpContext)
-	Post(c *HttpContext)
-	Put(c *HttpContext)
-	Delete(c *HttpContext)
-	Patch(c *HttpContext)
-	Head(c *HttpContext)
+	Get(c *RESTContext)
+	Post(c *RESTContext)
+	Put(c *RESTContext)
+	Delete(c *RESTContext)
+	Patch(c *RESTContext)
+	Head(c *RESTContext)
 }
 
 func NewRoute(p string, m string, h Handler) *Route {
@@ -76,23 +76,23 @@ func (ctr *Controller) Init(endpoint string, c ControllerInterface) {
 	}
 }
 
-func (ctr *Controller) Get(c *HttpContext) {
-	http.Error(c.Response, "Method Not Allowed", http.StatusMethodNotAllowed)
+func (ctr *Controller) Get(c *RESTContext) {
+	c.HTTPError(http.StatusMethodNotAllowed)
 }
-func (ctr *Controller) Post(c *HttpContext) {
-	http.Error(c.Response, "Method Not Allowed", http.StatusMethodNotAllowed)
+func (ctr *Controller) Post(c *RESTContext) {
+	c.HTTPError(http.StatusMethodNotAllowed)
 }
-func (ctr *Controller) Put(c *HttpContext) {
-	http.Error(c.Response, "Method Not Allowed", http.StatusMethodNotAllowed)
+func (ctr *Controller) Put(c *RESTContext) {
+	c.HTTPError(http.StatusMethodNotAllowed)
 }
-func (ctr *Controller) Delete(c *HttpContext) {
-	http.Error(c.Response, "Method Not Allowed", http.StatusMethodNotAllowed)
+func (ctr *Controller) Delete(c *RESTContext) {
+	c.HTTPError(http.StatusMethodNotAllowed)
 }
-func (ctr *Controller) Patch(c *HttpContext) {
-	http.Error(c.Response, "Method Not Allowed", http.StatusMethodNotAllowed)
+func (ctr *Controller) Patch(c *RESTContext) {
+	c.HTTPError(http.StatusMethodNotAllowed)
 }
-func (ctr *Controller) Head(c *HttpContext) {
-	http.Error(c.Response, "Method Not Allowed", http.StatusMethodNotAllowed)
+func (ctr *Controller) Head(c *RESTContext) {
+	c.HTTPError(http.StatusMethodNotAllowed)
 }
 
 func (ctr *Controller) AddRoute(m string, p string, h Handler) {

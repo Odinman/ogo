@@ -26,7 +26,7 @@ func Defer(c *web.C, h http.Handler) http.Handler {
 				//printPanic(reqID, err)
 				Debugger.Critical("[%s][url: %s] %v", reqID, r.URL.Path, err)
 				debug.PrintStack()
-				http.Error(w, http.StatusText(500), 500)
+				http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			}
 
 			// save access log here
