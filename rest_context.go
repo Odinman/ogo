@@ -8,12 +8,13 @@ import (
 	"github.com/zenazn/goji/web"
 )
 
+var RESTC *RESTContext
+
 // http context, 封装第三方包goji
 type RESTContext struct {
-	Context    web.C
-	Response   http.ResponseWriter
-	Request    *http.Request
-	Controller *Controller
+	Context  web.C
+	Response http.ResponseWriter
+	Request  *http.Request
 }
 
 type RESTError struct {
@@ -32,6 +33,13 @@ func newContext(c web.C, w http.ResponseWriter, r *http.Request) *RESTContext {
 		Response: w,
 		Request:  r,
 	}
+}
+
+func getContext(c web.C, w http.ResponseWriter, r *http.Request) *RESTContext {
+	if RESTC == nil {
+		return newContext(c, w, r)
+	}
+	return RESTC
 }
 
 //new rest error
@@ -57,15 +65,27 @@ func (hc *RESTContext) NewRESTError(status int, msg interface{}) (re error) {
 // http error
 func (hc *RESTContext) HTTPError(status int) (err error) {
 
-	// custom header
-	hc.Response.Header().Set("Content-Type", "application/json; charset=UTF-8")
-
-	// header
-	hc.Response.WriteHeader(status)
+	hc.RESTHeader(status)
 
 	// write data
-	content, _ := json.MarshalIndent(hc.NewRESTError(status, nil), "", "  ")
-	hc.Response.Write(content)
+	err = hc.RESTBody(hc.NewRESTError(status, nil))
+
+	return
+}
+
+func (hc *RESTContext) RESTHeader(status int) {
+	// Content-Type always json
+	hc.Response.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	// header line
+	hc.Response.WriteHeader(status)
+}
+
+func (hc *RESTContext) RESTBody(data interface{}) (err error) {
+
+	content, _ := json.MarshalIndent(data, "", "  ")
+
+	//write data
+	_, err = hc.Response.Write(content)
 
 	return
 }

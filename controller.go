@@ -45,7 +45,7 @@ func NewRoute(p string, m string, h Handler) *Route {
 // 封装
 func handlerWrap(f Handler) web.HandlerFunc { //这里封装了webC到本地的结构中
 	return func(c web.C, w http.ResponseWriter, r *http.Request) {
-		f(newContext(c, w, r))
+		f(getContext(c, w, r))
 	}
 }
 
