@@ -65,6 +65,16 @@ func Defer(c *web.C, h http.Handler) http.Handler {
 	return http.HandlerFunc(fn)
 }
 
+//Authentication
+func Authentication(c *web.C, h http.Handler) http.Handler {
+	fn := func(w http.ResponseWriter, r *http.Request) {
+
+		h.ServeHTTP(w, r)
+	}
+
+	return http.HandlerFunc(fn)
+}
+
 // GetReqID returns a request ID from the given context if one is present.
 // Returns the empty string if a request ID cannot be found.
 func GetReqID(c web.C) string {

@@ -112,6 +112,7 @@ func Run() {
 		//增加自定义的middleware
 		goji.Use(EnvInit)
 		goji.Use(Defer)
+		goji.Use(Authentication)
 
 		goji.Serve()
 	}
