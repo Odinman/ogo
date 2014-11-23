@@ -77,6 +77,8 @@ func (ctr *Controller) Init(endpoint string, c ControllerInterface) {
 			}
 		}
 	}
+	// not found
+	ctr.RouteNotFound(c.NotFound)
 }
 
 func (ctr *Controller) Get(c *RESTContext) {
@@ -185,8 +187,6 @@ func (ctr *Controller) DefaultRoutes(c ControllerInterface) {
 		rt := NewRoute(pattern, method, c.Put)
 		ctr.Routes[key] = rt
 	}
-
-	//Not Found
 }
 
 func (ctr *Controller) RouteGet(rt *Route) {
@@ -213,6 +213,6 @@ func (ctr *Controller) RouteHead(rt *Route) {
 	goji.Head(rt.Pattern, handlerWrap(rt.Handler))
 }
 
-func (ctr *Controller) RouteNotFound(rt *Route) {
-	goji.NotFound(handlerWrap(rt.Handler))
+func (ctr *Controller) RouteNotFound(h Handler) {
+	goji.NotFound(handlerWrap(h))
 }
