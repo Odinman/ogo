@@ -32,6 +32,9 @@ type ControllerInterface interface {
 	Delete(c *RESTContext)
 	Patch(c *RESTContext)
 	Head(c *RESTContext)
+	Options(c *RESTContext)
+	Trace(c *RESTContext)
+	NotFound(c *RESTContext)
 }
 
 func NewRoute(p string, m string, h Handler) *Route {
@@ -54,7 +57,7 @@ func (ctr *Controller) Init(endpoint string, c ControllerInterface) {
 	//ctr.Routes = make(map[string]*Route)
 	//默认路由
 	ctr.DefaultRoutes(c)
-	if len(ctr.Routes) > 0 { //如果有自定义路由, 则优先增加
+	if len(ctr.Routes) > 0 {
 		for _, rt := range ctr.Routes {
 			switch strings.ToLower(rt.Method) {
 			case "get":
@@ -94,6 +97,12 @@ func (ctr *Controller) Patch(c *RESTContext) {
 func (ctr *Controller) Head(c *RESTContext) {
 	c.HTTPError(http.StatusMethodNotAllowed)
 }
+func (ctr *Controller) Options(c *RESTContext) {
+	c.HTTPError(http.StatusMethodNotAllowed)
+}
+func (ctr *Controller) NotFound(c *RESTContext) {
+	c.HTTPError(http.StatusNotFound)
+}
 
 func (ctr *Controller) AddRoute(m string, p string, h Handler) {
 	key := strings.ToUpper(m) + " " + p
@@ -101,22 +110,6 @@ func (ctr *Controller) AddRoute(m string, p string, h Handler) {
 		//手动加路由, 以最后加的为准,overwrite
 	}
 	ctr.Routes[key] = NewRoute(p, m, h)
-	//switch strings.ToLower(m) {
-	//case "get":
-	//	ctr.RouteGet(rt)
-	//case "post":
-	//	ctr.RoutePost(rt)
-	//case "put":
-	//	ctr.RoutePut(rt)
-	//case "delete":
-	//	ctr.RouteDelete(rt)
-	//case "patch":
-	//	ctr.RoutePatch(rt)
-	//case "head":
-	//	ctr.RouteHead(rt)
-	//default:
-	//	// unknow method
-	//}
 }
 
 // controller default route
@@ -189,6 +182,8 @@ func (ctr *Controller) DefaultRoutes(c ControllerInterface) {
 		rt := NewRoute(pattern, method, c.Put)
 		ctr.Routes[key] = rt
 	}
+
+	//Not Found
 }
 
 func (ctr *Controller) RouteGet(rt *Route) {
@@ -213,4 +208,8 @@ func (ctr *Controller) RoutePatch(rt *Route) {
 
 func (ctr *Controller) RouteHead(rt *Route) {
 	goji.Head(rt.Pattern, handlerWrap(rt.Handler))
+}
+
+func (ctr *Controller) RouteNotFound(rt *Route) {
+	goji.NotFound(handlerWrap(rt.Handler))
 }
