@@ -50,9 +50,10 @@ func (hc *RESTContext) NewRESTError(status int, msg interface{}) (re error) {
 	errors["code"] = fmt.Sprint(status) // 备用, 可存储比httpstatus更详细的错误代码,目前只存httpstatus
 
 	var message string
-	message = fmt.Sprint(msg)
-	if message == "" {
+	if msg == nil {
 		message = http.StatusText(status)
+	} else {
+		message = fmt.Sprint(msg)
 	}
 	re = &RESTError{
 		Massage: message,
