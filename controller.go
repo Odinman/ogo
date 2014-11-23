@@ -100,6 +100,9 @@ func (ctr *Controller) Head(c *RESTContext) {
 func (ctr *Controller) Options(c *RESTContext) {
 	c.HTTPError(http.StatusMethodNotAllowed)
 }
+func (ctr *Controller) Trace(c *RESTContext) {
+	c.HTTPError(http.StatusMethodNotAllowed)
+}
 func (ctr *Controller) NotFound(c *RESTContext) {
 	c.HTTPError(http.StatusNotFound)
 }
