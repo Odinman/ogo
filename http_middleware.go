@@ -5,8 +5,8 @@ import (
 	"runtime/debug"
 	"time"
 
+	"github.com/Odinman/ogo/utils"
 	"github.com/zenazn/goji/web"
-	"github.com/zenazn/goji/web/util"
 )
 
 // Key to use when setting the request ID.
@@ -19,7 +19,7 @@ func EnvInit(c *web.C, h http.Handler) http.Handler {
 
 		Debugger.Debug("[%s][url: %s] started", reqID, r.URL.Path)
 
-		lw := util.WrapWriter(w)
+		lw := utils.WrapWriter(w)
 
 		//new rest context
 		RESTC = newContext(*c, lw, r)
