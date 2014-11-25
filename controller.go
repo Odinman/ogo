@@ -114,9 +114,9 @@ func (ctr *Controller) AddRoute(m string, p string, h Handler) {
 	if ctr.Routes == nil {
 		ctr.Routes = make(map[string]*Route)
 	}
-	//if _, ok := ctr.Routes[key]; ok {
-	//	//手动加路由, 以最后加的为准,overwrite
-	//}
+	if _, ok := ctr.Routes[key]; ok {
+		//手动加路由, 以最后加的为准,overwrite
+	}
 	ctr.Routes[key] = NewRoute(p, m, h)
 }
 
