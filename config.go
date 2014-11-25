@@ -12,6 +12,8 @@ import (
 	"github.com/Odinman/ogo/utils"
 )
 
+/* {{{ type Environment struct
+ */
 type Environment struct {
 	Service       string // http or not http
 	WorkPath      string // working path(abs)
@@ -26,6 +28,10 @@ type Environment struct {
 	HTTPPort      string // http port
 }
 
+/* }}} */
+
+/* {{{ func init()
+ */
 func init() { //初始化环境变量,配置信息
 	Env = new(Environment)
 	Env.Service = "daemon" //default is deamon
@@ -99,7 +105,11 @@ func init() { //初始化环境变量,配置信息
 	Ctx.Logger = Debugger
 }
 
-// ParseConfig parsed default config file.
+/* }}} */
+
+/* {{{ type Environment struct
+ * ParseConfig parsed default config file.
+ */
 func ParseConfig() (err error) {
 	AppConfig, err = config.NewConfig("ini", Env.AppConfigPath)
 	if err != nil {
@@ -137,3 +147,5 @@ func ParseConfig() (err error) {
 	}
 	return nil
 }
+
+/* }}} */

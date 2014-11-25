@@ -2,6 +2,8 @@
 
 package ogo
 
+/* {{{ import
+ */
 import (
 	"errors"
 	"fmt"
@@ -19,9 +21,19 @@ import (
 	"github.com/zenazn/goji/web/middleware"
 )
 
-// ogo daemoin framework version.
-const VERSION = "0.1.0"
+/* }}} */
 
+/* {{{ const
+ */
+const (
+	// ogo daemoin framework version.
+	VERSION = "0.1.0"
+)
+
+/* }}} */
+
+/* {{{ type Context struct
+ */
 type Context struct {
 	Env     *Environment           //环境参数
 	Cfg     config.ConfigContainer //配置信息
@@ -29,6 +41,10 @@ type Context struct {
 	Logger  *logs.OLogger //日志记录
 }
 
+/* }}} */
+
+/* {{{ variables
+ */
 var (
 	Ctx       *Context
 	Env       *Environment
@@ -36,13 +52,21 @@ var (
 	Debugger  *logs.OLogger
 )
 
+/* }}} */
+
+/* {{{ func NewContext() *Context
+ */
 func NewContext() *Context {
 	return &Context{
 		Workers: make(map[string]*Worker),
 	}
 }
 
-// Run ogo application.
+/* }}} */
+
+/* {{{ func Run()
+ * Run ogo application.
+ */
 func Run() {
 	defer func() {
 		if err := recover(); err != nil {
@@ -119,3 +143,5 @@ func Run() {
 	//睡一段时间再结束
 	time.Sleep(1000 * time.Microsecond)
 }
+
+/* }}} */
