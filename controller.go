@@ -129,6 +129,9 @@ func (ctr *Controller) DefaultRoutes(c ControllerInterface) {
 	pattern = "/" + ctr.Endpoint
 	method = "GET"
 	key = method + " " + pattern
+	if ctr.Routes == nil {
+		ctr.Routes = make(map[string]*Route)
+	}
 	if _, ok := ctr.Routes[key]; ok {
 		// exists, warning, 默认路由不能覆盖自定义路由
 	} else {
