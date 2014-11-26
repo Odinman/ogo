@@ -9,7 +9,6 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"time"
 
 	"github.com/VividCortex/godaemon"
 	"github.com/nightlyone/lockfile"
@@ -58,7 +57,7 @@ func Run() {
 		panic(err)
 	}
 
-	Debugger.Debug("will run http")
+	Debugger.Debug("will run http server")
 
 	// 废除一些goji默认的middleware
 	goji.Abandon(middleware.Logger)
@@ -70,8 +69,6 @@ func Run() {
 	goji.Use(Authentication)
 
 	goji.Serve()
-	//睡一段时间再结束
-	time.Sleep(1000 * time.Microsecond)
 }
 
 /* }}} */
