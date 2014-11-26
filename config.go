@@ -15,7 +15,6 @@ import (
 /* {{{ type Environment struct
  */
 type Environment struct {
-	Service       string // http or not http
 	WorkPath      string // working path(abs)
 	AppPath       string // application path
 	ProcName      string // proc name
@@ -34,8 +33,7 @@ type Environment struct {
  */
 func init() { //初始化环境变量,配置信息
 	Env = new(Environment)
-	Env.Service = "daemon" //default is deamon
-	Env.HTTPPort = "80"    //default is 80
+	Env.HTTPPort = "80" //default is 80
 	os.Setenv("GOJI_BIND", ":"+Env.HTTPPort)
 	workPath, _ := os.Getwd()
 	Env.WorkPath, _ = filepath.Abs(workPath)
@@ -116,10 +114,6 @@ func ParseConfig() (err error) {
 		AppConfig = config.NewFakeConfig()
 		return err
 	} else {
-
-		if service := AppConfig.String("Service"); service != "" {
-			Env.Service = strings.ToLower(service)
-		}
 
 		if runmode := AppConfig.String("RunMode"); runmode != "" {
 			Env.RunMode = runmode
