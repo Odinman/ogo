@@ -25,6 +25,7 @@ type Environment struct {
 	DebugLevel    int    // debug level
 	PidFile       string // pidfile abs path
 	Port          string // http port
+	IndentJSON    bool   // indent JSON
 }
 
 /* }}} */
@@ -39,6 +40,7 @@ func init() { //初始化环境变量,配置信息
 	Env.AppPath, _ = filepath.Abs(filepath.Dir(os.Args[0]))
 	Env.ProcName = filepath.Base(os.Args[0])   //程序名字
 	Env.Worker = strings.ToLower(Env.ProcName) //worker默认为procname,小写
+	Env.IndentJSON = false
 
 	//默认配置文件是 conf/{ProcName}.conf
 	Env.AppConfigPath = filepath.Join(Env.AppPath, "conf", Env.ProcName+".conf")
@@ -129,6 +131,9 @@ func ParseConfig() (err error) {
 
 		if daemonize, err := AppConfig.Bool("Daemonize"); err == nil {
 			Env.Daemonize = daemonize
+		}
+		if indentJson, err := AppConfig.Bool("IndentJson"); err == nil {
+			Env.IndentJSON = indentJson
 		}
 		if pidfile := AppConfig.String("PidFile"); pidfile != "" {
 			// make sure pidfile is abs path

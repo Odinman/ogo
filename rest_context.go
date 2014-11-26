@@ -83,7 +83,12 @@ func (hc *RESTContext) RESTHeader(status int) {
 
 func (hc *RESTContext) RESTBody(data interface{}) (err error) {
 
-	content, _ := json.MarshalIndent(data, "", "  ")
+	var content []byte
+	if Env.IndentJSON {
+		content, _ = json.MarshalIndent(data, "", "  ")
+	} else {
+		content, _ = json.Marshal(data)
+	}
 
 	//write data
 	_, err = hc.Response.Write(content)
