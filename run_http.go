@@ -81,8 +81,8 @@ func Run() {
 
 	graceful.HandleSignals()
 	bind.Ready()
-	graceful.PreHook(func() { Debugger.Warn("Received signal, gracefully stopping") })
-	graceful.PostHook(func() { Debugger.Warn("Stopped") })
+	graceful.PreHook(func() { WriteMsg("Received signal, gracefully stopping") })
+	graceful.PostHook(func() { WriteMsg("Stopped") })
 
 	err := graceful.Serve(listener, http.DefaultServeMux)
 

@@ -6,7 +6,7 @@ Odin's go daemon/HTTP framework
 
 * Daemonize, 可在<appname>.conf中用 Daemonize={bool}配置, pidfile默认写到程序目录的run/<appname>.pid
 * DebugLevel配置,<appname>.conf中 DebugLevel={int}配置,数字越高级别越高
-* Support HTTP! 如果在<appname>.conf中配置Service="HTTP"(不限大小写), 则可以编写webserver!
+* Support HTTP! 默认支持http, 编译时候如果开启`-a --tags 'daemon'`, 则是daemon模式
 
 ## Daemon
 * main.go如下:
