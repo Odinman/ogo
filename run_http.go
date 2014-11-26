@@ -77,12 +77,12 @@ func Run() {
 	// socket listen
 	bind.WithFlag()
 	listener := bind.Default()
-	Debugger.Warn("Starting Ogo on", listener.Addr())
+	Debugger.Warn("Starting Ogo on: %s", listener.Addr().String())
 
 	graceful.HandleSignals()
 	bind.Ready()
-	graceful.PreHook(func() { Debugger.Warn("Goji received signal, gracefully stopping") })
-	graceful.PostHook(func() { Debugger.Warn("Goji stopped") })
+	graceful.PreHook(func() { Debugger.Warn("Received signal, gracefully stopping") })
+	graceful.PostHook(func() { Debugger.Warn("Stopped") })
 
 	err := graceful.Serve(listener, http.DefaultServeMux)
 
