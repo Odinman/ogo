@@ -6,10 +6,13 @@ package ogo
  */
 import (
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
 	"runtime"
 
+	"github.com/Odinman/ogo/bind"
+	"github.com/Odinman/ogo/graceful"
 	"github.com/VividCortex/godaemon"
 	"github.com/nightlyone/lockfile"
 	"github.com/zenazn/goji"
@@ -68,7 +71,26 @@ func Run() {
 	goji.Use(Defer)
 	goji.Use(Authentication)
 
+	// in goji appengine mode (tags --appengine)
 	goji.Serve()
+
+	// socket listen
+	bind.WithFlag()
+	listener := bind.Default()
+	Debugger.Warn("Starting Ogo on", listener.Addr())
+
+	graceful.HandleSignals()
+	bind.Ready()
+	graceful.PreHook(func() { Debugger.Warn("Goji received signal, gracefully stopping") })
+	graceful.PostHook(func() { Debugger.Warn("Goji stopped") })
+
+	err := graceful.Serve(listener, http.DefaultServeMux)
+
+	if err != nil {
+		Debugger.Critical(err.Error())
+	}
+
+	graceful.Wait()
 }
 
 /* }}} */

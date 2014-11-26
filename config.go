@@ -24,7 +24,7 @@ type Environment struct {
 	Daemonize     bool   // daemonize or not
 	DebugLevel    int    // debug level
 	PidFile       string // pidfile abs path
-	HTTPPort      string // http port
+	Port          string // http port
 }
 
 /* }}} */
@@ -33,8 +33,7 @@ type Environment struct {
  */
 func init() { //初始化环境变量,配置信息
 	Env = new(Environment)
-	Env.HTTPPort = "80" //default is 80
-	os.Setenv("GOJI_BIND", ":"+Env.HTTPPort)
+	Env.Port = "8001" //default is 8001
 	workPath, _ := os.Getwd()
 	Env.WorkPath, _ = filepath.Abs(workPath)
 	Env.AppPath, _ = filepath.Abs(filepath.Dir(os.Args[0]))
@@ -105,7 +104,7 @@ func init() { //初始化环境变量,配置信息
 
 /* }}} */
 
-/* {{{ type Environment struct
+/* {{{ func ParseConfig() (err error)
  * ParseConfig parsed default config file.
  */
 func ParseConfig() (err error) {
@@ -114,6 +113,11 @@ func ParseConfig() (err error) {
 		AppConfig = config.NewFakeConfig()
 		return err
 	} else {
+
+		if port := AppConfig.String("Port"); port != "" {
+			Env.Port = port
+		}
+		os.Setenv("PORT", Env.Port) // pass to bind
 
 		if runmode := AppConfig.String("RunMode"); runmode != "" {
 			Env.RunMode = runmode
