@@ -6,13 +6,13 @@ package ogo
  */
 import (
 	"fmt"
-	"net/http"
+	//"net/http"
 	"os"
 	"path/filepath"
 	"runtime"
 
-	"github.com/Odinman/ogo/bind"
-	"github.com/Odinman/ogo/graceful"
+	//"github.com/Odinman/ogo/bind"
+	//"github.com/Odinman/ogo/graceful"
 	"github.com/VividCortex/godaemon"
 	"github.com/nightlyone/lockfile"
 	"github.com/zenazn/goji"
@@ -63,7 +63,9 @@ func Run() {
 	Debugger.Debug("will run http server")
 
 	// 废除一些goji默认的middleware
+	//goji.Abandon(middleware.RequestID)
 	goji.Abandon(middleware.Logger)
+	goji.Abandon(middleware.Recoverer)
 	goji.Abandon(middleware.AutomaticOptions)
 
 	//增加自定义的middleware
@@ -75,22 +77,22 @@ func Run() {
 	goji.Serve()
 
 	// socket listen
-	bind.WithFlag()
-	listener := bind.Default()
-	Debugger.Warn("Starting Ogo on: %s", listener.Addr().String())
+	//bind.WithFlag()
+	//listener := bind.Default()
+	//Debugger.Warn("Starting Ogo on: %s", listener.Addr().String())
 
-	graceful.HandleSignals()
-	bind.Ready()
-	graceful.PreHook(func() { WriteMsg("Received signal, gracefully stopping") })
-	graceful.PostHook(func() { WriteMsg("Stopped") })
+	//graceful.HandleSignals()
+	//bind.Ready()
+	//graceful.PreHook(func() { WriteMsg("Received signal, gracefully stopping") })
+	//graceful.PostHook(func() { WriteMsg("Stopped") })
 
-	err := graceful.Serve(listener, http.DefaultServeMux)
+	//err := graceful.Serve(listener, http.DefaultServeMux)
 
-	if err != nil {
-		Debugger.Critical(err.Error())
-	}
+	//if err != nil {
+	//	Debugger.Critical(err.Error())
+	//}
 
-	graceful.Wait()
+	//graceful.Wait()
 }
 
 /* }}} */

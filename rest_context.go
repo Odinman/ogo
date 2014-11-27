@@ -38,15 +38,17 @@ func newContext(c web.C, w http.ResponseWriter, r *http.Request) *RESTContext {
 func getContext(c web.C, w http.ResponseWriter, r *http.Request) *RESTContext {
 	if RESTC == nil {
 		return newContext(c, w, r)
+	} else {
+		RESTC.Context = c //赋值,负责会被空覆盖
 	}
 	return RESTC
 }
 
 //new rest error
-func (hc *RESTContext) NewRESTError(status int, msg interface{}) (re error) {
+func (rc *RESTContext) NewRESTError(status int, msg interface{}) (re error) {
 	errors := make(map[string]string)
-	errors["method"] = hc.Request.Method
-	errors["path"] = hc.Request.URL.Path
+	errors["method"] = rc.Request.Method
+	errors["path"] = rc.Request.URL.Path
 	errors["code"] = fmt.Sprint(status) // 备用, 可存储比httpstatus更详细的错误代码,目前只存httpstatus
 
 	var message string
@@ -64,24 +66,24 @@ func (hc *RESTContext) NewRESTError(status int, msg interface{}) (re error) {
 }
 
 // http error
-func (hc *RESTContext) HTTPError(status int) (err error) {
+func (rc *RESTContext) HTTPError(status int) (err error) {
 
-	hc.RESTHeader(status)
+	rc.RESTHeader(status)
 
 	// write data
-	err = hc.RESTBody(hc.NewRESTError(status, nil))
+	err = rc.RESTBody(rc.NewRESTError(status, nil))
 
 	return
 }
 
-func (hc *RESTContext) RESTHeader(status int) {
+func (rc *RESTContext) RESTHeader(status int) {
 	// Content-Type always json
-	hc.Response.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	rc.Response.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	// header line
-	hc.Response.WriteHeader(status)
+	rc.Response.WriteHeader(status)
 }
 
-func (hc *RESTContext) RESTBody(data interface{}) (err error) {
+func (rc *RESTContext) RESTBody(data interface{}) (err error) {
 
 	var content []byte
 	if Env.IndentJSON {
@@ -91,7 +93,25 @@ func (hc *RESTContext) RESTBody(data interface{}) (err error) {
 	}
 
 	//write data
-	_, err = hc.Response.Write(content)
+	_, err = rc.Response.Write(content)
 
+	return
+}
+
+// rest not found
+func (rc *RESTContext) RESTNotFound(msg interface{}) (err error) {
+	rc.RESTHeader(http.StatusNotFound)
+
+	// write data
+	err = rc.RESTBody(rc.NewRESTError(http.StatusNotFound, msg))
+	return
+}
+
+// rest ok
+func (rc *RESTContext) RESTOK(data interface{}) (err error) {
+	rc.RESTHeader(http.StatusOK)
+
+	// write data
+	err = rc.RESTBody(data)
 	return
 }

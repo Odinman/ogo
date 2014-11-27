@@ -59,6 +59,7 @@ func (ctr *Controller) Init(endpoint string, c ControllerInterface) {
 	ctr.DefaultRoutes(c)
 	if len(ctr.Routes) > 0 {
 		for _, rt := range ctr.Routes {
+			//Debugger.Debug("pattern: %s", rt.Pattern)
 			switch strings.ToLower(rt.Method) {
 			case "get":
 				ctr.RouteGet(rt)
