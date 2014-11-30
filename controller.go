@@ -35,6 +35,7 @@ type ControllerInterface interface {
 	Options(c *RESTContext)
 	Trace(c *RESTContext)
 	NotFound(c *RESTContext)
+	AddRoute(m string, p string, h Handler)
 }
 
 func NewRoute(p string, m string, h Handler) *Route {

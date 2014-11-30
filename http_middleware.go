@@ -3,6 +3,7 @@ package ogo
 import (
 	"net/http"
 	"runtime/debug"
+	"strings"
 	"time"
 
 	"github.com/Odinman/ogo/utils"
@@ -11,6 +12,10 @@ import (
 
 // Key to use when setting the request ID.
 const RequestIDKey = "reqID"
+const OriginalRemoteAddrKey = "originalRemoteAddr"
+
+var xForwardedFor = http.CanonicalHeaderKey("X-Forwarded-For")
+var xRealIP = http.CanonicalHeaderKey("X-Real-IP")
 
 //初始化环境
 func EnvInit(c *web.C, h http.Handler) http.Handler {
@@ -25,6 +30,34 @@ func EnvInit(c *web.C, h http.Handler) http.Handler {
 		RESTC = newContext(*c, lw, r)
 
 		t1 := time.Now()
+
+		// 解析参数
+		r.ParseForm()
+
+		// env
+		if c.Env == nil {
+			c.Env = make(map[string]interface{})
+		}
+		pathPieces := strings.Split(r.URL.Path, "/")
+		for off, piece := range pathPieces {
+			if piece != "" {
+				if off == 1 {
+					c.Env["_endpoint"] = piece
+				}
+				if off == 2 && piece[0] != '@' { //@开头是selector
+					c.Env["_rowkey"] = piece
+				}
+				if off > 1 && piece[0] == '@' {
+					c.Env["_selector"] = piece
+				}
+			}
+		}
+		// real ip(处理在代理服务器之后的情况)
+		if rip := realIP(r); rip != "" {
+			c.Env[OriginalRemoteAddrKey] = r.RemoteAddr
+			r.RemoteAddr = rip
+		}
+
 		h.ServeHTTP(lw, r)
 
 		if lw.Status() == 0 {
@@ -89,4 +122,20 @@ func GetReqID(c web.C) string {
 		return reqID
 	}
 	return ""
+}
+
+func realIP(r *http.Request) string {
+	var ip string
+
+	if xff := r.Header.Get(xForwardedFor); xff != "" {
+		i := strings.Index(xff, ", ")
+		if i == -1 {
+			i = len(xff)
+		}
+		ip = xff[:i]
+	} else if xrip := r.Header.Get(xRealIP); xrip != "" {
+		ip = xrip
+	}
+
+	return ip
 }

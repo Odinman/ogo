@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/zenazn/goji/web"
 )
@@ -107,6 +108,14 @@ func (rc *RESTContext) RESTNotFound(msg interface{}) (err error) {
 	return
 }
 
+func (rc *RESTContext) RESTPanic(msg interface{}) (err error) {
+	rc.RESTHeader(http.StatusInternalServerError)
+
+	// write data
+	err = rc.RESTBody(rc.NewRESTError(http.StatusInternalServerError, msg))
+	return
+}
+
 // rest ok
 func (rc *RESTContext) RESTOK(data interface{}) (err error) {
 	rc.RESTHeader(http.StatusOK)
@@ -114,4 +123,15 @@ func (rc *RESTContext) RESTOK(data interface{}) (err error) {
 	// write data
 	err = rc.RESTBody(data)
 	return
+}
+
+/* {{{ getQueryParam
+ */
+func (rc *RESTContext) GetQueryParam(key string) string {
+	v := rc.Request.Form[key]
+	if len(v) == 1 {
+		return string(v[0])
+	} else {
+		return string(strings.Join(v, ","))
+	}
 }
