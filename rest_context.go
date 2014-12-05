@@ -9,13 +9,32 @@ import (
 	"github.com/zenazn/goji/web"
 )
 
-var RESTC *RESTContext
+var (
+	RESTC   *RESTContext
+	SUCCODE = map[string]int{
+		"get":    http.StatusOK,
+		"delete": http.StatusNoContent,
+		"put":    http.StatusCreated,
+		"post":   http.StatusCreated,
+		"patch":  http.StatusResetContent,
+		"head":   http.StatusOK,
+	}
+	FAILCODE = map[string]int{ //定义正常出错
+		"get":    http.StatusNotFound,
+		"delete": http.StatusNotAcceptable,
+		"put":    http.StatusNotAcceptable,
+		"post":   http.StatusConflict, //冲突
+		"patch":  http.StatusNotAcceptable,
+		"head":   http.StatusConflict,
+	}
+)
 
 // http context, 封装第三方包goji
 type RESTContext struct {
-	Context  web.C
-	Response http.ResponseWriter
-	Request  *http.Request
+	Context     web.C
+	Response    http.ResponseWriter
+	Request     *http.Request
+	RequestBody []byte
 }
 
 type RESTError struct {
@@ -99,33 +118,90 @@ func (rc *RESTContext) RESTBody(data interface{}) (err error) {
 	return
 }
 
-// rest not found
-func (rc *RESTContext) RESTNotFound(msg interface{}) (err error) {
-	rc.RESTHeader(http.StatusNotFound)
-
-	// write data
-	err = rc.RESTBody(rc.NewRESTError(http.StatusNotFound, msg))
-	return
-}
-
-func (rc *RESTContext) RESTPanic(msg interface{}) (err error) {
-	rc.RESTHeader(http.StatusInternalServerError)
-
-	// write data
-	err = rc.RESTBody(rc.NewRESTError(http.StatusInternalServerError, msg))
-	return
-}
-
-// rest ok
+/* {{{ func (rc *RESTContext) RESTOK(data interface{}) (err error)
+ * 属于request的错误
+ */
 func (rc *RESTContext) RESTOK(data interface{}) (err error) {
-	rc.RESTHeader(http.StatusOK)
+	var status int
+	method := strings.ToLower(rc.Request.Method)
+	if _, ok := SUCCODE[method]; !ok {
+		status = http.StatusOK //默认都是StatusOK
+	} else {
+		status = SUCCODE[method]
+	}
+	rc.RESTHeader(status)
 
 	// write data
-	err = rc.RESTBody(data)
+	if data != nil {
+		err = rc.RESTBody(data)
+	}
 	return
 }
 
-/* {{{ getQueryParam
+/* }}} */
+
+/* {{{ func (rc *RESTContext) RESTNotOK(msg interface{}) (err error)
+ * 属于request的错误
+ */
+func (rc *RESTContext) RESTNotOK(msg interface{}) (err error) {
+	var status int
+	method := strings.ToLower(rc.Request.Method)
+	if _, ok := FAILCODE[method]; !ok {
+		status = http.StatusOK //默认都是StatusOK
+	} else {
+		status = FAILCODE[method]
+	}
+	rc.RESTHeader(status)
+
+	// write data
+	if msg != nil {
+		err = rc.RESTBody(rc.NewRESTError(status, msg))
+	}
+	return
+}
+
+/* }}} */
+
+/* {{{ RESTGenericError
+ * 普通错误,就是没有抓到error时报的错
+ */
+func (rc *RESTContext) RESTGenericError(status int, msg interface{}) (err error) {
+	rc.RESTHeader(status)
+	// write data
+	err = rc.RESTBody(rc.NewRESTError(status, msg))
+	return
+}
+
+/* }}} */
+
+/* {{{ RESTNotFound
+ *
+ */
+func (rc *RESTContext) RESTNotFound(msg interface{}) (err error) {
+	return rc.RESTGenericError(http.StatusNotFound, msg)
+}
+
+/* }}} */
+
+/* {{{ RESTPanic
+ *
+ */
+func (rc *RESTContext) RESTPanic(msg interface{}) (err error) {
+	return rc.RESTGenericError(http.StatusInternalServerError, msg)
+}
+
+/* }}} */
+
+/* {{{ (rc *RESTContext) RESTBadRequest(msg interface{}) (err error)
+ * BadRequest
+ */
+func (rc *RESTContext) RESTBadRequest(msg interface{}) (err error) {
+	return rc.RESTGenericError(http.StatusBadRequest, msg)
+}
+
+/* }}} */
+
+/* {{{ func (rc *RESTContext) GetQueryParam(key string) string
  */
 func (rc *RESTContext) GetQueryParam(key string) string {
 	v := rc.Request.Form[key]
@@ -135,3 +211,5 @@ func (rc *RESTContext) GetQueryParam(key string) string {
 		return string(strings.Join(v, ","))
 	}
 }
+
+/* }}} */

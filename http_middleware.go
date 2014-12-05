@@ -1,6 +1,8 @@
 package ogo
 
 import (
+	"bytes"
+	"io/ioutil"
 	"net/http"
 	"runtime/debug"
 	"strings"
@@ -22,6 +24,7 @@ func EnvInit(c *web.C, h http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
 		reqID := GetReqID(*c)
 
+		t1 := time.Now()
 		Debugger.Debug("[%s][url: %s] started", reqID, r.URL.Path)
 
 		lw := utils.WrapWriter(w)
@@ -29,7 +32,14 @@ func EnvInit(c *web.C, h http.Handler) http.Handler {
 		//new rest context
 		RESTC = newContext(*c, lw, r)
 
-		t1 := time.Now()
+		//request body
+		//if CopyRequestBody && r.Method != "GET" && r.Method != "HEAD" && r.Method!= "DELETE"{
+		if r.Method != "GET" && r.Method != "HEAD" && r.Method != "DELETE" {
+			RESTC.RequestBody, _ = ioutil.ReadAll(r.Body)
+			defer r.Body.Close()
+			bf := bytes.NewBuffer(RESTC.RequestBody)
+			r.Body = ioutil.NopCloser(bf)
+		}
 
 		// 解析参数
 		r.ParseForm()
