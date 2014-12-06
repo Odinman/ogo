@@ -118,6 +118,32 @@ func Authentication(c *web.C, h http.Handler) http.Handler {
 	return http.HandlerFunc(fn)
 }
 
+/* {{{ func RunHooks(c *web.C, h http.Handler) http.Handler
+ * 处理钩子函数
+ */
+func RunHooks(c *web.C, h http.Handler) http.Handler {
+	fn := func(w http.ResponseWriter, r *http.Request) {
+
+		if hl := len(Hooks.preHooks); hl > 0 {
+			for i := 0; i < hl; i++ {
+				Hooks.preHooks[i](getContext(*c, w, r))
+			}
+		}
+
+		h.ServeHTTP(w, r)
+
+		if hl := len(Hooks.postHooks); hl > 0 {
+			for i := 0; i < hl; i++ {
+				Hooks.postHooks[i](getContext(*c, w, r))
+			}
+		}
+	}
+
+	return http.HandlerFunc(fn)
+}
+
+/* }}} */
+
 // GetReqID returns a request ID from the given context if one is present.
 // Returns the empty string if a request ID cannot be found.
 func GetReqID(c web.C) string {

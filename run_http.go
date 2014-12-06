@@ -21,6 +21,21 @@ import (
 
 /* }}} */
 
+func init() {
+	// 废除一些goji默认的middleware
+	//goji.Abandon(middleware.RequestID)
+	goji.Abandon(middleware.Logger)
+	goji.Abandon(middleware.Recoverer)
+	goji.Abandon(middleware.AutomaticOptions)
+
+	//增加自定义的middleware
+	goji.Use(EnvInit)
+	goji.Use(Defer)
+	goji.Use(Authentication)
+	goji.Use(RunHooks)
+
+}
+
 /* {{{ func Run()
  * Run ogo application.
  */
@@ -61,17 +76,6 @@ func Run() {
 	}
 
 	Debugger.Debug("will run http server")
-
-	// 废除一些goji默认的middleware
-	//goji.Abandon(middleware.RequestID)
-	goji.Abandon(middleware.Logger)
-	goji.Abandon(middleware.Recoverer)
-	goji.Abandon(middleware.AutomaticOptions)
-
-	//增加自定义的middleware
-	goji.Use(EnvInit)
-	goji.Use(Defer)
-	goji.Use(Authentication)
 
 	// in goji appengine mode (tags --appengine)
 	goji.Serve()

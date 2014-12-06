@@ -23,7 +23,7 @@ var (
 		"get":    http.StatusNotFound,
 		"delete": http.StatusNotAcceptable,
 		"put":    http.StatusNotAcceptable,
-		"post":   http.StatusConflict, //冲突
+		"post":   http.StatusNotAcceptable, //冲突
 		"patch":  http.StatusNotAcceptable,
 		"head":   http.StatusConflict,
 	}
@@ -59,7 +59,7 @@ func getContext(c web.C, w http.ResponseWriter, r *http.Request) *RESTContext {
 	if RESTC == nil {
 		return newContext(c, w, r)
 	} else {
-		RESTC.Context = c //赋值,负责会被空覆盖
+		RESTC.Context = c //赋值,否则会被空覆盖
 	}
 	return RESTC
 }
@@ -209,6 +209,17 @@ func (rc *RESTContext) GetQueryParam(key string) string {
 		return string(v[0])
 	} else {
 		return string(strings.Join(v, ","))
+	}
+}
+
+/* }}} */
+
+/* {{{ func (rc *RESTContext) GetQueryParam(key string)
+ *
+ */
+func (rc *RESTContext) SetEnv(key, value string) {
+	if key != "" {
+		rc.Context.Env[key] = value
 	}
 }
 
