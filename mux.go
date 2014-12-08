@@ -17,8 +17,8 @@ import (
  */
 type Mux struct {
 	Env     *Environment           //环境参数
-	Cfg     config.ConfigContainer //配置信息
-	Logger  *logs.OLogger          //日志记录
+	cfg     config.ConfigContainer //配置信息
+	logger  *logs.OLogger          //日志记录
 	Workers map[string]*Worker
 	Routes  map[string]*Route
 	Hooks   HStack
@@ -65,6 +65,24 @@ func (mux *Mux) PostHook(hook OgoHook) {
 func (mux *Mux) NewController(c ControllerInterface) ControllerInterface {
 	c.SetMux(mux)
 	return c
+}
+
+/* }}} */
+
+/* {{{ func (mux *Mux) Config() config.ConfigContainer
+ *
+ */
+func (mux *Mux) Config() config.ConfigContainer {
+	return mux.cfg
+}
+
+/* }}} */
+
+/* {{{ func (mux *Mux) Logger() config.LoggerContainer
+ *
+ */
+func (mux *Mux) Logger() *logs.OLogger {
+	return mux.logger
 }
 
 /* }}} */

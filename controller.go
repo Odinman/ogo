@@ -4,8 +4,10 @@ package ogo
 
 import (
 	//"fmt"
+	"bytes"
 	"github.com/zenazn/goji"
 	"github.com/zenazn/goji/web"
+	"io/ioutil"
 	"net/http"
 	"strings"
 )
@@ -33,7 +35,7 @@ type Controller struct {
 }
 
 type ControllerInterface interface {
-	//Init(endpoint string, c ControllerInterface)
+	Init(endpoint string, c ControllerInterface)
 	SetMux(mux *Mux)
 	Get(c *RESTContext)
 	Post(c *RESTContext)
@@ -71,9 +73,39 @@ func NewRoute(p string, m string, h Handler, options ...bool) *Route {
 }
 
 // 封装
-func handlerWrap(f Handler) web.HandlerFunc { //这里封装了webC到本地的结构中
+//func handlerWrap(f Handler) web.HandlerFunc { //这里封装了webC到本地的结构中
+func handlerWrap(rt *Route) web.HandlerFunc { //这里封装了webC到本地的结构中
 	fn := func(c web.C, w http.ResponseWriter, r *http.Request) {
-		f(getContext(c, w, r))
+		// build newest RESTContext
+		rc := newContext(c, w, r)
+
+		//route
+		rc.Route = rt
+
+		//request body
+		if r.Method != "GET" && r.Method != "HEAD" && r.Method != "DELETE" {
+			rc.RequestBody, _ = ioutil.ReadAll(r.Body)
+			defer r.Body.Close()
+			bf := bytes.NewBuffer(rc.RequestBody)
+			r.Body = ioutil.NopCloser(bf)
+		}
+
+		// pre hooks
+		if hl := len(DMux.Hooks.preHooks); hl > 0 {
+			for i := 0; i < hl; i++ {
+				DMux.Hooks.preHooks[i](rc)
+			}
+		}
+
+		// 执行业务handler
+		rt.Handler(rc)
+
+		// post hooks
+		if hl := len(DMux.Hooks.postHooks); hl > 0 {
+			for i := 0; i < hl; i++ {
+				DMux.Hooks.postHooks[i](rc)
+			}
+		}
 	}
 	return fn
 }
@@ -116,7 +148,10 @@ func (ctr *Controller) Init(endpoint string, c ControllerInterface) {
 		}
 	}
 	// not found
-	ctr.RouteNotFound(c.NotFound)
+	notFoundRoute := &Route{
+		Handler: c.NotFound,
+	}
+	ctr.RouteNotFound(notFoundRoute)
 }
 
 func (ctr *Controller) Get(c *RESTContext) {
@@ -234,29 +269,29 @@ func (ctr *Controller) DefaultRoutes(c ControllerInterface) {
 }
 
 func (ctr *Controller) RouteGet(rt *Route) {
-	goji.Get(rt.Pattern, handlerWrap(rt.Handler))
+	goji.Get(rt.Pattern, handlerWrap(rt))
 }
 
 func (ctr *Controller) RoutePost(rt *Route) {
-	goji.Post(rt.Pattern, handlerWrap(rt.Handler))
+	goji.Post(rt.Pattern, handlerWrap(rt))
 }
 
 func (ctr *Controller) RoutePut(rt *Route) {
-	goji.Put(rt.Pattern, handlerWrap(rt.Handler))
+	goji.Put(rt.Pattern, handlerWrap(rt))
 }
 
 func (ctr *Controller) RouteDelete(rt *Route) {
-	goji.Delete(rt.Pattern, handlerWrap(rt.Handler))
+	goji.Delete(rt.Pattern, handlerWrap(rt))
 }
 
 func (ctr *Controller) RoutePatch(rt *Route) {
-	goji.Patch(rt.Pattern, handlerWrap(rt.Handler))
+	goji.Patch(rt.Pattern, handlerWrap(rt))
 }
 
 func (ctr *Controller) RouteHead(rt *Route) {
-	goji.Head(rt.Pattern, handlerWrap(rt.Handler))
+	goji.Head(rt.Pattern, handlerWrap(rt))
 }
 
-func (ctr *Controller) RouteNotFound(h Handler) {
-	goji.NotFound(handlerWrap(h))
+func (ctr *Controller) RouteNotFound(rt *Route) {
+	goji.NotFound(handlerWrap(rt))
 }

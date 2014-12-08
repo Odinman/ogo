@@ -108,8 +108,8 @@ func init() {
 		Log("Warn", "%v", configErr)
 	}
 
-	DMux.Cfg = appConfig
-	DMux.Logger = debugger
+	DMux.cfg = appConfig
+	DMux.logger = debugger
 }
 
 /* }}} */

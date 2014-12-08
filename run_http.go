@@ -32,7 +32,6 @@ func init() {
 	goji.Use(EnvInit)
 	goji.Use(Defer)
 	goji.Use(Authentication)
-	goji.Use(RunHooks)
 
 }
 

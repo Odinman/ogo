@@ -10,7 +10,6 @@ import (
 )
 
 var (
-	RESTC   *RESTContext
 	SUCCODE = map[string]int{
 		"get":    http.StatusOK,
 		"delete": http.StatusNoContent,
@@ -31,10 +30,11 @@ var (
 
 // http context, 封装第三方包goji
 type RESTContext struct {
-	Context     web.C
+	web.C
 	Response    http.ResponseWriter
 	Request     *http.Request
 	RequestBody []byte
+	Route       *Route
 }
 
 type RESTError struct {
@@ -51,24 +51,10 @@ func (re *RESTError) Error() string { return re.Massage }
  */
 func newContext(c web.C, w http.ResponseWriter, r *http.Request) *RESTContext {
 	return &RESTContext{
-		Context:  c,
+		C:        c,
 		Response: w,
 		Request:  r,
 	}
-}
-
-/* }}} */
-
-/* {{{ func getContext(c web.C, w http.ResponseWriter, r *http.Request) *RESTContext
- *
- */
-func getContext(c web.C, w http.ResponseWriter, r *http.Request) *RESTContext {
-	if RESTC == nil {
-		return newContext(c, w, r)
-	} else {
-		RESTC.Context = c //赋值,否则会被空覆盖
-	}
-	return RESTC
 }
 
 /* }}} */
@@ -246,7 +232,7 @@ func (rc *RESTContext) GetQueryParam(key string) string {
  */
 func (rc *RESTContext) SetEnv(key, value string) {
 	if key != "" {
-		rc.Context.Env[key] = value
+		rc.Env[key] = value
 	}
 }
 

@@ -1,8 +1,6 @@
 package ogo
 
 import (
-	"bytes"
-	"io/ioutil"
 	"net/http"
 	"runtime/debug"
 	"strings"
@@ -28,18 +26,6 @@ func EnvInit(c *web.C, h http.Handler) http.Handler {
 		Debug("[%s][url: %s] started", reqID, r.URL.Path)
 
 		lw := utils.WrapWriter(w)
-
-		//new rest context
-		RESTC = newContext(*c, lw, r)
-
-		//request body
-		//if CopyRequestBody && r.Method != "GET" && r.Method != "HEAD" && r.Method!= "DELETE"{
-		if r.Method != "GET" && r.Method != "HEAD" && r.Method != "DELETE" {
-			RESTC.RequestBody, _ = ioutil.ReadAll(r.Body)
-			defer r.Body.Close()
-			bf := bytes.NewBuffer(RESTC.RequestBody)
-			r.Body = ioutil.NopCloser(bf)
-		}
 
 		// 解析参数
 		r.ParseForm()
@@ -90,13 +76,14 @@ func Defer(c *web.C, h http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
 		reqID := GetReqID(*c)
 
+		rc := newContext(*c, w, r)
 		defer func() {
 			if err := recover(); err != nil {
 				//printPanic(reqID, err)
 				Critical("[%s][url: %s] %v", reqID, r.URL.Path, err)
 				debug.PrintStack()
 				//http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-				RESTC.HTTPError(http.StatusInternalServerError)
+				rc.HTTPError(http.StatusInternalServerError)
 			}
 
 			// save access log here
@@ -117,32 +104,6 @@ func Authentication(c *web.C, h http.Handler) http.Handler {
 
 	return http.HandlerFunc(fn)
 }
-
-/* {{{ func RunHooks(c *web.C, h http.Handler) http.Handler
- * 处理钩子函数
- */
-func RunHooks(c *web.C, h http.Handler) http.Handler {
-	fn := func(w http.ResponseWriter, r *http.Request) {
-
-		if hl := len(DMux.Hooks.preHooks); hl > 0 {
-			for i := 0; i < hl; i++ {
-				DMux.Hooks.preHooks[i](getContext(*c, w, r))
-			}
-		}
-
-		h.ServeHTTP(w, r)
-
-		if hl := len(DMux.Hooks.postHooks); hl > 0 {
-			for i := 0; i < hl; i++ {
-				DMux.Hooks.postHooks[i](getContext(*c, w, r))
-			}
-		}
-	}
-
-	return http.HandlerFunc(fn)
-}
-
-/* }}} */
 
 // GetReqID returns a request ID from the given context if one is present.
 // Returns the empty string if a request ID cannot be found.
