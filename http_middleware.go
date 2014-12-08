@@ -27,9 +27,6 @@ func EnvInit(c *web.C, h http.Handler) http.Handler {
 
 		lw := utils.WrapWriter(w)
 
-		// 解析参数
-		r.ParseForm()
-
 		// env
 		if c.Env == nil {
 			c.Env = make(map[string]interface{})
@@ -88,16 +85,6 @@ func Defer(c *web.C, h http.Handler) http.Handler {
 
 			// save access log here
 		}()
-
-		h.ServeHTTP(w, r)
-	}
-
-	return http.HandlerFunc(fn)
-}
-
-//Authentication
-func Authentication(c *web.C, h http.Handler) http.Handler {
-	fn := func(w http.ResponseWriter, r *http.Request) {
 
 		h.ServeHTTP(w, r)
 	}

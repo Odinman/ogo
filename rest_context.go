@@ -197,10 +197,27 @@ func (rc *RESTContext) RESTNotFound(msg interface{}) (err error) {
 /* }}} */
 
 /* {{{ func (rc *RESTContext) RESTPanic(msg interface{}) (err error)
- *
+ * 内部错误
  */
 func (rc *RESTContext) RESTPanic(msg interface{}) (err error) {
 	return rc.RESTGenericError(http.StatusInternalServerError, msg)
+}
+
+/* }}} */
+
+/* {{{ func (rc *RESTContext) RESTError(msg interface{}) (err error)
+ * 内部错误
+ */
+func (rc *RESTContext) RESTError(err error) error {
+	if re, ok := err.(*RESTError); ok {
+		// 标准错误,直接输出
+		rc.RESTHeader(re.status)
+		return rc.RESTBody(re)
+	} else {
+		//普通错误, 普通输入
+		rc.RESTNotOK(err)
+	}
+	return nil
 }
 
 /* }}} */
@@ -227,13 +244,26 @@ func (rc *RESTContext) GetQueryParam(key string) string {
 
 /* }}} */
 
-/* {{{ func (rc *RESTContext) GetQueryParam(key string)
- *
+/* {{{ func (rc *RESTContext) SetEnv(k string, v interface{})
+ * 设置环境变量
  */
-func (rc *RESTContext) SetEnv(key, value string) {
-	if key != "" {
-		rc.Env[key] = value
+func (rc *RESTContext) SetEnv(k string, v interface{}) {
+	if k != "" {
+		rc.Env[k] = v
 	}
+}
+
+/* }}} */
+
+/* {{{ func (rc *RESTContext) GetEnv(k string) (v interface{})
+ * 设置环境变量
+ */
+func (rc *RESTContext) GetEnv(k string) (v interface{}) {
+	var ok bool
+	if v, ok = rc.Env[k]; ok {
+		return v
+	}
+	return nil
 }
 
 /* }}} */

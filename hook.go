@@ -3,7 +3,7 @@ package ogo
 
 import ()
 
-type OgoHook func(c *RESTContext)
+type OgoHook func(c *RESTContext) error
 
 type HStack struct {
 	preHooks  []OgoHook
