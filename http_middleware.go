@@ -25,7 +25,7 @@ func EnvInit(c *web.C, h http.Handler) http.Handler {
 		reqID := GetReqID(*c)
 
 		t1 := time.Now()
-		Debugger.Debug("[%s][url: %s] started", reqID, r.URL.Path)
+		Debug("[%s][url: %s] started", reqID, r.URL.Path)
 
 		lw := utils.WrapWriter(w)
 
@@ -75,7 +75,7 @@ func EnvInit(c *web.C, h http.Handler) http.Handler {
 		}
 		t2 := time.Now()
 
-		Debugger.Debug("[%s][url: %s] end:%d in %s", reqID, r.URL.Path, lw.Status(), t2.Sub(t1))
+		Debug("[%s][url: %s] end:%d in %s", reqID, r.URL.Path, lw.Status(), t2.Sub(t1))
 	}
 
 	return http.HandlerFunc(fn)
@@ -93,7 +93,7 @@ func Defer(c *web.C, h http.Handler) http.Handler {
 		defer func() {
 			if err := recover(); err != nil {
 				//printPanic(reqID, err)
-				Debugger.Critical("[%s][url: %s] %v", reqID, r.URL.Path, err)
+				Critical("[%s][url: %s] %v", reqID, r.URL.Path, err)
 				debug.PrintStack()
 				//http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 				RESTC.HTTPError(http.StatusInternalServerError)
@@ -124,17 +124,17 @@ func Authentication(c *web.C, h http.Handler) http.Handler {
 func RunHooks(c *web.C, h http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
 
-		if hl := len(Hooks.preHooks); hl > 0 {
+		if hl := len(DMux.Hooks.preHooks); hl > 0 {
 			for i := 0; i < hl; i++ {
-				Hooks.preHooks[i](getContext(*c, w, r))
+				DMux.Hooks.preHooks[i](getContext(*c, w, r))
 			}
 		}
 
 		h.ServeHTTP(w, r)
 
-		if hl := len(Hooks.postHooks); hl > 0 {
+		if hl := len(DMux.Hooks.postHooks); hl > 0 {
 			for i := 0; i < hl; i++ {
-				Hooks.postHooks[i](getContext(*c, w, r))
+				DMux.Hooks.postHooks[i](getContext(*c, w, r))
 			}
 		}
 	}

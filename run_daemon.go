@@ -21,10 +21,10 @@ import (
 
 /* }}} */
 
-/* {{{ func Run()
+/* {{{ func (mux *Mux) Run()
  * Run ogo application.
  */
-func Run() {
+func (mux *Mux) Run() {
 	defer func() {
 		if err := recover(); err != nil {
 			WriteMsg("App crashed with error:", err)
@@ -39,11 +39,11 @@ func Run() {
 			fmt.Println("App crashed with error:", err)
 		}
 	}()
-	if Env.Daemonize {
+	if env.Daemonize {
 		godaemon.MakeDaemon(&godaemon.DaemonAttr{})
 	}
 	//check&write pidfile, added by odin
-	dir := filepath.Dir(Env.PidFile)
+	dir := filepath.Dir(env.PidFile)
 	if _, err := os.Stat(dir); err != nil {
 		if os.IsNotExist(err) {
 			//mkdir
@@ -52,7 +52,7 @@ func Run() {
 			}
 		}
 	}
-	if l, err := lockfile.New(Env.PidFile); err == nil {
+	if l, err := lockfile.New(env.PidFile); err == nil {
 		if le := l.TryLock(); le != nil {
 			panic(le)
 		}
@@ -62,8 +62,8 @@ func Run() {
 
 	var mainErr error
 
-	Debugger.Debug("will run worker: %v", Env.Worker)
-	if worker, ok := Ctx.Workers[Env.Worker]; ok {
+	Debug("will run worker: %v", env.Worker)
+	if worker, ok := DMux.Workers[env.Worker]; ok {
 		vw := reflect.New(worker.WorkerType)
 		execWorker, ok := vw.Interface().(WorkerInterface)
 		if !ok {
@@ -71,12 +71,12 @@ func Run() {
 		}
 
 		//Init
-		execWorker.Init(Ctx, Env.Worker)
+		execWorker.Init(DMux, env.Worker)
 
 		//Main
 		mainErr = execWorker.Main()
 	} else {
-		mainErr = errors.New("not found worker: " + Env.Worker)
+		mainErr = errors.New("not found worker: " + env.Worker)
 	}
 
 	if mainErr != nil {

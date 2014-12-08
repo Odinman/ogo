@@ -46,7 +46,9 @@ type RESTError struct {
 // implement error interface
 func (re *RESTError) Error() string { return re.Massage }
 
-// new context
+/* {{{ func newContext(c web.C, w http.ResponseWriter, r *http.Request) *RESTContext
+ *
+ */
 func newContext(c web.C, w http.ResponseWriter, r *http.Request) *RESTContext {
 	return &RESTContext{
 		Context:  c,
@@ -55,6 +57,11 @@ func newContext(c web.C, w http.ResponseWriter, r *http.Request) *RESTContext {
 	}
 }
 
+/* }}} */
+
+/* {{{ func getContext(c web.C, w http.ResponseWriter, r *http.Request) *RESTContext
+ *
+ */
 func getContext(c web.C, w http.ResponseWriter, r *http.Request) *RESTContext {
 	if RESTC == nil {
 		return newContext(c, w, r)
@@ -64,7 +71,11 @@ func getContext(c web.C, w http.ResponseWriter, r *http.Request) *RESTContext {
 	return RESTC
 }
 
-//new rest error
+/* }}} */
+
+/* {{{ func (rc *RESTContext) NewRESTError(status int, msg interface{}) (re error)
+ *
+ */
 func (rc *RESTContext) NewRESTError(status int, msg interface{}) (re error) {
 	errors := make(map[string]string)
 	errors["method"] = rc.Request.Method
@@ -85,7 +96,11 @@ func (rc *RESTContext) NewRESTError(status int, msg interface{}) (re error) {
 	return
 }
 
-// http error
+/* }}} */
+
+/* {{{ func (rc *RESTContext) HTTPError(status int) (err error)
+ *
+ */
 func (rc *RESTContext) HTTPError(status int) (err error) {
 
 	rc.RESTHeader(status)
@@ -96,6 +111,11 @@ func (rc *RESTContext) HTTPError(status int) (err error) {
 	return
 }
 
+/* }}} */
+
+/* {{{ func (rc *RESTContext) RESTHeader(status int)
+ *
+ */
 func (rc *RESTContext) RESTHeader(status int) {
 	// Content-Type always json
 	rc.Response.Header().Set("Content-Type", "application/json; charset=UTF-8")
@@ -103,10 +123,15 @@ func (rc *RESTContext) RESTHeader(status int) {
 	rc.Response.WriteHeader(status)
 }
 
+/* }}} */
+
+/* {{{ func (rc *RESTContext) RESTBody(data interface{}) (err error)
+ *
+ */
 func (rc *RESTContext) RESTBody(data interface{}) (err error) {
 
 	var content []byte
-	if Env.IndentJSON {
+	if env.IndentJSON {
 		content, _ = json.MarshalIndent(data, "", "  ")
 	} else {
 		content, _ = json.Marshal(data)
@@ -117,6 +142,8 @@ func (rc *RESTContext) RESTBody(data interface{}) (err error) {
 
 	return
 }
+
+/* }}} */
 
 /* {{{ func (rc *RESTContext) RESTOK(data interface{}) (err error)
  * 属于request的错误
@@ -162,7 +189,7 @@ func (rc *RESTContext) RESTNotOK(msg interface{}) (err error) {
 
 /* }}} */
 
-/* {{{ RESTGenericError
+/* {{{ func (rc *RESTContext) RESTGenericError(status int, msg interface{}) (err error)
  * 普通错误,就是没有抓到error时报的错
  */
 func (rc *RESTContext) RESTGenericError(status int, msg interface{}) (err error) {
@@ -174,7 +201,7 @@ func (rc *RESTContext) RESTGenericError(status int, msg interface{}) (err error)
 
 /* }}} */
 
-/* {{{ RESTNotFound
+/* {{{ func (rc *RESTContext) RESTNotFound(msg interface{}) (err error)
  *
  */
 func (rc *RESTContext) RESTNotFound(msg interface{}) (err error) {
@@ -183,7 +210,7 @@ func (rc *RESTContext) RESTNotFound(msg interface{}) (err error) {
 
 /* }}} */
 
-/* {{{ RESTPanic
+/* {{{ func (rc *RESTContext) RESTPanic(msg interface{}) (err error)
  *
  */
 func (rc *RESTContext) RESTPanic(msg interface{}) (err error) {
@@ -192,7 +219,7 @@ func (rc *RESTContext) RESTPanic(msg interface{}) (err error) {
 
 /* }}} */
 
-/* {{{ (rc *RESTContext) RESTBadRequest(msg interface{}) (err error)
+/* {{{ func (rc *RESTContext) RESTBadRequest(msg interface{}) (err error)
  * BadRequest
  */
 func (rc *RESTContext) RESTBadRequest(msg interface{}) (err error) {

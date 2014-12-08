@@ -10,22 +10,31 @@ import (
 	"strings"
 )
 
+const (
+	_OPS_SKIPAUTH = iota
+	_OPS_SKIPLOGIN
+)
+
 type Handler func(c *RESTContext)
 
 type Route struct {
-	Pattern string
-	Method  string
-	Handler Handler
+	Pattern   string
+	Method    string
+	Handler   Handler
+	SkipAuth  bool //是否忽略鉴权(默认需要)
+	SkipLogin bool //是否忽略登录
 }
 
 type Controller struct {
 	Endpoint string
 	Routes   map[string]*Route
 	ReqCount int //访问计数
+	Mux      *Mux
 }
 
 type ControllerInterface interface {
 	//Init(endpoint string, c ControllerInterface)
+	SetMux(mux *Mux)
 	Get(c *RESTContext)
 	Post(c *RESTContext)
 	Put(c *RESTContext)
@@ -35,15 +44,30 @@ type ControllerInterface interface {
 	Options(c *RESTContext)
 	Trace(c *RESTContext)
 	NotFound(c *RESTContext)
-	AddRoute(m string, p string, h Handler)
+	AddRoute(m string, p string, h Handler, options ...bool)
 }
 
-func NewRoute(p string, m string, h Handler) *Route {
-	return &Route{
+func NewRoute(p string, m string, h Handler, options ...bool) *Route {
+	r := &Route{
 		Pattern: p,
 		Method:  m,
 		Handler: h,
 	}
+
+	if len(options) > 0 {
+		for offset, option := range options {
+			switch offset {
+			case _OPS_SKIPAUTH:
+				r.SkipAuth = option
+			case _OPS_SKIPLOGIN:
+				r.SkipLogin = option
+			default:
+				// nothing to do
+			}
+		}
+	}
+
+	return r
 }
 
 // 封装
@@ -54,14 +78,25 @@ func handlerWrap(f Handler) web.HandlerFunc { //这里封装了webC到本地的�
 	return fn
 }
 
+/* {{{ func (ctr *Controller) SetMux(mux *Mux)
+ *
+ */
+func (ctr *Controller) SetMux(mux *Mux) {
+	ctr.Mux = mux
+}
+
+/* }}} */
+
 func (ctr *Controller) Init(endpoint string, c ControllerInterface) {
 	ctr.Endpoint = endpoint
 	//ctr.Routes = make(map[string]*Route)
 	//默认路由
 	ctr.DefaultRoutes(c)
 	if len(ctr.Routes) > 0 {
-		for _, rt := range ctr.Routes {
-			//Debugger.Debug("pattern: %s", rt.Pattern)
+		for key, rt := range ctr.Routes {
+			//Debug("pattern: %s", rt.Pattern)
+			// regist routes to Mux
+			ctr.Mux.Routes[key] = rt
 			switch strings.ToLower(rt.Method) {
 			case "get":
 				ctr.RouteGet(rt)
@@ -112,7 +147,7 @@ func (ctr *Controller) NotFound(c *RESTContext) {
 	c.HTTPError(http.StatusNotFound)
 }
 
-func (ctr *Controller) AddRoute(m string, p string, h Handler) {
+func (ctr *Controller) AddRoute(m string, p string, h Handler, options ...bool) {
 	key := strings.ToUpper(m) + " " + p
 	if ctr.Routes == nil {
 		ctr.Routes = make(map[string]*Route)
@@ -120,7 +155,7 @@ func (ctr *Controller) AddRoute(m string, p string, h Handler) {
 	if _, ok := ctr.Routes[key]; ok {
 		//手动加路由, 以最后加的为准,overwrite
 	}
-	ctr.Routes[key] = NewRoute(p, m, h)
+	ctr.Routes[key] = NewRoute(p, m, h, options...)
 }
 
 // controller default route
