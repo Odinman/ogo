@@ -78,7 +78,7 @@ func Defer(c *web.C, h http.Handler) http.Handler {
 		reqID := GetReqID(*c)
 
 		rc := rcHolder(*c, w, r)
-		Debug("defer len: %d", len(rc.RequestBody))
+		//Debug("defer len: %d", len(rc.RequestBody))
 		defer func() {
 			if err := recover(); err != nil {
 				//printPanic(reqID, err)

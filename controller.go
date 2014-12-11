@@ -18,11 +18,10 @@ const (
 type Handler func(c *RESTContext)
 
 type Route struct {
-	Pattern   string
-	Method    string
-	Handler   Handler
-	SkipAuth  bool //是否忽略鉴权(默认需要)
-	SkipLogin bool //是否忽略登录
+	Pattern string
+	Method  string
+	Handler Handler
+	Options map[string]interface{}
 }
 
 type Controller struct {
@@ -44,27 +43,19 @@ type ControllerInterface interface {
 	Options(c *RESTContext)
 	Trace(c *RESTContext)
 	NotFound(c *RESTContext)
-	AddRoute(m string, p string, h Handler, options ...bool)
+	AddRoute(m string, p string, h Handler, options ...map[string]interface{})
 }
 
-func NewRoute(p string, m string, h Handler, options ...bool) *Route {
+func NewRoute(p string, m string, h Handler, options ...map[string]interface{}) *Route {
 	r := &Route{
 		Pattern: p,
 		Method:  m,
 		Handler: h,
+		Options: make(map[string]interface{}),
 	}
 
-	if len(options) > 0 {
-		for offset, option := range options {
-			switch offset {
-			case _OPS_SKIPAUTH:
-				r.SkipAuth = option
-			case _OPS_SKIPLOGIN:
-				r.SkipLogin = option
-			default:
-				// nothing to do
-			}
-		}
+	if len(options) > 0 { //不管有几个,目前只有第一个有效
+		r.Options = options[0]
 	}
 
 	return r
@@ -177,7 +168,7 @@ func (ctr *Controller) NotFound(c *RESTContext) {
 	c.HTTPError(http.StatusNotFound)
 }
 
-func (ctr *Controller) AddRoute(m string, p string, h Handler, options ...bool) {
+func (ctr *Controller) AddRoute(m string, p string, h Handler, options ...map[string]interface{}) {
 	key := strings.ToUpper(m) + " " + p
 	if ctr.Routes == nil {
 		ctr.Routes = make(map[string]*Route)
