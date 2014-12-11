@@ -12,7 +12,7 @@ import (
 //立即输出
 func WriteMsg(v ...interface{}) {
 	msg := fmt.Sprintf("[F] "+generateFmtStr(len(v)), v...)
-	debugger.WirteRightNow(msg, logs.LevelCritical)
+	logger.WirteRightNow(msg, logs.LevelCritical)
 }
 
 func generateFmtStr(n int) string {
@@ -20,23 +20,23 @@ func generateFmtStr(n int) string {
 }
 
 func Trace(format string, v ...interface{}) {
-	debugger.Trace(format, v...)
+	logger.Trace(format, v...)
 }
 func Debug(format string, v ...interface{}) {
-	debugger.Debug(format, v...)
+	logger.Debug(format, v...)
 }
 func Info(format string, v ...interface{}) {
-	debugger.Info(format, v...)
+	logger.Info(format, v...)
 }
 func Warn(format string, v ...interface{}) {
-	debugger.Warn(format, v...)
+	logger.Warn(format, v...)
 }
 func Error(format string, v ...interface{}) {
-	debugger.Error(format, v...)
+	logger.Error(format, v...)
 }
 func Critical(format string, v ...interface{}) {
-	debugger.Critical(format, v...)
+	logger.Critical(format, v...)
 }
 func Log(level, format string, v ...interface{}) {
-	debugger.Log(level, format, v...)
+	logger.Log(level, format, v...)
 }

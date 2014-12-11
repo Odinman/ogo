@@ -4,10 +4,8 @@ package ogo
 
 import (
 	//"fmt"
-	"bytes"
 	"github.com/zenazn/goji"
 	"github.com/zenazn/goji/web"
-	"io/ioutil"
 	"net/http"
 	"strings"
 )
@@ -77,23 +75,12 @@ func NewRoute(p string, m string, h Handler, options ...bool) *Route {
 func handlerWrap(rt *Route) web.HandlerFunc { //这里封装了webC到本地的结构中
 	fn := func(c web.C, w http.ResponseWriter, r *http.Request) {
 		// build newest RESTContext
-		rc := newContext(c, w, r)
+		rc := rcHolder(c, w, r)
 
 		//route
 		rc.Route = rt
 
-		//request body
-		if r.Method != "GET" && r.Method != "HEAD" && r.Method != "DELETE" {
-			rc.RequestBody, _ = ioutil.ReadAll(r.Body)
-			defer r.Body.Close()
-			bf := bytes.NewBuffer(rc.RequestBody)
-			r.Body = ioutil.NopCloser(bf)
-		}
-
-		// 解析参数
-		r.ParseForm()
-
-		Debug("method: %s, bodylen: %d", r.Method, len(rc.RequestBody))
+		//Debug("method: %s, bodylen: %d", r.Method, len(rc.RequestBody))
 
 		// pre hooks, 任何一个出错,都要结束
 		if hl := len(DMux.Hooks.preHooks); hl > 0 {

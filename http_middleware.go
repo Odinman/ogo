@@ -16,6 +16,7 @@ const OriginalRemoteAddrKey = "originalRemoteAddr"
 
 var xForwardedFor = http.CanonicalHeaderKey("X-Forwarded-For")
 var xRealIP = http.CanonicalHeaderKey("X-Real-IP")
+var rcHolder func(c web.C, w http.ResponseWriter, r *http.Request) *RESTContext
 
 //初始化环境
 func EnvInit(c *web.C, h http.Handler) http.Handler {
@@ -51,6 +52,9 @@ func EnvInit(c *web.C, h http.Handler) http.Handler {
 			r.RemoteAddr = rip
 		}
 
+		//init RESTContext
+		rcHolder = RCHolder(*c, w, r)
+
 		h.ServeHTTP(lw, r)
 
 		if lw.Status() == 0 {
@@ -73,7 +77,8 @@ func Defer(c *web.C, h http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
 		reqID := GetReqID(*c)
 
-		rc := newContext(*c, w, r)
+		rc := rcHolder(*c, w, r)
+		Debug("defer len: %d", len(rc.RequestBody))
 		defer func() {
 			if err := recover(); err != nil {
 				//printPanic(reqID, err)

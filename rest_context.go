@@ -1,8 +1,10 @@
 package ogo
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"strings"
 
@@ -50,11 +52,45 @@ func (re *RESTError) Error() string { return re.Massage }
  *
  */
 func newContext(c web.C, w http.ResponseWriter, r *http.Request) *RESTContext {
-	return &RESTContext{
+	rc := &RESTContext{
 		C:        c,
 		Response: w,
 		Request:  r,
 	}
+
+	//request body
+	if r.Method != "GET" && r.Method != "HEAD" && r.Method != "DELETE" {
+		rc.RequestBody, _ = ioutil.ReadAll(r.Body)
+		defer r.Body.Close()
+		bf := bytes.NewBuffer(rc.RequestBody)
+		r.Body = ioutil.NopCloser(bf)
+	}
+	//Debug("bodylen:%d", len(rc.RequestBody))
+
+	// 解析参数
+	r.ParseForm()
+
+	return rc
+}
+
+/* }}} */
+
+/* {{{ func rcHolder(c web.C, w http.ResponseWriter, r *http.Request) (func(c web.C, w http.ResponseWriter, r *http.Request) *RESTContext)
+ * 利用闭包初始化RESTContext, 并防止某些关键字段被重写(RequestBody)
+ */
+func RCHolder(c web.C, w http.ResponseWriter, r *http.Request) func(c web.C, w http.ResponseWriter, r *http.Request) *RESTContext {
+
+	//初始化, RequestBody之类的保持住
+	rc := newContext(c, w, r)
+
+	fn := func(c web.C, w http.ResponseWriter, r *http.Request) *RESTContext {
+		rc.C = c
+		rc.Response = w
+		rc.Request = r
+		return rc
+	}
+
+	return fn
 }
 
 /* }}} */
@@ -160,7 +196,7 @@ func (rc *RESTContext) RESTNotOK(msg interface{}) (err error) {
 	var status int
 	method := strings.ToLower(rc.Request.Method)
 	if _, ok := FAILCODE[method]; !ok {
-		status = http.StatusOK //默认都是StatusOK
+		status = http.StatusBadRequest //默认都是StatusOK
 	} else {
 		status = FAILCODE[method]
 	}

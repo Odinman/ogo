@@ -2,9 +2,28 @@
 package ogo
 
 import (
+	"fmt"
+	"runtime"
+
 	"github.com/Odinman/ogo/libs/config"
 	"github.com/Odinman/ogo/libs/logs"
 )
+
+/* {{{ func init()
+ *
+ */
+func init() {
+	runtime.GOMAXPROCS(runtime.NumCPU())
+
+	DMux = New() // default mux
+
+	if err := DMux.InitEnv(); err != nil {
+		// SetEnv包含了环境以及配置的初始化, logger也放里面
+		fmt.Printf("init env failed: %s", err)
+	}
+}
+
+/* }}} */
 
 /* {{{ func Run()
  * 默认Run()
@@ -24,20 +43,29 @@ func NewController(c ControllerInterface) ControllerInterface {
 
 /* }}} */
 
-/* {{{ func Config() config.ConfigContainer
- *
+/* {{{ func Env() *Environment
+ * 默认的配置就是DMux的配置
  */
-func Config() config.ConfigContainer {
-	return DMux.Config()
+func Env() *Environment {
+	return env
 }
 
 /* }}} */
 
-/* {{{ func Logger() config.LoggerContainer
+/* {{{ func Config() config.ConfigContainer
+ * 默认的配置就是DMux的配置
+ */
+func Config() config.ConfigContainer {
+	return cfg
+}
+
+/* }}} */
+
+/* {{{ func Logger() *logs.OLogger
  *
  */
 func Logger() *logs.OLogger {
-	return DMux.Logger()
+	return logger
 }
 
 /* }}} */
