@@ -22,8 +22,8 @@ import (
 /* }}} */
 
 func init() {
-	// 废除一些goji默认的middleware
-	//goji.Abandon(middleware.RequestID)
+	// 废除全部goji默认的middleware
+	goji.Abandon(middleware.RequestID)
 	goji.Abandon(middleware.Logger)
 	goji.Abandon(middleware.Recoverer)
 	goji.Abandon(middleware.AutomaticOptions)

@@ -1,37 +1,51 @@
 package ogo
 
 import (
+	"fmt"
 	"net/http"
 	"runtime/debug"
 	"strings"
 	"time"
 
 	"github.com/Odinman/ogo/utils"
+	"github.com/dustin/randbo"
 	"github.com/zenazn/goji/web"
 )
 
 // Key to use when setting the request ID.
-const RequestIDKey = "reqID"
-const OriginalRemoteAddrKey = "originalRemoteAddr"
+const (
+	RequestIDKey          = "reqID"
+	OriginalRemoteAddrKey = "originalRemoteAddr"
+)
 
-var xForwardedFor = http.CanonicalHeaderKey("X-Forwarded-For")
-var xRealIP = http.CanonicalHeaderKey("X-Real-IP")
-var rcHolder func(c web.C, w http.ResponseWriter, r *http.Request) *RESTContext
+var (
+	xForwardedFor = http.CanonicalHeaderKey("X-Forwarded-For")
+	xRealIP       = http.CanonicalHeaderKey("X-Real-IP")
+	rcHolder      func(c web.C, w http.ResponseWriter, r *http.Request) *RESTContext
+)
 
 //初始化环境
 func EnvInit(c *web.C, h http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
-		reqID := GetReqID(*c)
-
 		t1 := time.Now()
-		Debug("[%s][url: %s] started", reqID, r.URL.Path)
-
-		lw := utils.WrapWriter(w)
-
 		// env
 		if c.Env == nil {
 			c.Env = make(map[string]interface{})
 		}
+
+		// make rand string(for debug, session...)
+		buf := make([]byte, 16)
+		randbo.New().Read(buf) //号称最快的随即字符串
+		reqID := fmt.Sprintf("%x", buf)
+
+		c.Env[RequestIDKey] = reqID
+
+		logPrefix("[" + reqID[:10] + "]") //只显示前十位
+
+		Debug("[url: %s] started", r.URL.Path)
+
+		lw := utils.WrapWriter(w)
+
 		pathPieces := strings.Split(r.URL.Path, "/")
 		for off, piece := range pathPieces {
 			if piece != "" {
@@ -62,7 +76,7 @@ func EnvInit(c *web.C, h http.Handler) http.Handler {
 		}
 		t2 := time.Now()
 
-		Debug("[%s][url: %s] end:%d in %s", reqID, r.URL.Path, lw.Status(), t2.Sub(t1))
+		Debug("[url: %s] end:%d in %s", r.URL.Path, lw.Status(), t2.Sub(t1))
 	}
 
 	return http.HandlerFunc(fn)
@@ -75,14 +89,12 @@ func EnvInit(c *web.C, h http.Handler) http.Handler {
 // Recoverer prints a request ID if one is provided.
 func Defer(c *web.C, h http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
-		reqID := GetReqID(*c)
 
 		rc := rcHolder(*c, w, r)
 		//Debug("defer len: %d", len(rc.RequestBody))
 		defer func() {
 			if err := recover(); err != nil {
-				//printPanic(reqID, err)
-				Critical("[%s][url: %s] %v", reqID, r.URL.Path, err)
+				Critical("[url: %s] %v", r.URL.Path, err)
 				debug.PrintStack()
 				//http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 				rc.HTTPError(http.StatusInternalServerError)

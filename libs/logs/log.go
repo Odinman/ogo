@@ -46,6 +46,7 @@ func Register(name string, log loggerType) {
 type OLogger struct {
 	lock                sync.Mutex
 	level               int
+	prefix              string
 	enableFuncCallDepth bool
 	loggerFuncCallDepth int
 	msg                 chan *logMsg
@@ -112,7 +113,7 @@ func (bl *OLogger) writerMsg(loglevel int, msg string) error {
 		_, file, line, ok := runtime.Caller(bl.loggerFuncCallDepth)
 		if ok {
 			_, filename := path.Split(file)
-			lm.msg = fmt.Sprintf("[%s:%d] %s", filename, line, msg)
+			lm.msg = fmt.Sprintf("%s [%s:%d]", msg, filename, line)
 		} else {
 			lm.msg = msg
 		}
@@ -127,6 +128,11 @@ func (bl *OLogger) writerMsg(loglevel int, msg string) error {
 // if message level (such as LevelTrace) is less than logger level (such as LevelWarn), ignore message.
 func (bl *OLogger) SetLevel(l int) {
 	bl.level = l
+}
+
+// set log prefix
+func (bl *OLogger) SetPrefix(p string) {
+	bl.prefix = p
 }
 
 // set log funcCallDepth
@@ -154,42 +160,63 @@ func (bl *OLogger) startLogger() {
 
 // log trace level message.
 func (bl *OLogger) Trace(format string, v ...interface{}) {
+	if bl.prefix != "" {
+		format = bl.prefix + " " + format
+	}
 	msg := fmt.Sprintf("[T] "+format, v...)
 	bl.writerMsg(LevelTrace, msg)
 }
 
 // log debug level message.
 func (bl *OLogger) Debug(format string, v ...interface{}) {
+	if bl.prefix != "" {
+		format = bl.prefix + " " + format
+	}
 	msg := fmt.Sprintf("[D] "+format, v...)
 	bl.writerMsg(LevelDebug, msg)
 }
 
 // log info level message.
 func (bl *OLogger) Info(format string, v ...interface{}) {
+	if bl.prefix != "" {
+		format = bl.prefix + " " + format
+	}
 	msg := fmt.Sprintf("[I] "+format, v...)
 	bl.writerMsg(LevelInfo, msg)
 }
 
 // log warn level message.
 func (bl *OLogger) Warn(format string, v ...interface{}) {
+	if bl.prefix != "" {
+		format = bl.prefix + " " + format
+	}
 	msg := fmt.Sprintf("[W] "+format, v...)
 	bl.writerMsg(LevelWarn, msg)
 }
 
 // log error level message.
 func (bl *OLogger) Error(format string, v ...interface{}) {
+	if bl.prefix != "" {
+		format = bl.prefix + " " + format
+	}
 	msg := fmt.Sprintf("[E] "+format, v...)
 	bl.writerMsg(LevelError, msg)
 }
 
 // log critical level message.
 func (bl *OLogger) Critical(format string, v ...interface{}) {
+	if bl.prefix != "" {
+		format = bl.prefix + " " + format
+	}
 	msg := fmt.Sprintf("[C] "+format, v...)
 	bl.writerMsg(LevelCritical, msg)
 }
 
 // for gorp
 func (bl *OLogger) Printf(format string, v ...interface{}) {
+	if bl.prefix != "" {
+		format = bl.prefix + " " + format
+	}
 	msg := fmt.Sprintf("[P] "+format, v...)
 	bl.writerMsg(LevelDebug, msg) //默认为debug级别
 }

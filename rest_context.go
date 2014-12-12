@@ -1,7 +1,7 @@
 package ogo
 
 import (
-	"bytes"
+	//"bytes"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -62,8 +62,9 @@ func newContext(c web.C, w http.ResponseWriter, r *http.Request) *RESTContext {
 	if r.Method != "GET" && r.Method != "HEAD" && r.Method != "DELETE" {
 		rc.RequestBody, _ = ioutil.ReadAll(r.Body)
 		defer r.Body.Close()
-		bf := bytes.NewBuffer(rc.RequestBody)
-		r.Body = ioutil.NopCloser(bf)
+		//ReadAll会清空r.Body, 下面需要写回去
+		//bf := bytes.NewBuffer(rc.RequestBody)
+		//r.Body = ioutil.NopCloser(bf)
 	}
 	//Debug("bodylen:%d", len(rc.RequestBody))
 
