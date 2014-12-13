@@ -146,7 +146,7 @@ func Underscore(camelCaseWord string) string {
  *
  */
 func IsEmptyValue(v reflect.Value) bool {
-	const deref = true
+	const deref = false
 	switch v.Kind() {
 	case reflect.Array, reflect.Map, reflect.Slice, reflect.String:
 		return v.Len() == 0
