@@ -14,8 +14,11 @@ import (
 
 // Key to use when setting the request ID.
 const (
-	RequestIDKey          = "_reqID"
-	LogPrefixKey          = "_prefix"
+	RequestIDKey          = "_reqid_"
+	LogPrefixKey          = "_prefix_"
+	EndpointKey           = "_endpoint_"
+	RowkeyKey             = "_rk_"
+	SelectorKey           = "_selector_"
 	OriginalRemoteAddrKey = "originalRemoteAddr"
 )
 
@@ -51,13 +54,13 @@ func EnvInit(c *web.C, h http.Handler) http.Handler {
 		for off, piece := range pathPieces {
 			if piece != "" {
 				if off == 1 {
-					c.Env["_endpoint"] = piece
+					c.Env[EndpointKey] = piece
 				}
 				if off == 2 && piece[0] != '@' { //@开头是selector
-					c.Env["_rowkey"] = piece
+					c.Env[RowkeyKey] = piece
 				}
 				if off > 1 && piece[0] == '@' {
-					c.Env["_selector"] = piece
+					c.Env[SelectorKey] = piece
 				}
 			}
 		}
@@ -95,7 +98,7 @@ func Defer(c *web.C, h http.Handler) http.Handler {
 		//Debug("defer len: %d", len(rc.RequestBody))
 		defer func() {
 			if err := recover(); err != nil {
-				rc.Criticalf("[%s %s] %v", r.Method, r.URL.Path, err)
+				rc.Critical("[%s %s] %v", r.Method, r.URL.Path, err)
 				debug.PrintStack()
 				//http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 				rc.HTTPError(http.StatusInternalServerError)
