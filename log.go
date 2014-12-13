@@ -40,7 +40,3 @@ func Critical(format string, v ...interface{}) {
 func Log(level, format string, v ...interface{}) {
 	logger.Log(level, format, v...)
 }
-
-func logPrefix(p string) {
-	logger.SetPrefix(p)
-}

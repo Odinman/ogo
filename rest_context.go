@@ -304,3 +304,55 @@ func (rc *RESTContext) GetEnv(k string) (v interface{}) {
 }
 
 /* }}} */
+
+/* {{{	RESTContext loggers
+ * 可以在每个debug信息带上session
+ */
+func (rc *RESTContext) Tracef(format string, v ...interface{}) {
+	rc.logf("trace", format, v...)
+}
+func (rc *RESTContext) Debugf(format string, v ...interface{}) {
+	rc.logf("debug", format, v...)
+}
+func (rc *RESTContext) Infof(format string, v ...interface{}) {
+	rc.logf("info", format, v...)
+}
+func (rc *RESTContext) Printf(format string, v ...interface{}) {
+	rc.logf("info", format, v...)
+}
+func (rc *RESTContext) Warnf(format string, v ...interface{}) {
+	rc.logf("warn", format, v...)
+}
+func (rc *RESTContext) Errorf(format string, v ...interface{}) {
+	rc.logf("error", format, v...)
+}
+func (rc *RESTContext) Criticalf(format string, v ...interface{}) {
+	rc.logf("critical", format, v...)
+}
+func (rc *RESTContext) logf(tag, format string, v ...interface{}) {
+	var prefix string
+	if p := rc.GetEnv(LogPrefixKey); p != nil {
+		prefix = p.(string)
+	}
+	if prefix != "" {
+		format = prefix + " " + format
+	}
+	switch strings.ToLower(tag) {
+	case "trace":
+		logger.Trace(format, v...)
+	case "debug":
+		logger.Debug(format, v...)
+	case "info":
+		logger.Info(format, v...)
+	case "warn":
+		logger.Warn(format, v...)
+	case "error":
+		logger.Error(format, v...)
+	case "critial":
+		logger.Critical(format, v...)
+	default:
+		logger.Debug(format, v...)
+	}
+}
+
+/* }}} */

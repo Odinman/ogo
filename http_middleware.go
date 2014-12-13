@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Odinman/gorp"
 	"github.com/Odinman/ogo/utils"
 	"github.com/dustin/randbo"
 	"github.com/zenazn/goji/web"
@@ -14,7 +15,8 @@ import (
 
 // Key to use when setting the request ID.
 const (
-	RequestIDKey          = "reqID"
+	RequestIDKey          = "_reqID"
+	LogPrefixKey          = "_prefix"
 	OriginalRemoteAddrKey = "originalRemoteAddr"
 )
 
@@ -40,9 +42,9 @@ func EnvInit(c *web.C, h http.Handler) http.Handler {
 
 		c.Env[RequestIDKey] = reqID
 
-		logPrefix("[" + reqID[:10] + "]") //只显示前十位
+		c.Env[LogPrefixKey] = "[" + reqID[:10] + "]" //只显示前十位
 
-		Debug("[url: %s] started", r.URL.Path)
+		Debug("[%s] [url: %s] started", reqID[:10], r.URL.Path)
 
 		lw := utils.WrapWriter(w)
 
@@ -76,7 +78,7 @@ func EnvInit(c *web.C, h http.Handler) http.Handler {
 		}
 		t2 := time.Now()
 
-		Debug("[url: %s] end:%d in %s", r.URL.Path, lw.Status(), t2.Sub(t1))
+		Debug("[%s] [url: %s] end:%d in %s", reqID[:10], r.URL.Path, lw.Status(), t2.Sub(t1))
 	}
 
 	return http.HandlerFunc(fn)
@@ -91,10 +93,11 @@ func Defer(c *web.C, h http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
 
 		rc := rcHolder(*c, w, r)
+		gorp.TraceOn("[db]", rc)
 		//Debug("defer len: %d", len(rc.RequestBody))
 		defer func() {
 			if err := recover(); err != nil {
-				Critical("[url: %s] %v", r.URL.Path, err)
+				rc.Criticalf("[url: %s] %v", r.URL.Path, err)
 				debug.PrintStack()
 				//http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 				rc.HTTPError(http.StatusInternalServerError)
