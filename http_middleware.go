@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Odinman/gorp"
 	"github.com/Odinman/ogo/utils"
 	"github.com/dustin/randbo"
 	"github.com/zenazn/goji/web"
@@ -44,7 +43,7 @@ func EnvInit(c *web.C, h http.Handler) http.Handler {
 
 		c.Env[LogPrefixKey] = "[" + reqID[:10] + "]" //只显示前十位
 
-		Debug("[%s] [url: %s] started", reqID[:10], r.URL.Path)
+		Debug("[%s] [%s %s] started", reqID[:10], r.Method, r.URL.Path)
 
 		lw := utils.WrapWriter(w)
 
@@ -78,7 +77,7 @@ func EnvInit(c *web.C, h http.Handler) http.Handler {
 		}
 		t2 := time.Now()
 
-		Debug("[%s] [url: %s] end:%d in %s", reqID[:10], r.URL.Path, lw.Status(), t2.Sub(t1))
+		Debug("[%s] [%s %s] end:%d in %s", reqID[:10], r.Method, r.URL.Path, lw.Status(), t2.Sub(t1))
 	}
 
 	return http.HandlerFunc(fn)
@@ -93,11 +92,10 @@ func Defer(c *web.C, h http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
 
 		rc := rcHolder(*c, w, r)
-		gorp.TraceOn("[db]", rc)
 		//Debug("defer len: %d", len(rc.RequestBody))
 		defer func() {
 			if err := recover(); err != nil {
-				rc.Criticalf("[url: %s] %v", r.URL.Path, err)
+				rc.Criticalf("[%s %s] %v", r.Method, r.URL.Path, err)
 				debug.PrintStack()
 				//http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 				rc.HTTPError(http.StatusInternalServerError)
