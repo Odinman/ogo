@@ -85,11 +85,11 @@ func (mux *Mux) PostHook(hook OgoHook) {
 
 /* }}} */
 
-/* {{{ func (mux *Mux) NewController(c ControllerInterface)
+/* {{{ func (mux *Mux) NewController(c ControllerInterface, endpoint string)
  * 这样做的目的是给controller设置mux(mux可多个) -- mux=multiplexer,复用器
  */
-func (mux *Mux) NewController(c ControllerInterface) ControllerInterface {
-	c.SetMux(mux)
+func (mux *Mux) NewController(c ControllerInterface, endpoint string) ControllerInterface {
+	c.New(mux, endpoint)
 	return c
 }
 

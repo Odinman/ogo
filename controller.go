@@ -32,8 +32,9 @@ type Controller struct {
 }
 
 type ControllerInterface interface {
-	Init(endpoint string, c ControllerInterface)
-	SetMux(mux *Mux)
+	//Init(endpoint string, c ControllerInterface)
+	Init(c ControllerInterface)
+	New(mux *Mux, endpoint string)
 	Get(c *RESTContext)
 	Post(c *RESTContext)
 	Put(c *RESTContext)
@@ -96,20 +97,20 @@ func handlerWrap(rt *Route) web.HandlerFunc { //这里封装了webC到本地的�
 	return fn
 }
 
-/* {{{ func (ctr *Controller) SetMux(mux *Mux)
+/* {{{ func (ctr *Controller) New(mux *Mux, endpoint string)
  *
  */
-func (ctr *Controller) SetMux(mux *Mux) {
+func (ctr *Controller) New(mux *Mux, endpoint string) {
 	ctr.Mux = mux
+	ctr.Endpoint = endpoint
 }
 
 /* }}} */
 
-func (ctr *Controller) Init(endpoint string, c ControllerInterface) {
-	ctr.Endpoint = endpoint
-	//ctr.Routes = make(map[string]*Route)
-	//默认路由
-	ctr.DefaultRoutes(c)
+//func (ctr *Controller) Init(endpoint string, c ControllerInterface) {
+func (ctr *Controller) Init(c ControllerInterface) {
+	//ctr.Endpoint = endpoint
+	ctr.DefaultRoutes(c) //默认路由
 	if len(ctr.Routes) > 0 {
 		for key, rt := range ctr.Routes {
 			//Debug("pattern: %s", rt.Pattern)
@@ -181,8 +182,12 @@ func (ctr *Controller) AddRoute(m string, p string, h Handler, options ...map[st
 
 // controller default route
 // 默认路由, 如果已经定义了则忽略，没有定义则加上
-//func (ctr *Controller) DefaultRoutes() {
 func (ctr *Controller) DefaultRoutes(c ControllerInterface) {
+	if ctr.Endpoint == "" {
+		//没有endpoint,不需要默认路由
+		Info("Not need default Routes because no endpoint")
+		return
+	}
 	var pattern, method, key string
 	// GET /{endpoint}
 	pattern = "/" + ctr.Endpoint
