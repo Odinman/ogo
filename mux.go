@@ -18,11 +18,9 @@ import (
 
 /* }}} */
 
-/* }}} */
-
-/* {{{ type Environment struct
+/* {{{ type Environ struct
  */
-type Environment struct {
+type Environ struct {
 	lock          *sync.RWMutex
 	WorkPath      string // working path(abs)
 	AppPath       string // application path
@@ -35,6 +33,7 @@ type Environment struct {
 	PidFile       string // pidfile abs path
 	Port          string // http port
 	IndentJSON    bool   // indent JSON
+	initErr       error
 }
 
 /* }}} */
@@ -42,7 +41,7 @@ type Environment struct {
 /* {{{ type Mux struct
  */
 type Mux struct {
-	env     *Environment           //环境参数
+	env     *Environ               //环境参数
 	cfg     config.ConfigContainer //配置信息
 	logger  *logs.OLogger          //日志记录
 	Workers map[string]*Worker
@@ -95,13 +94,13 @@ func (mux *Mux) NewController(c ControllerInterface, endpoint string) Controller
 
 /* }}} */
 
-/* {{{ func (mux *Mux) Env(path string) *Environment, error
+/* {{{ func (mux *Mux) Env(path string) *Environ, error
  * 获取env变量
  */
-func (mux *Mux) Env() (*Environment, error) {
+func (mux *Mux) Env() (*Environ, error) {
 
 	if mux.env == nil {
-		env = &Environment{
+		env = &Environ{
 			lock: new(sync.RWMutex),
 		}
 

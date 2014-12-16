@@ -3,6 +3,7 @@ package ogo
 
 import (
 	"fmt"
+	"os"
 	"runtime"
 
 	"github.com/Odinman/ogo/libs/config"
@@ -20,6 +21,7 @@ func init() {
 	if err := DMux.InitEnv(); err != nil {
 		// SetEnv包含了环境以及配置的初始化, logger也放里面
 		fmt.Printf("init env failed: %s", err)
+		os.Exit(1)
 	}
 }
 
@@ -43,10 +45,10 @@ func NewController(c ControllerInterface, endpoint string) ControllerInterface {
 
 /* }}} */
 
-/* {{{ func Env() *Environment
+/* {{{ func Env() *Environ
  * 默认的配置就是DMux的配置
  */
-func Env() *Environment {
+func Env() *Environ {
 	if env, err := DMux.Env(); err != nil {
 		return nil
 	} else {

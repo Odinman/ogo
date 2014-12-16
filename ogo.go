@@ -25,7 +25,7 @@ const (
  */
 var (
 	DMux   *Mux
-	env    *Environment
+	env    *Environ
 	cfg    config.ConfigContainer
 	logger *logs.OLogger
 )
