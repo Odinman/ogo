@@ -47,7 +47,11 @@ func NewController(c ControllerInterface, endpoint string) ControllerInterface {
  * 默认的配置就是DMux的配置
  */
 func Env() *Environment {
-	return env
+	if env, err := DMux.Env(); err != nil {
+		return nil
+	} else {
+		return env
+	}
 }
 
 /* }}} */
@@ -56,7 +60,11 @@ func Env() *Environment {
  * 默认的配置就是DMux的配置
  */
 func Config() config.ConfigContainer {
-	return cfg
+	if cfg, err := DMux.Config(); err != nil {
+		return nil
+	} else {
+		return cfg
+	}
 }
 
 /* }}} */
@@ -65,7 +73,11 @@ func Config() config.ConfigContainer {
  *
  */
 func Logger() *logs.OLogger {
-	return logger
+	if logger, err := DMux.Logger(); err != nil {
+		return nil
+	} else {
+		return logger
+	}
 }
 
 /* }}} */

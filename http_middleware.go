@@ -99,7 +99,8 @@ func Defer(c *web.C, h http.Handler) http.Handler {
 		defer func() {
 			if err := recover(); err != nil {
 				rc.Critical("[%s %s] %v", r.Method, r.URL.Path, err)
-				debug.PrintStack()
+				//debug.PrintStack()
+				rc.Critical("%s", debug.Stack())
 				//http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 				rc.HTTPError(http.StatusInternalServerError)
 			}
