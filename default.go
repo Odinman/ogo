@@ -34,11 +34,11 @@ func Run() {
 
 /* }}} */
 
-/* {{{ func NewController()
+/* {{{ func NewController(c ControllerInterface, endpoint string) ControllerInterface
  * 默认用DMux设置给controller
  */
-func NewController(c ControllerInterface) ControllerInterface {
-	return DMux.NewController(c)
+func NewController(c ControllerInterface, endpoint string) ControllerInterface {
+	return DMux.NewController(c, endpoint)
 }
 
 /* }}} */

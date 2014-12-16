@@ -35,6 +35,7 @@ type ControllerInterface interface {
 	//Init(endpoint string, c ControllerInterface)
 	Init(c ControllerInterface)
 	New(mux *Mux, endpoint string)
+	GetEndpoint() string
 	Get(c *RESTContext)
 	Post(c *RESTContext)
 	Put(c *RESTContext)
@@ -103,6 +104,15 @@ func handlerWrap(rt *Route) web.HandlerFunc { //这里封装了webC到本地的�
 func (ctr *Controller) New(mux *Mux, endpoint string) {
 	ctr.Mux = mux
 	ctr.Endpoint = endpoint
+}
+
+/* }}} */
+
+/* {{{ func (ctr *Controller) GetEndpoint() string
+ *
+ */
+func (ctr *Controller) GetEndpoint() string {
+	return ctr.Endpoint
 }
 
 /* }}} */
