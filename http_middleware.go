@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"mime"
 	"net/http"
-	"path/filepath"
+	//"path/filepath"
 	"runtime/debug"
 	"strings"
 	"time"
@@ -22,7 +22,9 @@ const (
 	RowkeyKey             = "_rk_"
 	SelectorKey           = "_selector_"
 	MimeTypeKey           = "_mimetype_"
+	DispositionMTKey      = "_dmt_"
 	ContentMD5Key         = "_md5_"
+	DispositionPrefix     = "_dp_"
 	OriginalRemoteAddrKey = "originalRemoteAddr"
 )
 
@@ -145,10 +147,16 @@ func Mime(c *web.C, h http.Handler) http.Handler {
 			//以传入的Disposition为主
 			if t, m, e := mime.ParseMediaType(cd); e == nil {
 				rc.Info("disposition: %s, mediatype: %s", cd, t)
-				if fname, ok := m["filename"]; ok {
-					if mt := mime.TypeByExtension(filepath.Ext(fname)); mt != "" {
-						rc.SetEnv(MimeTypeKey, mt)
-					}
+				rc.SetEnv(DispositionMTKey, t)
+				//if fname, ok := m["filename"]; ok {
+				//	if mt := mime.TypeByExtension(filepath.Ext(fname)); mt != "" {
+				//		rc.SetEnv(MimeTypeKey, mt)
+				//	}
+				//}
+				for k, v := range m {
+					dk := DispositionPrefix + k + "_"
+					rc.Debug("disposition key: %s, value: %v", dk, v)
+					rc.SetEnv(dk, v)
 				}
 			}
 
