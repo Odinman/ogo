@@ -136,6 +136,16 @@ func (rc *RESTContext) HTTPError(status int) (err error) {
 
 /* }}} */
 
+/* {{{ func (rc *RESTContext) ServeBinary(mimetype string, data []byte)
+ * 直接出二进制内容
+ */
+func (rc *RESTContext) ServeBinary(mimetype string, data []byte) {
+	rc.Response.Header().Set("Content-Type", mimetype)
+	rc.Response.Write(data)
+}
+
+/* }}} */
+
 /* {{{ func (rc *RESTContext) RESTHeader(status int)
  *
  */
