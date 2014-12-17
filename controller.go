@@ -17,11 +17,13 @@ const (
 
 type Handler func(c *RESTContext)
 
+type RouteOption map[string]interface{}
+
 type Route struct {
 	Pattern string
 	Method  string
 	Handler Handler
-	Options map[string]interface{}
+	Options RouteOption
 }
 
 type Controller struct {

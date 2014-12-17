@@ -2,7 +2,9 @@ package ogo
 
 import (
 	"fmt"
+	"mime"
 	"net/http"
+	"path/filepath"
 	"runtime/debug"
 	"strings"
 	"time"
@@ -19,16 +21,23 @@ const (
 	EndpointKey           = "_endpoint_"
 	RowkeyKey             = "_rk_"
 	SelectorKey           = "_selector_"
+	MimeTypeKey           = "_mimetype_"
+	ContentMD5Key         = "_md5_"
 	OriginalRemoteAddrKey = "originalRemoteAddr"
 )
 
 var (
-	xForwardedFor = http.CanonicalHeaderKey("X-Forwarded-For")
-	xRealIP       = http.CanonicalHeaderKey("X-Real-IP")
-	rcHolder      func(c web.C, w http.ResponseWriter, r *http.Request) *RESTContext
+	xForwardedFor      = http.CanonicalHeaderKey("X-Forwarded-For")
+	xRealIP            = http.CanonicalHeaderKey("X-Real-IP")
+	contentType        = http.CanonicalHeaderKey("Content-Type")
+	contentDisposition = http.CanonicalHeaderKey("Content-Disposition")
+	contentMD5         = http.CanonicalHeaderKey("Content-MD5")
+	rcHolder           func(c web.C, w http.ResponseWriter, r *http.Request) *RESTContext
 )
 
-//初始化环境
+/* {{{ func EnvInit(c *web.C, h http.Handler) http.Handler
+ * 初始化环境
+ */
 func EnvInit(c *web.C, h http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
 		t1 := time.Now()
@@ -86,11 +95,11 @@ func EnvInit(c *web.C, h http.Handler) http.Handler {
 	return http.HandlerFunc(fn)
 }
 
-// Defer is a middleware that recovers from panics, logs the panic (and a
-// backtrace), and returns a HTTP 500 (Internal Server Error) status if
-// possible.
-// save access log
-// Recoverer prints a request ID if one is provided.
+/* }}} */
+
+/* {{{ func Defer(c *web.C, h http.Handler) http.Handler
+ * recovers from panics
+ */
 func Defer(c *web.C, h http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
 
@@ -114,22 +123,48 @@ func Defer(c *web.C, h http.Handler) http.Handler {
 	return http.HandlerFunc(fn)
 }
 
-// GetReqID returns a request ID from the given context if one is present.
-// Returns the empty string if a request ID cannot be found.
-func GetReqID(c web.C) string {
-	if c.Env == nil {
-		return ""
+/* }}} */
+
+/* {{{ func Mime(c *web.C, h http.Handler) http.Handler
+ * mimetype相关处理
+ */
+func Mime(c *web.C, h http.Handler) http.Handler {
+	fn := func(w http.ResponseWriter, r *http.Request) {
+
+		rc := rcHolder(*c, w, r)
+
+		if cs := r.Header.Get(contentMD5); cs != "" {
+			rc.SetEnv(ContentMD5Key, cs)
+		}
+
+		// 看content-type
+		if ct := r.Header.Get(contentType); ct != "" {
+			rc.SetEnv(MimeTypeKey, ct)
+		}
+		if cd := r.Header.Get(contentDisposition); cd != "" {
+			//以传入的Disposition为主
+			if t, m, e := mime.ParseMediaType(cd); e == nil {
+				rc.Info("disposition: %s, mediatype: %s", cd, t)
+				if fname, ok := m["filename"]; ok {
+					if mt := mime.TypeByExtension(filepath.Ext(fname)); mt != "" {
+						rc.SetEnv(MimeTypeKey, mt)
+					}
+				}
+			}
+
+		}
+
+		h.ServeHTTP(w, r)
 	}
-	v, ok := c.Env[RequestIDKey]
-	if !ok {
-		return ""
-	}
-	if reqID, ok := v.(string); ok {
-		return reqID
-	}
-	return ""
+
+	return http.HandlerFunc(fn)
 }
 
+/* }}} */
+
+/* {{{ func realIP(r *http.Request) string
+ * 获取真实IP
+ */
 func realIP(r *http.Request) string {
 	var ip string
 
@@ -145,3 +180,5 @@ func realIP(r *http.Request) string {
 
 	return ip
 }
+
+/* }}} */

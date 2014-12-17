@@ -16,21 +16,22 @@ import (
 	"github.com/VividCortex/godaemon"
 	"github.com/nightlyone/lockfile"
 	"github.com/zenazn/goji"
-	"github.com/zenazn/goji/web/middleware"
+	gojimiddle "github.com/zenazn/goji/web/middleware"
 )
 
 /* }}} */
 
 func init() {
-	// 废除全部goji默认的middleware
-	goji.Abandon(middleware.RequestID)
-	goji.Abandon(middleware.Logger)
-	goji.Abandon(middleware.Recoverer)
-	goji.Abandon(middleware.AutomaticOptions)
+	// 废除全部goji默认的gojimiddle
+	goji.Abandon(gojimiddle.RequestID)
+	goji.Abandon(gojimiddle.Logger)
+	goji.Abandon(gojimiddle.Recoverer)
+	goji.Abandon(gojimiddle.AutomaticOptions)
 
 	//增加自定义的middleware
 	goji.Use(EnvInit)
 	goji.Use(Defer)
+	goji.Use(Mime)
 	//goji.Use(Authentication)
 
 }
