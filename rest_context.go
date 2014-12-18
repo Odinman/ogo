@@ -11,6 +11,22 @@ import (
 	"github.com/zenazn/goji/web"
 )
 
+const (
+	//env key
+	RequestIDKey      = "_reqid_"
+	PaginationKey     = "_pagination_"
+	FieldsKey         = "_fields_"
+	ConditionsKey     = "_conditions_"
+	LogPrefixKey      = "_prefix_"
+	EndpointKey       = "_endpoint_"
+	RowkeyKey         = "_rk_"
+	SelectorKey       = "_selector_"
+	MimeTypeKey       = "_mimetype_"
+	DispositionMTKey  = "_dmt_"
+	ContentMD5Key     = "_md5_"
+	DispositionPrefix = "_dp_"
+)
+
 var (
 	SUCCODE = map[string]int{
 		"get":    http.StatusOK,
@@ -66,10 +82,6 @@ func newContext(c web.C, w http.ResponseWriter, r *http.Request) *RESTContext {
 		//bf := bytes.NewBuffer(rc.RequestBody)
 		//r.Body = ioutil.NopCloser(bf)
 	}
-	//Debug("bodylen:%d", len(rc.RequestBody))
-
-	// 解析参数
-	r.ParseForm()
 
 	return rc
 }

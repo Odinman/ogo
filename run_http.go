@@ -32,7 +32,7 @@ func init() {
 	goji.Use(EnvInit)
 	goji.Use(Defer)
 	goji.Use(Mime)
-	//goji.Use(Authentication)
+	goji.Use(ParseParams)
 
 }
 

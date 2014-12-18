@@ -16,15 +16,14 @@ import (
 
 // Key to use when setting the request ID.
 const (
-	RequestIDKey          = "_reqid_"
-	LogPrefixKey          = "_prefix_"
-	EndpointKey           = "_endpoint_"
-	RowkeyKey             = "_rk_"
-	SelectorKey           = "_selector_"
-	MimeTypeKey           = "_mimetype_"
-	DispositionMTKey      = "_dmt_"
-	ContentMD5Key         = "_md5_"
-	DispositionPrefix     = "_dp_"
+	_PARAM_FIELDS         = "fields"
+	_PARAM_PAGE           = "page"
+	_PARAM_PERPAGE        = "per_page"
+	_PPREFIX_NOT          = '!'
+	_PPREFIX_LIKE         = '~'
+	_CTYPE_IS             = 0
+	_CTYPE_NOT            = 1
+	_CTYPE_LIKE           = 2
 	OriginalRemoteAddrKey = "originalRemoteAddr"
 )
 
@@ -161,6 +160,82 @@ func Mime(c *web.C, h http.Handler) http.Handler {
 			}
 
 		}
+
+		h.ServeHTTP(w, r)
+	}
+
+	return http.HandlerFunc(fn)
+}
+
+/* }}} */
+
+/* {{{ func ParseParams(c *web.C, h http.Handler) http.Handler {
+ *
+ */
+func ParseParams(c *web.C, h http.Handler) http.Handler {
+	fn := func(w http.ResponseWriter, r *http.Request) {
+
+		rc := rcHolder(*c, w, r)
+		// 解析参数
+		r.ParseForm()
+		// 根据ogo规则解析参数
+		var cType int
+		var p, pp string
+		for k, v := range r.Form {
+			rc.Trace("key: %s, value: %s", k, v)
+			//根据参数名第一个字符来判断条件类型
+			prefix := k[0] //param prefix
+			switch prefix {
+			case _PPREFIX_NOT:
+				rc.Debug("having prefix not: %s", k)
+				k = k[1:]
+				cType = _CTYPE_NOT
+				rc.Debug("key change to: %s, condition type: %d", k, cType)
+			case _PPREFIX_LIKE:
+				k = k[1:]
+				cType = _CTYPE_LIKE
+			default:
+				cType = _CTYPE_IS
+				// do nothing
+			}
+
+			switch k { //处理参数
+			case _PARAM_FIELDS:
+				//过滤字段
+				rc.SetEnv(FieldsKey, v)
+			case _PARAM_PERPAGE:
+			case _PARAM_PAGE: //分页信息
+				if len(v) > 0 {
+					p = v[0]
+				}
+				if pps, ok := r.Form[_PARAM_PERPAGE]; ok {
+					if len(pps) > 0 {
+						pp = pps[0]
+					}
+				}
+			default:
+				//除了以上的特别字段,其他都是条件查询
+				var con *Condition
+				var err error
+				if con, err = rc.GetCondition(k); err != nil {
+					//没有这个condition,初始化
+					con = new(Condition)
+					rc.setCondition(k, con)
+				}
+				switch cType {
+				case _CTYPE_IS:
+					con.Is = v
+				case _CTYPE_NOT:
+					con.Not = v
+				case _CTYPE_LIKE:
+					con.Like = v
+				default:
+				}
+				rc.Trace("con: %v", con)
+			}
+		}
+		//记录分页信息
+		rc.SetEnv(PaginationKey, NewPagination(p, pp))
 
 		h.ServeHTTP(w, r)
 	}
