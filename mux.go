@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/Odinman/ogo/libs/config"
 	"github.com/Odinman/ogo/libs/logs"
@@ -22,17 +23,18 @@ import (
  */
 type Environ struct {
 	lock          *sync.RWMutex
-	WorkPath      string // working path(abs)
-	AppPath       string // application path
-	ProcName      string // proc name
-	Worker        string // worker name
-	AppConfigPath string // config file path
-	RunMode       string // run mode, "dev" or "prod"
-	Daemonize     bool   // daemonize or not
-	DebugLevel    int    // debug level
-	PidFile       string // pidfile abs path
-	Port          string // http port
-	IndentJSON    bool   // indent JSON
+	WorkPath      string         // working path(abs)
+	AppPath       string         // application path
+	ProcName      string         // proc name
+	Worker        string         // worker name
+	AppConfigPath string         // config file path
+	RunMode       string         // run mode, "dev" or "prod"
+	Daemonize     bool           // daemonize or not
+	DebugLevel    int            // debug level
+	PidFile       string         // pidfile abs path
+	Port          string         // http port
+	IndentJSON    bool           // indent JSON
+	Location      *time.Location // location
 	initErr       error
 }
 
@@ -110,6 +112,7 @@ func (mux *Mux) Env() (*Environ, error) {
 		env.Daemonize = false
 		env.DebugLevel = logs.LevelTrace //默认debug等级
 		env.IndentJSON = false
+		env.Location, _ = time.LoadLocation("Asia/Shanghai") //默认上海时区
 
 		workPath, _ := os.Getwd()
 		env.WorkPath, _ = filepath.Abs(workPath)
@@ -148,10 +151,10 @@ func (mux *Mux) Env() (*Environ, error) {
 
 /* }}} */
 
-/* {{{ func (mux *Mux) InitEnv(cfg config.ConfigContainer) error
+/* {{{ func (mux *Mux) initEnv(cfg config.ConfigContainer) error
  * 设置环境变量
  */
-func (mux *Mux) InitEnv() (err error) {
+func (mux *Mux) initEnv() (err error) {
 	if env, err = mux.Env(); err != nil {
 		return err
 	}
@@ -162,6 +165,13 @@ func (mux *Mux) InitEnv() (err error) {
 	//根据配置设置环境变量
 	env.lock.Lock()
 	defer env.lock.Unlock()
+
+	// location
+	if tz := cfg.String("TimeZone"); tz != "" {
+		if loc, err := time.LoadLocation(tz); err == nil {
+			env.Location = loc
+		}
+	}
 
 	if port := cfg.String("Port"); port != "" {
 		env.Port = port

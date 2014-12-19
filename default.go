@@ -18,7 +18,7 @@ func init() {
 
 	DMux = New() // default mux
 
-	if err := DMux.InitEnv(); err != nil {
+	if err := DMux.initEnv(); err != nil {
 		// SetEnv包含了环境以及配置的初始化, logger也放里面
 		fmt.Printf("init env failed: %s", err)
 		os.Exit(1)

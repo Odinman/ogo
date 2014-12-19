@@ -16,6 +16,7 @@ const (
 	RequestIDKey      = "_reqid_"
 	PaginationKey     = "_pagination_"
 	FieldsKey         = "_fields_"
+	TimeRangeKey      = "_tr_"
 	ConditionsKey     = "_conditions_"
 	LogPrefixKey      = "_prefix_"
 	EndpointKey       = "_endpoint_"

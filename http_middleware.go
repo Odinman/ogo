@@ -16,14 +16,21 @@ import (
 
 // Key to use when setting the request ID.
 const (
-	_PARAM_FIELDS         = "fields"
-	_PARAM_PAGE           = "page"
-	_PARAM_PERPAGE        = "per_page"
-	_PPREFIX_NOT          = '!'
-	_PPREFIX_LIKE         = '~'
-	_CTYPE_IS             = 0
-	_CTYPE_NOT            = 1
-	_CTYPE_LIKE           = 2
+	//固定参数名称
+	_PARAM_FIELDS  = "fields"
+	_PARAM_PAGE    = "page"
+	_PARAM_PERPAGE = "per_page"
+	_PARAM_DATE    = "date"
+
+	//特殊前缀
+	_PPREFIX_NOT  = '!'
+	_PPREFIX_LIKE = '~'
+
+	// 查询类型
+	_CTYPE_IS   = 0
+	_CTYPE_NOT  = 1
+	_CTYPE_LIKE = 2
+
 	OriginalRemoteAddrKey = "originalRemoteAddr"
 )
 
@@ -200,6 +207,8 @@ func ParseParams(c *web.C, h http.Handler) http.Handler {
 			}
 
 			switch k { //处理参数
+			case _PARAM_DATE:
+				rc.setTimeRangeFromDate(v)
 			case _PARAM_FIELDS:
 				//过滤字段
 				rc.SetEnv(FieldsKey, v)

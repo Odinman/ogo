@@ -4,13 +4,24 @@ package ogo
 import (
 	"fmt"
 	"strconv"
+	"strings"
+	"time"
 )
 
 const (
 	_DEF_PAGE     = 1 //1-base
 	_DEF_PER_PAGE = 25
 	_MAX_PER_PAGE = 100 //每页最大个数
+
+	//time
+	_DATE_FORM = "2006-01-02"
 )
+
+//时间段
+type TimeRange struct {
+	Start time.Time
+	End   time.Time
+}
 
 // 分页信息
 type Pagination struct {
@@ -92,6 +103,40 @@ func (rc *RESTContext) setCondition(k string, con *Condition) {
 		}
 		rc.Env[ConditionsKey].(Conditions)[k] = con
 	}
+}
+
+/* }}} */
+
+/* {{{ func (rc *RESTContext) setTimeRangeFromDate(p string) {
+ * 时间段信息
+ */
+func (rc *RESTContext) setTimeRangeFromDate(p []string) {
+	tr := new(TimeRange)
+	rc.SetEnv(TimeRangeKey, tr)
+
+	var s, e string
+	if len(p) > 1 { //有多个,第一个是start, 第二个是end, 其余忽略
+		s, e = p[0], p[1]
+	} else if len(p) > 0 { //只有一个, 可通过 "{start},{end}"方式传
+		pieces := strings.SplitN(p[0], ",", 2)
+		s = pieces[0]
+		if len(pieces) > 1 {
+			e = pieces[1]
+		}
+	}
+	if ts, err := time.ParseInLocation(_DATE_FORM, s, Env().Location); err == nil {
+		tr.Start = ts
+		dura, _ := time.ParseDuration("86399s") // 一天少一秒
+		tr.End = ts.Add(dura)                   //当天的最后一秒
+		//只有成功获取了start, end才有意义
+		if te, err := time.ParseInLocation(_DATE_FORM, e, Env().Location); err == nil {
+			if te.After(ts) { //必须比开始大
+				tr.End = te
+			}
+		}
+	}
+
+	return
 }
 
 /* }}} */
