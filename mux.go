@@ -255,7 +255,7 @@ func (mux *Mux) Logger() (*logs.OLogger, error) {
 		}
 
 		logger.EnableFuncCallDepth(true)
-		logger.SetLogFuncCallDepth(3)
+		logger.SetLogFuncCallDepth(4)
 		logger.SetLevel(mux.env.DebugLevel)
 		mux.logger = logger
 	}
