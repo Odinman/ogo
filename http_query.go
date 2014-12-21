@@ -32,9 +32,11 @@ type Pagination struct {
 
 // 条件信息
 type Condition struct {
-	Is   interface{}
-	Not  interface{}
-	Like interface{}
+	Field string
+	Is    interface{}
+	Not   interface{}
+	Like  interface{}
+	Join  interface{}
 }
 
 type Conditions map[string]*Condition

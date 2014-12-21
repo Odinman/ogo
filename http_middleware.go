@@ -30,6 +30,7 @@ const (
 	_CTYPE_IS   = 0
 	_CTYPE_NOT  = 1
 	_CTYPE_LIKE = 2
+	_CTYPE_JOIN = 3
 
 	OriginalRemoteAddrKey = "originalRemoteAddr"
 )
@@ -224,20 +225,52 @@ func ParseParams(c *web.C, h http.Handler) http.Handler {
 				}
 			default:
 				//除了以上的特别字段,其他都是条件查询
-				var con *Condition
+				var cv interface{}
+				var con, jc *Condition
 				var err error
+
+				if len(v) > 1 {
+					cv = v
+				} else {
+					cv = v[0]
+				}
+
+				//如果参数中包含".",代表有关联查询
+				if strings.Contains(k, ".") {
+					js := strings.SplitN(k, ".", 2)
+					if js[0] != "" && js[1] != "" {
+						k = js[0]
+						jc := new(Condition)
+						jc.Field = js[1]
+						switch cType {
+						case _CTYPE_IS:
+							jc.Is = cv
+						case _CTYPE_NOT:
+							jc.Not = cv
+						case _CTYPE_LIKE:
+							jc.Like = cv
+						default:
+						}
+						//查询类型变为join
+						cType = _CTYPE_JOIN
+					}
+				}
+
 				if con, err = rc.GetCondition(k); err != nil {
 					//没有这个condition,初始化
 					con = new(Condition)
 					rc.setCondition(k, con)
 				}
+				con.Field = k
 				switch cType {
 				case _CTYPE_IS:
-					con.Is = v
+					con.Is = cv
 				case _CTYPE_NOT:
-					con.Not = v
+					con.Not = cv
 				case _CTYPE_LIKE:
-					con.Like = v
+					con.Like = cv
+				case _CTYPE_JOIN:
+					con.Join = jc
 				default:
 				}
 				rc.Trace("con: %v", con)
