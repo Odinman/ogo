@@ -195,10 +195,10 @@ func ParseParams(c *web.C, h http.Handler) http.Handler {
 			prefix := k[0] //param prefix
 			switch prefix {
 			case _PPREFIX_NOT:
-				rc.Debug("having prefix not: %s", k)
+				rc.Trace("having prefix not: %s", k)
 				k = k[1:]
 				cType = _CTYPE_NOT
-				rc.Debug("key change to: %s, condition type: %d", k, cType)
+				rc.Trace("key change to: %s, condition type: %d", k, cType)
 			case _PPREFIX_LIKE:
 				k = k[1:]
 				cType = _CTYPE_LIKE
@@ -214,14 +214,12 @@ func ParseParams(c *web.C, h http.Handler) http.Handler {
 				//过滤字段
 				rc.SetEnv(FieldsKey, v)
 			case _PARAM_PERPAGE:
+				if len(v) > 0 {
+					pp = v[0]
+				}
 			case _PARAM_PAGE: //分页信息
 				if len(v) > 0 {
 					p = v[0]
-				}
-				if pps, ok := r.Form[_PARAM_PERPAGE]; ok {
-					if len(pps) > 0 {
-						pp = pps[0]
-					}
 				}
 			default:
 				//除了以上的特别字段,其他都是条件查询
@@ -240,7 +238,7 @@ func ParseParams(c *web.C, h http.Handler) http.Handler {
 					js := strings.SplitN(k, ".", 2)
 					if js[0] != "" && js[1] != "" {
 						k = js[0]
-						jc := new(Condition)
+						jc = new(Condition)
 						jc.Field = js[1]
 						switch cType {
 						case _CTYPE_IS:
@@ -252,6 +250,7 @@ func ParseParams(c *web.C, h http.Handler) http.Handler {
 						default:
 						}
 						//查询类型变为join
+						rc.Trace("join: %s, %s; con: %v", k, jc.Field, jc)
 						cType = _CTYPE_JOIN
 					}
 				}
@@ -270,6 +269,7 @@ func ParseParams(c *web.C, h http.Handler) http.Handler {
 				case _CTYPE_LIKE:
 					con.Like = cv
 				case _CTYPE_JOIN:
+					rc.Trace("field: %s, join condition: %v", k, jc)
 					con.Join = jc
 				default:
 				}
