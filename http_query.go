@@ -14,7 +14,8 @@ const (
 	_MAX_PER_PAGE = 100 //每页最大个数
 
 	//time
-	_DATE_FORM = "2006-01-02"
+	_DATE_FORM  = "2006-01-02"
+	_DATE_FORM1 = "20060102"
 )
 
 //时间段
@@ -116,7 +117,7 @@ func (rc *RESTContext) setTimeRangeFromDate(p []string) {
 	tr := new(TimeRange)
 	rc.SetEnv(TimeRangeKey, tr)
 
-	var s, e string
+	var s, e, format string
 	if len(p) > 1 { //有多个,第一个是start, 第二个是end, 其余忽略
 		s, e = p[0], p[1]
 	} else if len(p) > 0 { //只有一个, 可通过 "{start},{end}"方式传
@@ -126,7 +127,12 @@ func (rc *RESTContext) setTimeRangeFromDate(p []string) {
 			e = pieces[1]
 		}
 	}
-	if ts, err := time.ParseInLocation(_DATE_FORM, s, Env().Location); err == nil {
+	if len(s) == len(_DATE_FORM) {
+		format = _DATE_FORM
+	} else if len(s) == len(_DATE_FORM1) {
+		format = _DATE_FORM1
+	}
+	if ts, err := time.ParseInLocation(format, s, Env().Location); err == nil {
 		tr.Start = ts
 		dura, _ := time.ParseDuration("86399s") // 一天少一秒
 		tr.End = ts.Add(dura)                   //当天的最后一秒
