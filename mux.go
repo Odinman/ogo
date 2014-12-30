@@ -34,6 +34,7 @@ type Environ struct {
 	PidFile       string         // pidfile abs path
 	Port          string         // http port
 	IndentJSON    bool           // indent JSON
+	MaxMemory     int64          //max memory(form-data)
 	Location      *time.Location // location
 	initErr       error
 }
@@ -112,6 +113,7 @@ func (mux *Mux) Env() (*Environ, error) {
 		env.Daemonize = false
 		env.DebugLevel = logs.LevelTrace //默认debug等级
 		env.IndentJSON = false
+		env.MaxMemory = 1 << 26                              //64MB
 		env.Location, _ = time.LoadLocation("Asia/Shanghai") //默认上海时区
 
 		workPath, _ := os.Getwd()

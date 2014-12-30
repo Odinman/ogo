@@ -89,7 +89,13 @@ func EnvInit(c *web.C, h http.Handler) http.Handler {
 		}
 
 		//init RESTContext
-		rcHolder = RCHolder(*c, w, r)
+		var rcErr error
+		var rc *RESTContext
+		rc, rcHolder, rcErr = RCHolder(*c, w, r)
+		if rcErr != nil {
+			rc.RESTBadRequest(rcErr)
+			return
+		}
 
 		h.ServeHTTP(lw, r)
 

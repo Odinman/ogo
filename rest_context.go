@@ -68,7 +68,7 @@ func (re *RESTError) Error() string { return re.Massage }
 /* {{{ func newContext(c web.C, w http.ResponseWriter, r *http.Request) *RESTContext
  *
  */
-func newContext(c web.C, w http.ResponseWriter, r *http.Request) *RESTContext {
+func newContext(c web.C, w http.ResponseWriter, r *http.Request) (*RESTContext, error) {
 	rc := &RESTContext{
 		C:        c,
 		Response: w,
@@ -77,14 +77,23 @@ func newContext(c web.C, w http.ResponseWriter, r *http.Request) *RESTContext {
 
 	//request body
 	if r.Method != "GET" && r.Method != "HEAD" && r.Method != "DELETE" {
-		rc.RequestBody, _ = ioutil.ReadAll(r.Body)
-		defer r.Body.Close()
-		//ReadAll会清空r.Body, 下面需要写回去
-		//bf := bytes.NewBuffer(rc.RequestBody)
-		//r.Body = ioutil.NopCloser(bf)
+		//rc.Trace("content-type: %s", r.Header.Get("Content-Type"))
+		if strings.Contains(r.Header.Get("Content-Type"), "multipart/") {
+			rc.Trace("parse multipart")
+			if err := r.ParseMultipartForm(env.MaxMemory); err != nil {
+				rc.Error("parse multipart form error: %s", err)
+				return rc, err
+			}
+		} else {
+			rc.RequestBody, _ = ioutil.ReadAll(r.Body)
+			defer r.Body.Close()
+			//ReadAll会清空r.Body, 下面需要写回去
+			//bf := bytes.NewBuffer(rc.RequestBody)
+			//r.Body = ioutil.NopCloser(bf)
+		}
 	}
 
-	return rc
+	return rc, nil
 }
 
 /* }}} */
@@ -92,10 +101,14 @@ func newContext(c web.C, w http.ResponseWriter, r *http.Request) *RESTContext {
 /* {{{ func rcHolder(c web.C, w http.ResponseWriter, r *http.Request) (func(c web.C, w http.ResponseWriter, r *http.Request) *RESTContext)
  * 利用闭包初始化RESTContext, 并防止某些关键字段被重写(RequestBody)
  */
-func RCHolder(c web.C, w http.ResponseWriter, r *http.Request) func(c web.C, w http.ResponseWriter, r *http.Request) *RESTContext {
+func RCHolder(c web.C, w http.ResponseWriter, r *http.Request) (*RESTContext, func(c web.C, w http.ResponseWriter, r *http.Request) *RESTContext, error) {
 
 	//初始化, RequestBody之类的保持住
-	rc := newContext(c, w, r)
+	rc, err := newContext(c, w, r)
+
+	if err != nil {
+		return rc, nil, err
+	}
 
 	fn := func(c web.C, w http.ResponseWriter, r *http.Request) *RESTContext {
 		rc.C = c
@@ -104,7 +117,7 @@ func RCHolder(c web.C, w http.ResponseWriter, r *http.Request) func(c web.C, w h
 		return rc
 	}
 
-	return fn
+	return rc, fn, nil
 }
 
 /* }}} */
