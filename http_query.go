@@ -137,7 +137,7 @@ func (rc *RESTContext) setTimeRangeFromDate(p []string) {
 		dura, _ := time.ParseDuration("86399s") // 一天少一秒
 		tr.End = ts.Add(dura)                   //当天的最后一秒
 		//只有成功获取了start, end才有意义
-		if te, err := time.ParseInLocation(_DATE_FORM, e, Env().Location); err == nil {
+		if te, err := time.ParseInLocation(format, e, Env().Location); err == nil {
 			if te.After(ts) { //必须比开始大
 				tr.End = te
 			}

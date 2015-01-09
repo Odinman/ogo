@@ -5,7 +5,6 @@ package ogo
 /* {{{ import
  */
 import (
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -76,7 +75,7 @@ func (mux *Mux) Run() {
 		//Main
 		mainErr = execWorker.Main()
 	} else {
-		mainErr = errors.New("not found worker: " + env.Worker)
+		mainErr = fmt.Errorf("not found worker: %s", env.Worker)
 	}
 
 	if mainErr != nil {
