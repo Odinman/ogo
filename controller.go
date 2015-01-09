@@ -3,7 +3,7 @@
 package ogo
 
 import (
-	//"fmt"
+	"fmt"
 	"github.com/zenazn/goji"
 	"github.com/zenazn/goji/web"
 	"net/http"
@@ -20,7 +20,7 @@ type Handler func(c *RESTContext)
 type RouteOption map[string]interface{}
 
 type Route struct {
-	Pattern string
+	Pattern interface{}
 	Method  string
 	Handler Handler
 	Options RouteOption
@@ -47,10 +47,10 @@ type ControllerInterface interface {
 	Options(c *RESTContext)
 	Trace(c *RESTContext)
 	NotFound(c *RESTContext)
-	AddRoute(m string, p string, h Handler, options ...map[string]interface{})
+	AddRoute(m string, p interface{}, h Handler, options ...map[string]interface{})
 }
 
-func NewRoute(p string, m string, h Handler, options ...map[string]interface{}) *Route {
+func NewRoute(p interface{}, m string, h Handler, options ...map[string]interface{}) *Route {
 	r := &Route{
 		Pattern: p,
 		Method:  m,
@@ -181,8 +181,8 @@ func (ctr *Controller) NotFound(c *RESTContext) {
 	c.HTTPError(http.StatusNotFound)
 }
 
-func (ctr *Controller) AddRoute(m string, p string, h Handler, options ...map[string]interface{}) {
-	key := strings.ToUpper(m) + " " + p
+func (ctr *Controller) AddRoute(m string, p interface{}, h Handler, options ...map[string]interface{}) {
+	key := fmt.Sprint(strings.ToUpper(m), " ", p)
 	if ctr.Routes == nil {
 		ctr.Routes = make(map[string]*Route)
 	}
