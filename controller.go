@@ -29,7 +29,8 @@ type Route struct {
 type Controller struct {
 	Endpoint string
 	Routes   map[string]*Route
-	ReqCount int //访问计数
+	SRoutes  []*Route //排序的Route
+	ReqCount int      //访问计数
 	Mux      *Mux
 }
 
@@ -63,6 +64,11 @@ func NewRoute(p interface{}, m string, h Handler, options ...map[string]interfac
 	}
 
 	return r
+}
+
+func getRouteKey(rt *Route) (key string) {
+	key = fmt.Sprint(strings.ToUpper(rt.Method), " ", rt.Pattern)
+	return
 }
 
 // 封装
@@ -124,8 +130,9 @@ func (ctr *Controller) Init(c ControllerInterface) {
 	//ctr.Endpoint = endpoint
 	ctr.DefaultRoutes(c) //默认路由
 	if len(ctr.Routes) > 0 {
-		for key, rt := range ctr.Routes {
+		for _, rt := range ctr.SRoutes {
 			//Debug("pattern: %s", rt.Pattern)
+			key := getRouteKey(rt)
 			// regist routes to Mux
 			ctr.Mux.Routes[key] = rt
 			switch strings.ToLower(rt.Method) {
@@ -185,11 +192,15 @@ func (ctr *Controller) AddRoute(m string, p interface{}, h Handler, options ...m
 	key := fmt.Sprint(strings.ToUpper(m), " ", p)
 	if ctr.Routes == nil {
 		ctr.Routes = make(map[string]*Route)
+		ctr.SRoutes = make([]*Route, 0)
 	}
 	if _, ok := ctr.Routes[key]; ok {
-		//手动加路由, 以最后加的为准,overwrite
+		//手动加路由, 如果冲突则以最早的为准
+		Info("route dup: %s", key)
+	} else {
+		ctr.Routes[key] = NewRoute(p, m, h, options...)
+		ctr.SRoutes = append(ctr.SRoutes, ctr.Routes[key])
 	}
-	ctr.Routes[key] = NewRoute(p, m, h, options...)
 }
 
 // controller default route
@@ -207,12 +218,15 @@ func (ctr *Controller) DefaultRoutes(c ControllerInterface) {
 	key = method + " " + pattern
 	if ctr.Routes == nil {
 		ctr.Routes = make(map[string]*Route)
+		ctr.SRoutes = make([]*Route, 0)
 	}
 	if _, ok := ctr.Routes[key]; ok {
 		// exists, warning, 默认路由不能覆盖自定义路由
+		Warn("default route dup: %s", key)
 	} else {
 		rt := NewRoute(pattern, method, c.Get)
 		ctr.Routes[key] = rt
+		ctr.SRoutes = append(ctr.SRoutes, rt)
 	}
 
 	// GET /{endpoint}/{id}
@@ -224,6 +238,7 @@ func (ctr *Controller) DefaultRoutes(c ControllerInterface) {
 	} else {
 		rt := NewRoute(pattern, method, c.Get)
 		ctr.Routes[key] = rt
+		ctr.SRoutes = append(ctr.SRoutes, rt)
 	}
 
 	// POST /{endpoint}
@@ -235,6 +250,7 @@ func (ctr *Controller) DefaultRoutes(c ControllerInterface) {
 	} else {
 		rt := NewRoute(pattern, method, c.Post)
 		ctr.Routes[key] = rt
+		ctr.SRoutes = append(ctr.SRoutes, rt)
 	}
 
 	// DELETE /{endpoint}/{id}
@@ -246,6 +262,7 @@ func (ctr *Controller) DefaultRoutes(c ControllerInterface) {
 	} else {
 		rt := NewRoute(pattern, method, c.Delete)
 		ctr.Routes[key] = rt
+		ctr.SRoutes = append(ctr.SRoutes, rt)
 	}
 
 	// PATCH /{endpoint}/{id}
@@ -257,6 +274,7 @@ func (ctr *Controller) DefaultRoutes(c ControllerInterface) {
 	} else {
 		rt := NewRoute(pattern, method, c.Patch)
 		ctr.Routes[key] = rt
+		ctr.SRoutes = append(ctr.SRoutes, rt)
 	}
 
 	// PUT /{endpoint}/{id}
@@ -268,6 +286,7 @@ func (ctr *Controller) DefaultRoutes(c ControllerInterface) {
 	} else {
 		rt := NewRoute(pattern, method, c.Put)
 		ctr.Routes[key] = rt
+		ctr.SRoutes = append(ctr.SRoutes, rt)
 	}
 }
 
