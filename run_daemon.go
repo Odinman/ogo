@@ -14,8 +14,8 @@ import (
 
 	"github.com/VividCortex/godaemon"
 	"github.com/nightlyone/lockfile"
-	"github.com/zenazn/goji"
-	"github.com/zenazn/goji/web/middleware"
+	//"github.com/zenazn/goji"
+	//"github.com/zenazn/goji/web/middleware"
 )
 
 /* }}} */
