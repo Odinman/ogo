@@ -78,7 +78,10 @@ func (mux *Mux) Run() {
 	Debug("will run http server")
 
 	// in goji appengine mode (tags --appengine)
-	goji.Serve()
+	//goji.Serve()
+	// 编译起来麻烦,直接把goji.Serve()代码copy到下面
+	goji.DefaultMux.Compile()
+	http.Handle("/", goji.DefaultMux)
 
 	// socket listen
 	bind.WithFlag()
