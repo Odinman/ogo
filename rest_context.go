@@ -17,6 +17,7 @@ const (
 	PaginationKey     = "_pagination_"
 	FieldsKey         = "_fields_"
 	TimeRangeKey      = "_tr_"
+	OrderByKey        = "_ob_"
 	ConditionsKey     = "_conditions_"
 	LogPrefixKey      = "_prefix_"
 	EndpointKey       = "_endpoint_"

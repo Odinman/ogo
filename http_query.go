@@ -24,6 +24,12 @@ type TimeRange struct {
 	End   time.Time
 }
 
+//order by
+type OrderBy struct {
+	Field string
+	Sort  string
+}
+
 // 分页信息
 type Pagination struct {
 	Page    int
@@ -110,7 +116,7 @@ func (rc *RESTContext) setCondition(k string, con *Condition) {
 
 /* }}} */
 
-/* {{{ func (rc *RESTContext) setTimeRangeFromDate(p string) {
+/* {{{ func (rc *RESTContext) setTimeRangeFromDate(p []string) {
  * 时间段信息
  */
 func (rc *RESTContext) setTimeRangeFromDate(p []string) {
@@ -137,9 +143,32 @@ func (rc *RESTContext) setTimeRangeFromDate(p []string) {
 		dura, _ := time.ParseDuration("86399s") // 一天少一秒
 		tr.End = ts.Add(dura)                   //当天的最后一秒
 		//只有成功获取了start, end才有意义
-		if te, err := time.ParseInLocation(format, e, Env().Location); err == nil {
+		if t, err := time.ParseInLocation(format, e, Env().Location); err == nil {
+			te := t.Add(dura)
 			if te.After(ts) { //必须比开始大
 				tr.End = te
+			}
+		}
+	}
+
+	return
+}
+
+/* }}} */
+
+/* {{{ func (rc *RESTContext) setOrderBy(p string) {
+ * 时间段信息
+ */
+func (rc *RESTContext) setOrderBy(p []string) {
+	ob := new(OrderBy)
+	rc.SetEnv(OrderByKey, ob)
+	if len(p) > 0 { //只有一个, 可通过 "{start},{end}"方式传
+		pieces := strings.SplitN(p[0], ",", 2)
+		ob.Field = pieces[0]
+		ob.Sort = "DESC" //默认降序
+		if len(pieces) > 1 {
+			if strings.ToUpper(pieces[1]) == "ASC" {
+				ob.Sort = "ASC"
 			}
 		}
 	}

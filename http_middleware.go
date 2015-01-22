@@ -21,6 +21,7 @@ const (
 	_PARAM_PAGE    = "page"
 	_PARAM_PERPAGE = "per_page"
 	_PARAM_DATE    = "date"
+	_PARAM_ORDERBY = "orderby"
 
 	//特殊前缀
 	_PPREFIX_NOT  = '!'
@@ -216,6 +217,8 @@ func ParseParams(c *web.C, h http.Handler) http.Handler {
 			switch k { //处理参数
 			case _PARAM_DATE:
 				rc.setTimeRangeFromDate(v)
+			case _PARAM_ORDERBY:
+				rc.setOrderBy(v)
 			case _PARAM_FIELDS:
 				//过滤字段
 				rc.SetEnv(FieldsKey, v)
