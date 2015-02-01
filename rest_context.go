@@ -190,15 +190,17 @@ func (rc *RESTContext) RESTHeader(status int) {
  */
 func (rc *RESTContext) RESTBody(data interface{}) (err error) {
 
-	var content []byte
-	if env.IndentJSON {
-		content, _ = json.MarshalIndent(data, "", "  ")
-	} else {
-		content, _ = json.Marshal(data)
-	}
+	if method := strings.ToLower(rc.Request.Method); method != "head" {
+		var content []byte
+		if env.IndentJSON {
+			content, _ = json.MarshalIndent(data, "", "  ")
+		} else {
+			content, _ = json.Marshal(data)
+		}
 
-	//write data
-	_, err = rc.Response.Write(content)
+		//write data
+		_, err = rc.Response.Write(content)
+	}
 
 	return
 }
