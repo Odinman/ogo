@@ -65,7 +65,8 @@ func EnvInit(c *web.C, h http.Handler) http.Handler {
 
 		c.Env[LogPrefixKey] = "[" + reqID[:10] + "]" //只显示前十位
 
-		Debug("[%s] [%s %s] started", reqID[:10], r.Method, r.URL.Path)
+		//Debug("[%s] [%s %s] started", reqID[:10], r.Method, r.URL.Path)
+		Debug("[%s] [%s %s] started", reqID[:10], r.Method, r.RequestURI)
 
 		lw := utils.WrapWriter(w)
 
@@ -105,7 +106,8 @@ func EnvInit(c *web.C, h http.Handler) http.Handler {
 		}
 		t2 := time.Now()
 
-		Debug("[%s] [%s %s] end:%d in %s", reqID[:10], r.Method, r.URL.Path, lw.Status(), t2.Sub(t1))
+		//Debug("[%s] [%s %s] end:%d in %s", reqID[:10], r.Method, r.URL.Path, lw.Status(), t2.Sub(t1))
+		Debug("[%s] [%s %s] end:%d in %s", reqID[:10], r.Method, r.RequestURI, lw.Status(), t2.Sub(t1))
 	}
 
 	return http.HandlerFunc(fn)
@@ -239,7 +241,13 @@ func ParseParams(c *web.C, h http.Handler) http.Handler {
 				if len(v) > 1 {
 					cv = v
 				} else {
-					cv = v[0]
+					//cv = v[0]
+					//处理逗号情况
+					if strings.Contains(v[0], ",") {
+						cv = strings.Split(v[0], ",")
+					} else {
+						cv = v[0]
+					}
 				}
 
 				//如果参数中包含".",代表有关联查询
