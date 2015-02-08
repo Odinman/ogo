@@ -50,7 +50,12 @@ var (
  */
 func EnvInit(c *web.C, h http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
-		t1 := time.Now()
+		ac := new(Access) //access日志信息
+		ac.Time = time.Now()
+		ac.Method = r.Method
+		ac.URI = r.RequestURI
+		ac.Proto = r.Proto
+		ac.InHeader = &r.Header
 		// env
 		if c.Env == nil {
 			c.Env = make(map[string]interface{})
@@ -58,15 +63,14 @@ func EnvInit(c *web.C, h http.Handler) http.Handler {
 
 		// make rand string(for debug, session...)
 		buf := make([]byte, 16)
-		randbo.New().Read(buf) //号称最快的随即字符串
-		reqID := fmt.Sprintf("%x", buf)
+		randbo.New().Read(buf) //号称最快的随机字符串
+		ac.Session = fmt.Sprintf("%x", buf)
 
-		c.Env[RequestIDKey] = reqID
+		c.Env[RequestIDKey] = ac.Session
 
-		c.Env[LogPrefixKey] = "[" + reqID[:10] + "]" //只显示前十位
+		c.Env[LogPrefixKey] = "[" + ac.Session[:10] + "]" //只显示前十位
 
-		//Debug("[%s] [%s %s] started", reqID[:10], r.Method, r.URL.Path)
-		Debug("[%s] [%s %s] started", reqID[:10], r.Method, r.RequestURI)
+		Debug("[%s] [%s %s] started", ac.Session[:10], r.Method, r.RequestURI)
 
 		lw := utils.WrapWriter(w)
 
@@ -89,6 +93,7 @@ func EnvInit(c *web.C, h http.Handler) http.Handler {
 			c.Env[OriginalRemoteAddrKey] = r.RemoteAddr
 			r.RemoteAddr = rip
 		}
+		ac.IP = r.RemoteAddr
 
 		//init RESTContext
 		var rcErr error
@@ -104,10 +109,15 @@ func EnvInit(c *web.C, h http.Handler) http.Handler {
 		if lw.Status() == 0 {
 			lw.WriteHeader(http.StatusOK)
 		}
-		t2 := time.Now()
 
-		//Debug("[%s] [%s %s] end:%d in %s", reqID[:10], r.Method, r.URL.Path, lw.Status(), t2.Sub(t1))
-		Debug("[%s] [%s %s] end:%d in %s", reqID[:10], r.Method, r.RequestURI, lw.Status(), t2.Sub(t1))
+		//处理时间
+		ac.Duration = time.Now().Sub(ac.Time)
+		ac.Status = lw.Status()
+		ac.OutHeader = lw.Header()
+
+		Debug("[%s] [%s %s] end:%d in %s", ac.Session[:10], ac.Method, ac.URI, ac.Status, ac.Duration)
+		// save access
+		ac.Save()
 	}
 
 	return http.HandlerFunc(fn)

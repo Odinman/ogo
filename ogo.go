@@ -24,10 +24,11 @@ const (
 /* {{{ variables
  */
 var (
-	DMux   *Mux
-	env    *Environ
-	cfg    config.ConfigContainer
-	logger *logs.OLogger
+	DMux     *Mux
+	env      *Environ
+	cfg      config.ConfigContainer
+	logger   *logs.OLogger
+	accessor *logs.OLogger
 )
 
 /* }}} */

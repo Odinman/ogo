@@ -44,12 +44,13 @@ type Environ struct {
 /* {{{ type Mux struct
  */
 type Mux struct {
-	env     *Environ               //环境参数
-	cfg     config.ConfigContainer //配置信息
-	logger  *logs.OLogger          //日志记录
-	Workers map[string]*Worker
-	Routes  map[string]*Route
-	Hooks   HStack
+	env      *Environ               //环境参数
+	cfg      config.ConfigContainer //配置信息
+	logger   *logs.OLogger          //debug日志记录
+	accessor *logs.OLogger          //日志
+	Workers  map[string]*Worker
+	Routes   map[string]*Route
+	Hooks    HStack
 }
 
 /* }}} */
@@ -212,6 +213,11 @@ func (mux *Mux) initEnv() (err error) {
 		return err
 	}
 
+	//access init
+	if accessor, err = mux.Accessor(); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -263,6 +269,28 @@ func (mux *Mux) Logger() (*logs.OLogger, error) {
 	}
 
 	return mux.logger, nil
+}
+
+/* }}} */
+
+/* {{{ func (mux *Mux) Accessor() config.LoggerContainer
+ *
+ */
+func (mux *Mux) Accessor() (*logs.OLogger, error) {
+	if mux.logger == nil {
+		// init logger
+		logger := logs.NewLogger(2046)
+		var err error
+		err = logger.SetLogger("access", "{}")
+
+		if err != nil {
+			return nil, err
+		}
+
+		mux.accessor = logger
+	}
+
+	return mux.accessor, nil
 }
 
 /* }}} */

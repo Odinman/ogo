@@ -84,6 +84,19 @@ func Logger() *logs.OLogger {
 
 /* }}} */
 
+/* {{{ func Accessor() *logs.OLogger
+ *
+ */
+func Accessor() *logs.OLogger {
+	if accessor, err := DMux.Accessor(); err != nil {
+		return nil
+	} else {
+		return accessor
+	}
+}
+
+/* }}} */
+
 /* {{{ func PreHook(hook OgoHook)
  * 正式程序之前的钩子
  */
