@@ -21,6 +21,7 @@ type Access struct {
 	Status    int           `json:"sc"`
 	Size      int           `json:"sz"`
 	Duration  time.Duration `json:"d"`
+	Host      string        `json:"h"`
 	InHeader  *http.Header  `json:"ih,omitempty"`
 	OutHeader http.Header   `json:"oh,omitempty"`
 	App       interface{}   `json:"app,omitempty"` //app自定义日志

@@ -277,11 +277,11 @@ func (mux *Mux) Logger() (*logs.OLogger, error) {
  *
  */
 func (mux *Mux) Accessor() (*logs.OLogger, error) {
-	if mux.logger == nil {
+	if mux.accessor == nil {
 		// init logger
 		logger := logs.NewLogger(2046)
 		var err error
-		err = logger.SetLogger("access", "{}")
+		err = logger.SetLogger("access", `{"filename":"logs/access.log"}`)
 
 		if err != nil {
 			return nil, err

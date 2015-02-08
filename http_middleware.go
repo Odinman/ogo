@@ -55,6 +55,7 @@ func EnvInit(c *web.C, h http.Handler) http.Handler {
 		ac.Method = r.Method
 		ac.URI = r.RequestURI
 		ac.Proto = r.Proto
+		ac.Host = r.Host
 		ac.InHeader = &r.Header
 		// env
 		if c.Env == nil {
