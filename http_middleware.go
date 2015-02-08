@@ -112,9 +112,10 @@ func EnvInit(c *web.C, h http.Handler) http.Handler {
 		}
 
 		//处理时间
-		ac.Duration = time.Now().Sub(ac.Time)
+		ac.Duration = time.Now().Sub(ac.Time).String()
 		ac.Status = lw.Status()
 		ac.OutHeader = lw.Header()
+		ac.Size = lw.ContentLength
 
 		Debug("[%s] [%s %s] end:%d in %s", ac.Session[:10], ac.Method, ac.URI, ac.Status, ac.Duration)
 		// save access

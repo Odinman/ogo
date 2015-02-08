@@ -1,11 +1,11 @@
 package ogo
 
 import (
-	//"bytes"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/zenazn/goji/web"
@@ -168,6 +168,7 @@ func (rc *RESTContext) HTTPError(status int) (err error) {
  */
 func (rc *RESTContext) ServeBinary(mimetype string, data []byte) {
 	rc.Response.Header().Set("Content-Type", mimetype)
+	rc.Response.Header().Set("Content-Length", strconv.Itoa(len(data)))
 	rc.Response.Write(data)
 }
 
@@ -199,6 +200,7 @@ func (rc *RESTContext) RESTBody(data interface{}) (err error) {
 		}
 
 		//write data
+		rc.Response.Header().Set("Content-Length", strconv.Itoa(len(content)))
 		_, err = rc.Response.Write(content)
 	}
 
