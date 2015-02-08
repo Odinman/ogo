@@ -1,6 +1,9 @@
 package ogo
 
 import (
+	"bytes"
+	"compress/flate"
+	"compress/gzip"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -51,10 +54,13 @@ var (
 // http context, 封装第三方包goji
 type RESTContext struct {
 	web.C
-	Response    http.ResponseWriter
-	Request     *http.Request
-	RequestBody []byte
-	Route       *Route
+	Response      http.ResponseWriter
+	Request       *http.Request
+	Status        int
+	ContentLength int
+	RequestBody   []byte
+	Access        *Access
+	Route         *Route
 }
 
 type RESTError struct {
@@ -163,13 +169,54 @@ func (rc *RESTContext) HTTPError(status int) (err error) {
 
 /* }}} */
 
+/* {{{ func (rc *RESTContext) WriteBytes(data []byte) (n int, e error)
+ * 输出内容,如果需要压缩,统一在这里进行
+ */
+func (rc *RESTContext) WriteBytes(data []byte) (n int, e error) {
+	if env.EnableGzip == true && rc.Request.Header.Get("Accept-Encoding") != "" {
+		splitted := strings.SplitN(rc.Request.Header.Get("Accept-Encoding"), ",", -1)
+		encodings := make([]string, len(splitted))
+
+		for i, val := range splitted {
+			encodings[i] = strings.TrimSpace(val)
+		}
+		for _, val := range encodings {
+			if val == "gzip" {
+				rc.Response.Header().Set("Content-Encoding", "gzip")
+				b := new(bytes.Buffer)
+				w, _ := gzip.NewWriterLevel(b, gzip.BestSpeed)
+				w.Write(data)
+				w.Close()
+				data = b.Bytes()
+				break
+			} else if val == "deflate" {
+				rc.Response.Header().Set("Content-Encoding", "deflate")
+				b := new(bytes.Buffer)
+				w, _ := flate.NewWriter(b, flate.BestSpeed)
+				w.Write(data)
+				w.Close()
+				data = b.Bytes()
+				break
+			}
+		}
+	}
+	if _, e = rc.Response.Write(data); e == nil {
+		//rc.ContentLength, _ = strconv.Atoi(rc.Response.Header().Get("Content-Length"))
+		rc.ContentLength = len(data)
+		rc.Response.Header().Set("Content-Length", strconv.Itoa(rc.ContentLength))
+	}
+
+	return
+}
+
+/* }}} */
+
 /* {{{ func (rc *RESTContext) ServeBinary(mimetype string, data []byte)
  * 直接出二进制内容
  */
 func (rc *RESTContext) ServeBinary(mimetype string, data []byte) {
 	rc.Response.Header().Set("Content-Type", mimetype)
-	rc.Response.Header().Set("Content-Length", strconv.Itoa(len(data)))
-	rc.Response.Write(data)
+	rc.WriteBytes(data)
 }
 
 /* }}} */
@@ -180,8 +227,9 @@ func (rc *RESTContext) ServeBinary(mimetype string, data []byte) {
 func (rc *RESTContext) RESTHeader(status int) {
 	// Content-Type always json
 	rc.Response.Header().Set("Content-Type", "application/json; charset=UTF-8")
-	// header line
-	rc.Response.WriteHeader(status)
+	// status
+	//rc.Response.WriteHeader(status)
+	rc.Status = status
 }
 
 /* }}} */
@@ -200,8 +248,7 @@ func (rc *RESTContext) RESTBody(data interface{}) (err error) {
 		}
 
 		//write data
-		rc.Response.Header().Set("Content-Length", strconv.Itoa(len(content)))
-		_, err = rc.Response.Write(content)
+		_, err = rc.WriteBytes(content)
 	}
 
 	return

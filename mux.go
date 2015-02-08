@@ -30,6 +30,7 @@ type Environ struct {
 	AppConfigPath string         // config file path
 	RunMode       string         // run mode, "dev" or "prod"
 	Daemonize     bool           // daemonize or not
+	EnableGzip    bool           // enable gzip or not
 	DebugLevel    int            // debug level
 	PidFile       string         // pidfile abs path
 	Port          string         // http port
@@ -191,6 +192,9 @@ func (mux *Mux) initEnv() (err error) {
 
 	if daemonize, err := cfg.Bool("Daemonize"); err == nil {
 		env.Daemonize = daemonize
+	}
+	if enablegzip, err := cfg.Bool("EnableGzip"); err == nil {
+		env.EnableGzip = enablegzip
 	}
 	if indentJson, err := cfg.Bool("IndentJson"); err == nil {
 		env.IndentJSON = indentJson

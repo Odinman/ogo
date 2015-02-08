@@ -100,6 +100,7 @@ func EnvInit(c *web.C, h http.Handler) http.Handler {
 		var rcErr error
 		var rc *RESTContext
 		rc, rcHolder, rcErr = RCHolder(*c, w, r)
+		rc.Access = ac
 		if rcErr != nil {
 			rc.RESTBadRequest(rcErr)
 			return
@@ -107,18 +108,20 @@ func EnvInit(c *web.C, h http.Handler) http.Handler {
 
 		h.ServeHTTP(lw, r)
 
-		if lw.Status() == 0 {
-			lw.WriteHeader(http.StatusOK)
+		if rc.Status == 0 {
+			//lw.WriteHeader(http.StatusOK)
+			rc.Status = http.StatusOK
 		}
 
-		//处理时间
-		ac.Duration = time.Now().Sub(ac.Time).String()
-		ac.Status = lw.Status()
-		ac.OutHeader = lw.Header()
+		//lw.WriteHeader(rc.Status)
+		////处理时间
+		//ac.Duration = time.Now().Sub(ac.Time).String()
+		//ac.Status = rc.Status
+		//ac.OutHeader = lw.Header()
+		//ac.Length = rc.ContentLength
 
-		Debug("[%s] [%s %s] end:%d in %s", ac.Session[:10], ac.Method, ac.URI, ac.Status, ac.Duration)
-		// save access
-		ac.Save()
+		//Debug("[%s] [%s %s] end:%d in %s", ac.Session[:10], ac.Method, ac.URI, ac.Status, ac.Duration)
+		//ac.Save()
 	}
 
 	return http.HandlerFunc(fn)
@@ -144,6 +147,18 @@ func Defer(c *web.C, h http.Handler) http.Handler {
 			}
 
 			// save access log here
+			w.WriteHeader(rc.Status)
+
+			//处理时间
+			ac := rc.Access
+			ac.Duration = time.Now().Sub(ac.Time).String()
+			ac.Status = rc.Status
+			ac.OutHeader = w.Header()
+			ac.Length = rc.ContentLength
+
+			Debug("[%s] [%s %s] end:%d in %s", ac.Session[:10], ac.Method, ac.URI, ac.Status, ac.Duration)
+			// save access
+			ac.Save()
 		}()
 
 		h.ServeHTTP(w, r)
