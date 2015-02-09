@@ -17,6 +17,7 @@ import (
 const (
 	//env key
 	RequestIDKey      = "_reqid_"
+	SaveBodyKey       = "_sb_"
 	PaginationKey     = "_pagination_"
 	FieldsKey         = "_fields_"
 	TimeRangeKey      = "_tr_"
