@@ -19,7 +19,8 @@ type Access struct {
 	Method    string       `json:"m"`
 	URI       string       `json:"uri"`
 	Proto     string       `json:"p"`
-	Length    int          `json:"len"`
+	ReqLength int          `json:"ql"` //请求body大小
+	RepLength int          `json:"pl"` //返回body大小
 	Duration  string       `json:"d"`
 	Host      string       `json:"h"`
 	InHeader  *http.Header `json:"ih,omitempty"`

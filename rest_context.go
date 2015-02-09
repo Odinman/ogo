@@ -200,11 +200,15 @@ func (rc *RESTContext) WriteBytes(data []byte) (n int, e error) {
 			}
 		}
 	}
-	if _, e = rc.Response.Write(data); e == nil {
-		//rc.ContentLength, _ = strconv.Atoi(rc.Response.Header().Get("Content-Length"))
-		rc.ContentLength = len(data)
-		rc.Response.Header().Set("Content-Length", strconv.Itoa(rc.ContentLength))
+	rc.ContentLength = len(data)
+	rc.Response.Header().Set("Content-Length", strconv.Itoa(rc.ContentLength))
+	if rc.Status == 0 {
+		//lw.WriteHeader(http.StatusOK)
+		rc.Status = http.StatusOK
 	}
+	//在Write之前要WriteHeader
+	rc.Response.WriteHeader(rc.Status)
+	_, e = rc.Response.Write(data)
 
 	return
 }
