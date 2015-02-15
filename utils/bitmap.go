@@ -157,17 +157,11 @@ func (bi *BitmapIndex) And(obi *BitmapIndex) (nbi *BitmapIndex) {
 
 	for i, b1 := range data1 {
 		b2 := data2[i]
-		nbi.Data[i] = b1 & b2
-		//if b1 > 0 && b2 > 0 { //双方都大于0才有比较的意义
-		//	b3 := b1 & b2
-		//	if b3 > 0 { //交集也大于0
-		//		for ii := 0; ii < 8; ii++ { //遍历8bit
-		//			if b3&(1<<uint(ii)) > 0 { //找到交集位置！
-		//				shift := ii + (Len-i-1)*8 //偏移量
-		//			}
-		//		}
-		//	}
-		//}
+		if b1 > 0 && b2 > 0 {
+			nbi.Data[i] = b1 & b2
+		} else {
+			nbi.Data[i] = 0
+		}
 	}
 
 	return
