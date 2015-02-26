@@ -168,3 +168,53 @@ func (bi *BitmapIndex) And(obi *BitmapIndex) (nbi *BitmapIndex) {
 }
 
 /* }}} */
+
+/* {{{ func (bi *BitmapIndex) Not(obi *BitmapIndex) *BitmapIndex
+ * 求差集
+ */
+func (bi *BitmapIndex) Not(obi *BitmapIndex) (nbi *BitmapIndex) {
+	if bi == nil {
+		return nil
+	}
+	if bi.End < obi.Start || obi.End < bi.Start {
+		//不可能有交集
+		return nil
+	}
+	var start, end int
+	if bi.Start < obi.Start {
+		//以大的start为准
+		start = obi.Start
+	} else {
+		start = bi.Start
+	}
+	if bi.End < obi.End {
+		//以小的end为准
+		end = bi.End
+	} else {
+		end = obi.End
+	}
+
+	//得到两个索引的重叠部分
+	data1 := bi.Data[bi.End-end : len(bi.Data)-(start-bi.Start)]
+	data2 := obi.Data[obi.End-end : len(obi.Data)-(start-obi.Start)]
+
+	nbi = new(BitmapIndex)
+	nbi.Start = start
+	nbi.End = end
+
+	Len := end - start + 1
+	nbi.Data = make([]byte, Len)
+
+	for i, b1 := range data1 {
+		b2 := data2[i]
+		if b1 > 0 && b2 > 0 {
+			nbi.Data[i] = b1 &^ b2 //b2为1的位都清零
+		} else {
+			nbi.Data[i] = 0
+		}
+	}
+
+	return
+}
+
+/* }}} */
