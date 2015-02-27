@@ -144,7 +144,7 @@ func (bi *BitmapIndex) And(obi *BitmapIndex) (nbi *BitmapIndex) {
 		end = obi.End
 	}
 
-	//得到两个索引的重叠部分
+	//得到两个索引的重叠部分(注意是从右往左)
 	data1 := bi.Data[bi.End-end : len(bi.Data)-(start-bi.Start)]
 	data2 := obi.Data[obi.End-end : len(obi.Data)-(start-obi.Start)]
 
@@ -173,30 +173,77 @@ func (bi *BitmapIndex) And(obi *BitmapIndex) (nbi *BitmapIndex) {
  * 求差集
  */
 func (bi *BitmapIndex) Not(obi *BitmapIndex) (nbi *BitmapIndex) {
+	nbi = bi
 	if bi == nil {
-		return nil
+		return
 	}
 	if bi.End < obi.Start || obi.End < bi.Start {
-		//不可能有交集
-		return nil
+		//直接返回bi
+		return
 	}
-	var start, end int
+	var cStart, cEnd int //交集部分的起止
 	if bi.Start < obi.Start {
-		//以大的start为准
-		start = obi.Start
+		//以大的Start为准
+		cStart = obi.Start
 	} else {
-		start = bi.Start
+		cStart = bi.Start
 	}
 	if bi.End < obi.End {
-		//以小的end为准
-		end = bi.End
+		//以小的End为准
+		cEnd = bi.End
 	} else {
-		end = obi.End
+		cEnd = obi.End
 	}
 
 	//得到两个索引的重叠部分
-	data1 := bi.Data[bi.End-end : len(bi.Data)-(start-bi.Start)]
-	data2 := obi.Data[obi.End-end : len(obi.Data)-(start-obi.Start)]
+	data1 := bi.Data[bi.End-cEnd : len(bi.Data)-(cStart-bi.Start)]
+	data2 := obi.Data[obi.End-cEnd : len(obi.Data)-(cStart-obi.Start)]
+
+	//重叠部分求差集, 其余部分保持原状
+	for i, b1 := range data1 {
+		b2 := data2[i]
+		offset := nbi.End - cEnd + i
+		if b1 > 0 && b2 > 0 {
+			nbi.Data[offset] = b1 &^ b2 //b2为1的位都清零
+		}
+	}
+
+	return
+}
+
+/* }}} */
+
+/* {{{ func (bi *BitmapIndex) Or(obi *BitmapIndex) *BitmapIndex
+ * 求合集
+ */
+func (bi *BitmapIndex) Or(obi *BitmapIndex) (nbi *BitmapIndex) {
+	if bi == nil {
+		return obi
+	} else if obi == nil {
+		return bi
+	}
+	var start, end int
+	var cStart, cEnd int //交集部分的起止
+	if bi.Start < obi.Start {
+		//以小的start为准
+		start = bi.Start
+		cStart = obi.Start
+	} else {
+		start = obi.Start
+		cStart = bi.Start
+	}
+	if bi.End < obi.End {
+		//以大的end为准
+		end = obi.End
+		cEnd = bi.End
+	} else {
+		end = bi.End
+		cEnd = obi.End
+	}
+
+	//得到两个索引的重叠部分
+	data1 := bi.Data[bi.End-cEnd : len(bi.Data)-(cStart-bi.Start)]
+	data2 := obi.Data[obi.End-cEnd : len(obi.Data)-(cStart-obi.Start)]
 
 	nbi = new(BitmapIndex)
 	nbi.Start = start
@@ -205,12 +252,15 @@ func (bi *BitmapIndex) Not(obi *BitmapIndex) (nbi *BitmapIndex) {
 	Len := end - start + 1
 	nbi.Data = make([]byte, Len)
 
+	//copy
+	copy(nbi.Data[end-bi.End:Len-(bi.Start-start)], bi.Data)
+	copy(nbi.Data[end-obi.End:Len-(obi.Start-start)], obi.Data)
+
 	for i, b1 := range data1 {
 		b2 := data2[i]
-		if b1 > 0 && b2 > 0 {
-			nbi.Data[i] = b1 &^ b2 //b2为1的位都清零
-		} else {
-			nbi.Data[i] = 0
+		offset := nbi.End - cEnd + i
+		if b1 > 0 || b2 > 0 {
+			nbi.Data[offset] = b1 | b2 // or操作
 		}
 	}
 
