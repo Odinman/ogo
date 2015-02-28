@@ -283,6 +283,21 @@ func (rc *RESTContext) RESTOK(data interface{}) (err error) {
 
 /* }}} */
 
+/* {{{ func (rc *RESTContext) HTTPOK(data interface{}) (err error)
+ * 属于request的错误
+ */
+func (rc *RESTContext) HTTPOK(data interface{}) (err error) {
+	rc.RESTHeader(http.StatusOK)
+
+	// write data
+	if data != nil {
+		err = rc.RESTBody(data)
+	}
+	return
+}
+
+/* }}} */
+
 /* {{{ func (rc *RESTContext) RESTNotOK(msg interface{}) (err error)
  * 属于request的错误
  */
