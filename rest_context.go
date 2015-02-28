@@ -326,7 +326,9 @@ func (rc *RESTContext) RESTNotOK(msg interface{}) (err error) {
 func (rc *RESTContext) RESTGenericError(status int, msg interface{}) (err error) {
 	rc.RESTHeader(status)
 	// write data
-	err = rc.RESTBody(rc.NewRESTError(status, msg))
+	if msg != nil {
+		err = rc.RESTBody(rc.NewRESTError(status, msg))
+	}
 	return
 }
 
