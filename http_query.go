@@ -156,6 +156,59 @@ func (rc *RESTContext) setTimeRangeFromDate(p []string) {
 
 /* }}} */
 
+/* {{{ func (rc *RESTContext) setTimeRangeFromStartEnd() {
+ * 时间段信息
+ */
+func (rc *RESTContext) setTimeRangeFromStartEnd() {
+	var sp, ep []string
+	var ok bool
+	r := rc.Request
+	if sp, ok = r.Form[_PARAM_START]; !ok {
+		//没有传入start,do nothing
+		return
+	}
+	//删除
+	r.Form.Del(_PARAM_START)
+
+	if ep, ok = r.Form[_PARAM_END]; !ok {
+		//没有传入end,do nothing
+		return
+	}
+	//删除
+	r.Form.Del(_PARAM_END)
+
+	s, e := sp[0], ep[0]
+
+	if len(s) != len(e) {
+		//长度不一致,返回
+		return
+	}
+
+	var format string
+	if len(s) == len(_DATE_FORM) {
+		format = _DATE_FORM
+	} else if len(s) == len(_DATE_FORM1) {
+		format = _DATE_FORM1
+	}
+	tr := new(TimeRange)
+	if ts, err := time.ParseInLocation(format, s, Env().Location); err != nil {
+		return
+	} else {
+		tr.Start = ts
+	}
+	if te, err := time.ParseInLocation(format, e, Env().Location); err != nil {
+		return
+	} else {
+		tr.End = te
+	}
+
+	rc.SetEnv(TimeRangeKey, tr)
+
+	return
+}
+
+/* }}} */
+
 /* {{{ func (rc *RESTContext) setOrderBy(p string) {
  * 时间段信息
  */

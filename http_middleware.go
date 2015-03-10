@@ -21,6 +21,8 @@ const (
 	_PARAM_PAGE    = "page"
 	_PARAM_PERPAGE = "per_page"
 	_PARAM_DATE    = "date"
+	_PARAM_START   = "start"
+	_PARAM_END     = "end"
 	_PARAM_ORDERBY = "orderby"
 
 	//特殊前缀
@@ -230,6 +232,7 @@ func ParseParams(c *web.C, h http.Handler) http.Handler {
 		// 根据ogo规则解析参数
 		var cType int
 		var p, pp string
+		rc.setTimeRangeFromStartEnd()
 		for k, v := range r.Form {
 			rc.Trace("key: %s, value: %s", k, v)
 			//根据参数名第一个字符来判断条件类型
