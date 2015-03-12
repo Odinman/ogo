@@ -174,37 +174,38 @@ func (rc *RESTContext) HTTPError(status int) (err error) {
  * 输出内容,如果需要压缩,统一在这里进行
  */
 func (rc *RESTContext) WriteBytes(data []byte) (n int, e error) {
-	if env.EnableGzip == true && rc.Request.Header.Get("Accept-Encoding") != "" {
-		splitted := strings.SplitN(rc.Request.Header.Get("Accept-Encoding"), ",", -1)
-		encodings := make([]string, len(splitted))
+	if dLen := len(data); dLen > 0 { //有内容才需要
+		if env.EnableGzip == true && rc.Request.Header.Get("Accept-Encoding") != "" {
+			splitted := strings.SplitN(rc.Request.Header.Get("Accept-Encoding"), ",", -1)
+			encodings := make([]string, len(splitted))
 
-		for i, val := range splitted {
-			encodings[i] = strings.TrimSpace(val)
-		}
-		for _, val := range encodings {
-			if val == "gzip" {
-				rc.Response.Header().Set("Content-Encoding", "gzip")
-				b := new(bytes.Buffer)
-				w, _ := gzip.NewWriterLevel(b, gzip.BestSpeed)
-				w.Write(data)
-				w.Close()
-				data = b.Bytes()
-				break
-			} else if val == "deflate" {
-				rc.Response.Header().Set("Content-Encoding", "deflate")
-				b := new(bytes.Buffer)
-				w, _ := flate.NewWriter(b, flate.BestSpeed)
-				w.Write(data)
-				w.Close()
-				data = b.Bytes()
-				break
+			for i, val := range splitted {
+				encodings[i] = strings.TrimSpace(val)
+			}
+			for _, val := range encodings {
+				if val == "gzip" {
+					rc.Response.Header().Set("Content-Encoding", "gzip")
+					b := new(bytes.Buffer)
+					w, _ := gzip.NewWriterLevel(b, gzip.BestSpeed)
+					w.Write(data)
+					w.Close()
+					data = b.Bytes()
+					break
+				} else if val == "deflate" {
+					rc.Response.Header().Set("Content-Encoding", "deflate")
+					b := new(bytes.Buffer)
+					w, _ := flate.NewWriter(b, flate.BestSpeed)
+					w.Write(data)
+					w.Close()
+					data = b.Bytes()
+					break
+				}
 			}
 		}
+		rc.ContentLength = dLen
+		rc.Response.Header().Set("Content-Length", strconv.Itoa(rc.ContentLength))
 	}
-	rc.ContentLength = len(data)
-	rc.Response.Header().Set("Content-Length", strconv.Itoa(rc.ContentLength))
 	if rc.Status == 0 {
-		//lw.WriteHeader(http.StatusOK)
 		rc.Status = http.StatusOK
 	}
 	//在Write之前要WriteHeader
@@ -244,17 +245,19 @@ func (rc *RESTContext) RESTHeader(status int) {
  */
 func (rc *RESTContext) RESTBody(data interface{}) (err error) {
 
+	var content []byte
 	if method := strings.ToLower(rc.Request.Method); method != "head" {
-		var content []byte
-		if env.IndentJSON {
-			content, _ = json.MarshalIndent(data, "", "  ")
-		} else {
-			content, _ = json.Marshal(data)
+		if data != nil {
+			if env.IndentJSON {
+				content, _ = json.MarshalIndent(data, "", "  ")
+			} else {
+				content, _ = json.Marshal(data)
+			}
 		}
 
-		//write data
-		_, err = rc.WriteBytes(content)
 	}
+	//write header & data
+	_, err = rc.WriteBytes(content)
 
 	return
 }
@@ -275,9 +278,7 @@ func (rc *RESTContext) RESTOK(data interface{}) (err error) {
 	rc.RESTHeader(status)
 
 	// write data
-	if data != nil {
-		err = rc.RESTBody(data)
-	}
+	err = rc.RESTBody(data)
 	return
 }
 
@@ -290,9 +291,7 @@ func (rc *RESTContext) HTTPOK(data interface{}) (err error) {
 	rc.RESTHeader(http.StatusOK)
 
 	// write data
-	if data != nil {
-		err = rc.RESTBody(data)
-	}
+	err = rc.RESTBody(data)
 	return
 }
 
@@ -314,6 +313,8 @@ func (rc *RESTContext) RESTNotOK(msg interface{}) (err error) {
 	// write data
 	if msg != nil {
 		err = rc.RESTBody(rc.NewRESTError(status, msg))
+	} else {
+		err = rc.RESTBody(nil)
 	}
 	return
 }
@@ -328,6 +329,8 @@ func (rc *RESTContext) RESTGenericError(status int, msg interface{}) (err error)
 	// write data
 	if msg != nil {
 		err = rc.RESTBody(rc.NewRESTError(status, msg))
+	} else {
+		err = rc.RESTBody(nil)
 	}
 	return
 }
