@@ -210,7 +210,9 @@ func (rc *RESTContext) WriteBytes(data []byte) (n int, e error) {
 	}
 	//在Write之前要WriteHeader
 	rc.Response.WriteHeader(rc.Status)
-	_, e = rc.Response.Write(data)
+	if len(data) > 0 {
+		_, e = rc.Response.Write(data)
+	}
 
 	return
 }
