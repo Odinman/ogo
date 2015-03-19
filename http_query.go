@@ -199,7 +199,8 @@ func (rc *RESTContext) setTimeRangeFromStartEnd() {
 	if te, err := time.ParseInLocation(format, e, Env().Location); err != nil {
 		return
 	} else {
-		tr.End = te
+		dura, _ := time.ParseDuration("86399s") // 一天少一秒
+		tr.End = te.Add(dura)                   //当天的最后一秒
 	}
 
 	rc.SetEnv(TimeRangeKey, tr)
