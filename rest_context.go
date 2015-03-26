@@ -299,6 +299,58 @@ func (rc *RESTContext) HTTPOK(data interface{}) (err error) {
 
 /* }}} */
 
+/* {{{ func (rc *RESTContext) HTTPBack() (err error)
+ * 属于request的错误
+ */
+func (rc *RESTContext) HTTPBack() (err error) {
+	rc.Status = http.StatusOK
+	rc.Response.Header().Set("Content-Type", "text/html; charset=UTF-8")
+	rc.Response.Header().Set("Cache-Control", "max-age=0")
+	rc.Response.Header().Set("Cache-Control", "no-cache")
+	rc.Response.Header().Set("Cache-Control", "must-revalidate")
+	rc.Response.Header().Set("Cache-Control", "private")
+	rc.Response.Header().Set("Expires", "Mon, 26 Jul 1997 05:00:00 GMT")
+	rc.Response.Header().Set("Pragma", "no-cache")
+
+	// write data
+	data := []byte(`<?xml version="1.0"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<meta http-equiv="Cache-Control" content="max-age=0" forua="true" />
+<meta http-equiv="Cache-Control" content="no-cache" forua="true" />
+<meta http-equiv="Cache-Control" content="must-revalidate" forua="true" />
+<title></title>
+</head>
+<body><p><a href="javascript:history.back(1)">Back</a></p></body>
+</html>`)
+	_, err = rc.WriteBytes(data)
+	return
+}
+
+/* }}} */
+
+/* {{{ func (rc *RESTContext) HTTPRedirect(url string) (err error)
+ * 属于request的错误
+ */
+func (rc *RESTContext) HTTPRedirect(url string) (err error) {
+	rc.Status = http.StatusFound //302
+	rc.Response.Header().Set("Content-Type", "text/html; charset=UTF-8")
+	rc.Response.Header().Set("Cache-Control", "max-age=0")
+	rc.Response.Header().Set("Cache-Control", "no-cache")
+	rc.Response.Header().Set("Cache-Control", "must-revalidate")
+	rc.Response.Header().Set("Cache-Control", "private")
+	rc.Response.Header().Set("Expires", "Mon, 26 Jul 1997 05:00:00 GMT")
+	rc.Response.Header().Set("Pragma", "no-cache")
+	rc.Response.Header().Set("Location", url)
+
+	err = rc.RESTBody(nil)
+	return
+}
+
+/* }}} */
+
 /* {{{ func (rc *RESTContext) RESTNotOK(msg interface{}) (err error)
  * 属于request的错误
  */
