@@ -286,14 +286,15 @@ func (rc *RESTContext) RESTOK(data interface{}) (err error) {
 
 /* }}} */
 
-/* {{{ func (rc *RESTContext) HTTPOK(data interface{}) (err error)
+/* {{{ func (rc *RESTContext) HTTPOK(data []byte) (err error)
  * 属于request的错误
  */
-func (rc *RESTContext) HTTPOK(data interface{}) (err error) {
-	rc.RESTHeader(http.StatusOK)
+func (rc *RESTContext) HTTPOK(data []byte) (err error) {
+	rc.Response.Header().Set("Content-Type", "text/html; charset=UTF-8")
+	rc.Status = http.StatusOK
 
 	// write data
-	err = rc.RESTBody(data)
+	_, err = rc.WriteBytes(data)
 	return
 }
 
