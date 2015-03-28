@@ -34,6 +34,8 @@ func init() {
 	goji.Use(Mime)
 	goji.Use(ParseParams)
 
+	//mime
+	initMime()
 }
 
 /* {{{ func (mux *Mux) Run()
