@@ -149,24 +149,25 @@ func Defer(c *web.C, h http.Handler) http.Handler {
 				rc.HTTPError(http.StatusInternalServerError)
 			}
 
-			// save access log here
-			//w.WriteHeader(rc.Status)
+			if na, ok := rc.Route.Options[NoAccessKey]; ok && na.(bool) == true {
+				//不记录access日志
+			} else {
+				// save access log here
+				ac := rc.Access
+				ac.Duration = time.Now().Sub(ac.Time).String()
+				ac.Status = rc.Status
+				ac.OutHeader = w.Header()
+				ac.RepLength = rc.ContentLength
+				if sb := rc.GetEnv(SaveBodyKey); sb != nil && sb.(bool) == true {
+					//可以由应用程序决定是否记录body
+					ac.ReqBody = string(rc.RequestBody)
+				}
+				//ac.App = string(rc.RequestBody)
 
-			//处理时间
-			ac := rc.Access
-			ac.Duration = time.Now().Sub(ac.Time).String()
-			ac.Status = rc.Status
-			ac.OutHeader = w.Header()
-			ac.RepLength = rc.ContentLength
-			if sb := rc.GetEnv(SaveBodyKey); sb != nil && sb.(bool) == true {
-				//可以由应用程序决定是否记录body
-				ac.ReqBody = string(rc.RequestBody)
+				Debug("[%s] [%s %s] end:%d in %s", ac.Session[:10], ac.Method, ac.URI, ac.Status, ac.Duration)
+				// save access
+				ac.Save()
 			}
-			//ac.App = string(rc.RequestBody)
-
-			Debug("[%s] [%s %s] end:%d in %s", ac.Session[:10], ac.Method, ac.URI, ac.Status, ac.Duration)
-			// save access
-			ac.Save()
 		}()
 
 		h.ServeHTTP(w, r)

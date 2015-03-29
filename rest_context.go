@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"compress/flate"
 	"compress/gzip"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -18,6 +19,7 @@ const (
 	//env key
 	RequestIDKey      = "_reqid_"
 	SaveBodyKey       = "_sb_"
+	NoAccessKey       = "_na_"
 	PaginationKey     = "_pagination_"
 	FieldsKey         = "_fields_"
 	TimeRangeKey      = "_tr_"
@@ -31,6 +33,10 @@ const (
 	DispositionMTKey  = "_dmt_"
 	ContentMD5Key     = "_md5_"
 	DispositionPrefix = "_dp_"
+
+	//1x1 gir
+	base64GifPixel = "R0lGODlhAQABAIAAAP///wAAACwAAAAAAQABAAACAkQBADs="
+	//base64GifPixel = "R0lGODlhAQABAJAAAP8AAAAAACH5BAUQAAAALAAAAAABAAEAAAICBAEAOw=="
 )
 
 var (
@@ -50,6 +56,7 @@ var (
 		"patch":  http.StatusNotAcceptable,
 		"head":   http.StatusConflict,
 	}
+	EmptyGifBytes, _ = base64.StdEncoding.DecodeString(base64GifPixel)
 )
 
 // http context, 封装第三方包goji
@@ -295,6 +302,20 @@ func (rc *RESTContext) HTTPOK(data []byte) (err error) {
 
 	// write data
 	_, err = rc.WriteBytes(data)
+	return
+}
+
+/* }}} */
+
+/* {{{ func (rc *RESTContext) HTTPEmptyGif() (err error)
+ * 属于request的错误
+ */
+func (rc *RESTContext) HTTPEmptyGif() (err error) {
+	rc.Response.Header().Set("Content-Type", "image/gif")
+	rc.Status = http.StatusOK
+
+	// write data
+	_, err = rc.WriteBytes(EmptyGifBytes)
 	return
 }
 

@@ -10,11 +10,6 @@ import (
 	"strings"
 )
 
-const (
-	_OPS_SKIPAUTH = iota
-	_OPS_SKIPLOGIN
-)
-
 type Handler func(c *RESTContext)
 
 type RouteOption map[string]interface{}
