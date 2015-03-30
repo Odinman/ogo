@@ -73,7 +73,7 @@ func EnvInit(c *web.C, h http.Handler) http.Handler {
 
 		c.Env[LogPrefixKey] = "[" + ac.Session[:10] + "]" //只显示前十位
 
-		Debug("[%s] [%s %s] started", ac.Session[:10], r.Method, r.RequestURI)
+		Trace("[%s] [%s %s] started", ac.Session[:10], r.Method, r.RequestURI)
 
 		lw := utils.WrapWriter(w)
 
@@ -125,7 +125,6 @@ func Defer(c *web.C, h http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
 
 		rc := rcHolder(*c, w, r)
-		//Debug("defer len: %d", len(rc.RequestBody))
 		defer func() {
 			if err := recover(); err != nil {
 				rc.Critical("[%s %s] %v", r.Method, r.URL.Path, err)
@@ -147,7 +146,7 @@ func Defer(c *web.C, h http.Handler) http.Handler {
 			}
 			//ac.App = string(rc.RequestBody)
 
-			Debug("[%s] [%s %s] end:%d in %s", ac.Session[:10], ac.Method, ac.URI, ac.Status, ac.Duration)
+			rc.Debug("[%s %s] end:%d in %s", ac.Method, ac.URI, ac.Status, ac.Duration)
 			// save access
 			rc.SaveAccess()
 		}()
