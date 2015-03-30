@@ -14,8 +14,9 @@ type OnlineMap struct {
 }
 
 type Online struct {
-	Key string
-	Ex  time.Time
+	Key  string
+	Ex   time.Time
+	Perm interface{}
 }
 
 var (
@@ -41,13 +42,14 @@ func GetOnlineKey(id string) (ol *Online, err error) {
 
 /* }}} */
 
-/* {{{ func SetOnlineKey(id string, ol *Online) bool
+/* {{{ func SetOnlineKey(id string, ol *Online,p interface{}) bool
  *
  */
-func SetOnlineKey(id, key string) bool {
+func SetOnlineKey(id, key string, p interface{}) bool {
 	ol := &Online{
-		Key: key,
-		Ex:  time.Now().Add(300 * time.Second), //缓存5分钟
+		Key:  key,
+		Ex:   time.Now().Add(300 * time.Second), //缓存5分钟
+		Perm: p,
 	}
 	return OnlineCache.Set(id, ol)
 }
