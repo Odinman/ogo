@@ -19,7 +19,7 @@ const (
 	//env key
 	RequestIDKey      = "_reqid_"
 	SaveBodyKey       = "_sb_"
-	NoAccessKey       = "_na_"
+	NoLogKey          = "_nl_"
 	PaginationKey     = "_pagination_"
 	FieldsKey         = "_fields_"
 	TimeRangeKey      = "_tr_"
@@ -495,6 +495,20 @@ func (rc *RESTContext) GetEnv(k string) (v interface{}) {
 
 /* }}} */
 
+/* {{{ func (rc *RESTContext) SaveAccess()
+ * 设置环境变量
+ */
+func (rc *RESTContext) SaveAccess() {
+	if nl := rc.GetEnv(NoLogKey); nl == true {
+		return
+	}
+	if rc.Access != nil {
+		rc.Access.Save()
+	}
+}
+
+/* }}} */
+
 /* {{{	RESTContext loggers
  * 可以在每个debug信息带上session
  */
@@ -520,6 +534,10 @@ func (rc *RESTContext) Critical(format string, v ...interface{}) {
 	rc.logf("critical", format, v...)
 }
 func (rc *RESTContext) logf(tag, format string, v ...interface{}) {
+	if nl := rc.GetEnv(NoLogKey); nl == true {
+		// no logging
+		return
+	}
 	var prefix string
 	if p := rc.GetEnv(LogPrefixKey); p != nil {
 		prefix = p.(string)

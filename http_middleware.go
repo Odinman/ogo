@@ -102,6 +102,9 @@ func EnvInit(c *web.C, h http.Handler) http.Handler {
 		var rcErr error
 		var rc *RESTContext
 		rc, rcHolder, rcErr = RCHolder(*c, w, r)
+		if na, ok := rc.Route.Options[NoLogKey]; ok && na.(bool) == true {
+			rc.SetEnv(NoLogKey, true)
+		}
 		rc.Access = ac
 		rc.Access.ReqLength = len(rc.RequestBody)
 		if rcErr != nil {
@@ -111,20 +114,6 @@ func EnvInit(c *web.C, h http.Handler) http.Handler {
 
 		h.ServeHTTP(lw, r)
 
-		//if rc.Status == 0 {
-		//	//lw.WriteHeader(http.StatusOK)
-		//	rc.Status = http.StatusOK
-		//}
-
-		//lw.WriteHeader(rc.Status)
-		////处理时间
-		//ac.Duration = time.Now().Sub(ac.Time).String()
-		//ac.Status = rc.Status
-		//ac.OutHeader = lw.Header()
-		//ac.Length = rc.ContentLength
-
-		//Debug("[%s] [%s %s] end:%d in %s", ac.Session[:10], ac.Method, ac.URI, ac.Status, ac.Duration)
-		//ac.Save()
 	}
 
 	return http.HandlerFunc(fn)
@@ -149,25 +138,21 @@ func Defer(c *web.C, h http.Handler) http.Handler {
 				rc.HTTPError(http.StatusInternalServerError)
 			}
 
-			if na, ok := rc.Route.Options[NoAccessKey]; ok && na.(bool) == true {
-				//不记录access日志
-			} else {
-				// save access log here
-				ac := rc.Access
-				ac.Duration = time.Now().Sub(ac.Time).String()
-				ac.Status = rc.Status
-				ac.OutHeader = w.Header()
-				ac.RepLength = rc.ContentLength
-				if sb := rc.GetEnv(SaveBodyKey); sb != nil && sb.(bool) == true {
-					//可以由应用程序决定是否记录body
-					ac.ReqBody = string(rc.RequestBody)
-				}
-				//ac.App = string(rc.RequestBody)
-
-				Debug("[%s] [%s %s] end:%d in %s", ac.Session[:10], ac.Method, ac.URI, ac.Status, ac.Duration)
-				// save access
-				ac.Save()
+			// save access log here
+			ac := rc.Access
+			ac.Duration = time.Now().Sub(ac.Time).String()
+			ac.Status = rc.Status
+			ac.OutHeader = w.Header()
+			ac.RepLength = rc.ContentLength
+			if sb := rc.GetEnv(SaveBodyKey); sb != nil && sb.(bool) == true {
+				//可以由应用程序决定是否记录body
+				ac.ReqBody = string(rc.RequestBody)
 			}
+			//ac.App = string(rc.RequestBody)
+
+			Debug("[%s] [%s %s] end:%d in %s", ac.Session[:10], ac.Method, ac.URI, ac.Status, ac.Duration)
+			// save access
+			rc.SaveAccess()
 		}()
 
 		h.ServeHTTP(w, r)
