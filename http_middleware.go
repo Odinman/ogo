@@ -102,9 +102,6 @@ func EnvInit(c *web.C, h http.Handler) http.Handler {
 		var rcErr error
 		var rc *RESTContext
 		rc, rcHolder, rcErr = RCHolder(*c, w, r)
-		if na, ok := rc.Route.Options[NoLogKey]; ok && na.(bool) == true {
-			rc.SetEnv(NoLogKey, true)
-		}
 		rc.Access = ac
 		rc.Access.ReqLength = len(rc.RequestBody)
 		if rcErr != nil {
