@@ -19,6 +19,7 @@ const (
 	//env key
 	RequestIDKey      = "_reqid_"
 	SaveBodyKey       = "_sb_"
+	SaveResultKey     = "_sr_"
 	NoLogKey          = "_nl_"
 	PaginationKey     = "_pagination_"
 	FieldsKey         = "_fields_"
@@ -286,7 +287,9 @@ func (rc *RESTContext) RESTOK(data interface{}) (err error) {
 	}
 	rc.RESTHeader(status)
 
-	rc.Access.App = data
+	if sr := rc.GetEnv(SaveResultKey); sr != nil && sr.(bool) == true {
+		rc.Access.App = data
+	}
 	// write data
 	err = rc.RESTBody(data)
 	return
