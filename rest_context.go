@@ -286,6 +286,7 @@ func (rc *RESTContext) RESTOK(data interface{}) (err error) {
 	}
 	rc.RESTHeader(status)
 
+	rc.Access.App = data
 	// write data
 	err = rc.RESTBody(data)
 	return
