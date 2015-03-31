@@ -74,14 +74,18 @@ func (m *OnlineMap) Set(k string, v *Online) bool {
 // Get from maps return the k's value
 func (m *OnlineMap) Get(k string) (ol *Online) {
 	m.lock.RLock()
-	defer m.lock.RUnlock()
+	//defer m.lock.RUnlock()
 	if val, ok := m.olm[k]; ok {
 		if time.Now().Before(val.Ex) { //还没过期
+			m.lock.RUnlock()
 			return val
 		} else { //过期,删除
+			m.lock.RUnlock()
 			m.Delete(k)
+			return nil
 		}
 	}
+	m.lock.RUnlock()
 	return nil
 }
 
