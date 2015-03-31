@@ -76,7 +76,9 @@ func handlerWrap(rt *Route) web.HandlerFunc { //这里封装了webC到本地的�
 		//route
 		rc.Route = rt
 
-		//Debug("method: %s, bodylen: %d", r.Method, len(rc.RequestBody))
+		if nl, ok := rt.Options[NoLogKey]; ok && nl == true {
+			rc.SetEnv(NoLogKey, true)
+		}
 
 		// pre hooks, 任何一个出错,都要结束
 		if hl := len(DMux.Hooks.preHooks); hl > 0 {
