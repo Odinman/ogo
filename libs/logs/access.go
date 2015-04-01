@@ -29,7 +29,8 @@ type AccessLogWriter struct {
 	Maxdays        int64 `json:"maxdays`
 	daily_opendate int
 
-	Rotate bool `json:"rotate"`
+	Rotate    bool `json:"rotate"`
+	MaxRotate int  `json:"maxrotate"`
 
 	startLock sync.Mutex // Only one log can write to the file
 
@@ -60,12 +61,13 @@ func (l *AccessMuxWriter) SetFd(fd *os.File) {
 // create a AccessLogWriter returning as LoggerInterface.
 func NewAccessWriter() LoggerInterface {
 	w := &AccessLogWriter{
-		Filename: "logs/access.log",
-		Maxsize:  1 << 27, //128 MB
-		Daily:    false,
-		Maxdays:  3, //旧日志保存3天
-		Rotate:   true,
-		Level:    LevelTrace,
+		Filename:  "logs/access.log",
+		Maxsize:   1 << 27, //128 MB
+		Daily:     false,
+		Maxdays:   3, //旧日志保存3天
+		Rotate:    true,
+		MaxRotate: 10, //保持10个旧文件(与3天条件共存)
+		Level:     LevelTrace,
 	}
 	// use AccessMuxWriter instead direct use os.File for lock write when rotate
 	w.mw = new(AccessMuxWriter)
@@ -158,22 +160,41 @@ func (w *AccessLogWriter) initFd() error {
 	return nil
 }
 
+/* {{{ func fileRotateRename(filename string, numbers ...int) error
+ * 轮询移动文件,直接用数字后缀0-base
+ */
+func fileRotateRename(filename string, numbers ...int) error {
+	var source, target string
+	var sn, max int
+	max = 10 //默认10个
+	if len(numbers) > 0 {
+		sn = numbers[0]
+	}
+	if len(numbers) > 1 {
+		max = numbers[1]
+	}
+	target = fmt.Sprint(filename, ".", sn)
+	if sn > 0 {
+		source = fmt.Sprint(filename, ".", sn-1)
+	} else {
+		source = filename
+	}
+	if _, err := os.Lstat(target); err == nil && (max <= 0 || sn+1 < max) {
+		//文件存在,并且没有达到最大rotate限制
+		if err := fileRotateRename(filename, sn+1, max); err != nil { //递归腾地儿
+			return err
+		}
+	}
+	return os.Rename(source, target)
+}
+
+/* }}} */
+
 // DoRotate means it need to write file in new file.
 // new file name like xx.log.2013-01-01.2
 func (w *AccessLogWriter) DoRotate() error {
 	_, err := os.Lstat(w.Filename)
 	if err == nil { // file exists
-		// Find the next available number
-		num := 1
-		fname := ""
-		for ; err == nil && num <= 999; num++ {
-			fname = w.Filename + fmt.Sprintf(".%s.%03d", time.Now().Format("2006-01-02"), num)
-			_, err = os.Lstat(fname)
-		}
-		// return error if the last file checked still existed
-		if err == nil {
-			return fmt.Errorf("Rotate: Cannot find free log number to rename %s\n", w.Filename)
-		}
 
 		// block Logger's io.Writer
 		w.mw.Lock()
@@ -184,8 +205,9 @@ func (w *AccessLogWriter) DoRotate() error {
 
 		// close fd before rename
 		// Rename the file to its newfound home
-		err = os.Rename(w.Filename, fname)
-		if err != nil {
+		//err = os.Rename(w.Filename, fname)
+		//if err != nil {
+		if err := fileRotateRename(w.Filename, 0, 10); err != nil {
 			return fmt.Errorf("Rotate: %s\n", err)
 		}
 
