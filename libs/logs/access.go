@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	//"errors"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -20,9 +19,6 @@ type AccessLogWriter struct {
 	mw *AccessMuxWriter
 	// The opened file
 	Filename string `json:"filename"`
-
-	Maxlines          int `json:"maxlines"`
-	maxlines_curlines int
 
 	// Rotate at size
 	Maxsize         int `json:"maxsize"`
@@ -65,10 +61,9 @@ func (l *AccessMuxWriter) SetFd(fd *os.File) {
 func NewAccessWriter() LoggerInterface {
 	w := &AccessLogWriter{
 		Filename: "logs/access.log",
-		Maxlines: 10000000, //10m lines
-		Maxsize:  1 << 29,  //512 MB
+		Maxsize:  1 << 27, //128 MB
 		Daily:    false,
-		Maxdays:  7,
+		Maxdays:  3, //旧日志保存3天
 		Rotate:   true,
 		Level:    LevelTrace,
 	}
@@ -83,8 +78,7 @@ func NewAccessWriter() LoggerInterface {
 // Init file logger with json config.
 // jsonconfig like:
 //	{
-//	"filename":"logs/beego.log",
-//	"maxlines":10000,
+//	"filename":"logs/access.log",
 //	"maxsize":1<<30,
 //	"daily":true,
 //	"maxdays":15,
@@ -119,15 +113,12 @@ func (w *AccessLogWriter) startLogger() error {
 func (w *AccessLogWriter) docheck(size int) {
 	w.startLock.Lock()
 	defer w.startLock.Unlock()
-	if w.Rotate && ((w.Maxlines > 0 && w.maxlines_curlines >= w.Maxlines) ||
-		(w.Maxsize > 0 && w.maxsize_cursize >= w.Maxsize) ||
-		(w.Daily && time.Now().Day() != w.daily_opendate)) {
+	if w.Rotate && ((w.Maxsize > 0 && w.maxsize_cursize >= w.Maxsize) || (w.Daily && time.Now().Day() != w.daily_opendate)) {
 		if err := w.DoRotate(); err != nil {
 			fmt.Fprintf(os.Stderr, "AccessLogWriter(%q): %s\n", w.Filename, err)
 			return
 		}
 	}
-	w.maxlines_curlines++
 	w.maxsize_cursize += size
 }
 
@@ -164,15 +155,6 @@ func (w *AccessLogWriter) initFd() error {
 	}
 	w.maxsize_cursize = int(finfo.Size())
 	w.daily_opendate = time.Now().Day()
-	if finfo.Size() > 0 {
-		content, err := ioutil.ReadFile(w.Filename)
-		if err != nil {
-			return err
-		}
-		w.maxlines_curlines = len(strings.Split(string(content), "\n"))
-	} else {
-		w.maxlines_curlines = 0
-	}
 	return nil
 }
 
