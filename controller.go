@@ -153,6 +153,7 @@ func (ctr *Controller) Init(c ControllerInterface) {
 	// not found
 	notFoundRoute := &Route{
 		Handler: c.NotFound,
+		Options: map[string]interface{}{NoLogKey: true},
 	}
 	ctr.RouteNotFound(notFoundRoute)
 }
