@@ -9,6 +9,7 @@ import (
 
 type BitmapIndex struct { // bitmap索引数据结构
 	Data  []byte //数据用[]byte存放,一个元素(block)8bit
+	Ext   []byte //扩展数据用[]byte存放,一个元素(block)8bit
 	Start int    //开始的block
 	End   int    //结束的block
 }
@@ -60,11 +61,13 @@ func ReadBitmapIndex(ib []byte) (bi *BitmapIndex, err error) {
 	}
 
 	bi = new(BitmapIndex)
-	bi.Data = ib[8:]
 	start := ReadIntFromBytes(ib[:4])
 	end := ReadIntFromBytes(ib[4:8])
 	bi.Start = start / 8
 	bi.End = end / 8
+	dl := bi.End - bi.Start + 1 //数据长度
+	bi.Data = ib[8:(8 + dl)]
+	bi.Ext = ib[(8 + dl):] //剩余长度为额外的
 
 	return
 }
@@ -95,7 +98,7 @@ func (bi *BitmapIndex) Bytes() (ib []byte, err error) {
 /* }}} */
 
 /* {{{ func (bi *BitmapIndex) Slices() ([]int, error)
- * 将BitmapIndex转化为[]byte,方便存放到文件或者内存中去
+ * 将BitmapIndex转化为[]int
  */
 func (bi *BitmapIndex) Slices() (s []int, err error) {
 	if bi == nil || len(bi.Data) <= 0 {
@@ -103,7 +106,9 @@ func (bi *BitmapIndex) Slices() (s []int, err error) {
 	}
 	s = make([]int, 0)
 	Len := len(bi.Data)
-	for i, b := range bi.Data {
+	//for i, b := range bi.Data {
+	for i := (Len - 1); i >= 0; i-- {
+		b := bi.Data[i]
 		if b > 0 { //双方都大于0才有比较的意义
 			for ii := 0; ii < 8; ii++ { //遍历8bit
 				if b&(1<<uint(ii)) > 0 { //找到交集位置！
@@ -155,13 +160,25 @@ func (bi *BitmapIndex) And(obi *BitmapIndex) (nbi *BitmapIndex) {
 	Len := end - start + 1
 	nbi.Data = make([]byte, Len)
 
+	var matched bool
 	for i, b1 := range data1 {
 		b2 := data2[i]
 		if b1 > 0 && b2 > 0 {
-			nbi.Data[i] = b1 & b2
+			if b3 := b1 & b2; b3 > 0 {
+				if matched == false {
+					matched = true
+				}
+				nbi.Data[i] = b3
+			} else {
+				nbi.Data[i] = 0
+			}
 		} else {
 			nbi.Data[i] = 0
 		}
+	}
+
+	if !matched { //没有重合的部分,返回空
+		return nil
 	}
 
 	return
@@ -174,7 +191,7 @@ func (bi *BitmapIndex) And(obi *BitmapIndex) (nbi *BitmapIndex) {
  */
 func (bi *BitmapIndex) Not(obi *BitmapIndex) (nbi *BitmapIndex) {
 	nbi = bi
-	if bi == nil {
+	if bi == nil || obi == nil {
 		return
 	}
 	if bi.End < obi.Start || obi.End < bi.Start {
@@ -264,6 +281,21 @@ func (bi *BitmapIndex) Or(obi *BitmapIndex) (nbi *BitmapIndex) {
 		}
 	}
 
+	return
+}
+
+/* }}} */
+
+/* {{{ func OR(bis []*BitmapIndex) *BitmapIndex
+ * 求所有索引并集
+ */
+func OR(bis []*BitmapIndex) (obi *BitmapIndex) {
+	if len(bis) <= 0 {
+		return nil
+	}
+	for _, bi := range bis {
+		obi = obi.Or(bi)
+	}
 	return
 }
 
