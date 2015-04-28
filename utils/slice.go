@@ -20,6 +20,27 @@ func InSlice(v string, sl []string) bool {
 	return false
 }
 
+// InSliceInt checks given int in int slice or not.
+func InSliceInt(v int, sl []int) bool {
+	for _, vv := range sl {
+		if vv == v {
+			return true
+		}
+	}
+	return false
+}
+
+// Purge Slice
+func PurgeSlice(v string, sl []string) []string {
+	nsl := []string{}
+	for _, vv := range sl {
+		if vv != v {
+			nsl = append(nsl, vv)
+		}
+	}
+	return nsl
+}
+
 // InSliceIface checks given interface in interface slice.
 func InSliceIface(v interface{}, sl []interface{}) bool {
 	for _, vv := range sl {
