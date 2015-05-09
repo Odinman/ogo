@@ -9,7 +9,7 @@ import (
 
 type BitmapIndex struct { // bitmap索引数据结构
 	Data  []byte //数据用[]byte存放,一个元素(block)8bit
-	Ext   []byte //扩展数据用[]byte存放,一个元素(block)8bit
+	Ext   []byte //扩展数据,也是[]byte
 	Start int    //开始的block
 	End   int    //结束的block
 }
@@ -32,6 +32,9 @@ func ReadIntFromBytes(bs []byte) (r int) {
  * 根据一个整数slice建立索引
  */
 func NewBitmapIndex(s []int) *BitmapIndex {
+	if len(s) == 0 {
+		return nil
+	}
 	sort.Ints(s) //先排序
 	bi := new(BitmapIndex)
 	bi.Start = s[0] / 8
@@ -186,6 +189,24 @@ func (bi *BitmapIndex) And(obi *BitmapIndex) (nbi *BitmapIndex) {
 
 /* }}} */
 
+/* {{{ func (bi *BitmapIndex) AndBreak(obis []*BitmapIndex) *BitmapIndex
+ *  第一个交集不为空
+ */
+func (bi *BitmapIndex) AndBreak(obis []*BitmapIndex) (nbi *BitmapIndex) {
+	if bi == nil {
+		return nil
+	}
+	for _, obi := range obis {
+		if tbi := bi.And(obi); tbi != nil {
+			return tbi
+		}
+	}
+
+	return
+}
+
+/* }}} */
+
 /* {{{ func (bi *BitmapIndex) Not(obi *BitmapIndex) *BitmapIndex
  * 求差集
  */
@@ -258,10 +279,6 @@ func (bi *BitmapIndex) Or(obi *BitmapIndex) (nbi *BitmapIndex) {
 		cEnd = obi.End
 	}
 
-	//得到两个索引的重叠部分
-	data1 := bi.Data[bi.End-cEnd : len(bi.Data)-(cStart-bi.Start)]
-	data2 := obi.Data[obi.End-cEnd : len(obi.Data)-(cStart-obi.Start)]
-
 	nbi = new(BitmapIndex)
 	nbi.Start = start
 	nbi.End = end
@@ -272,6 +289,15 @@ func (bi *BitmapIndex) Or(obi *BitmapIndex) (nbi *BitmapIndex) {
 	//copy
 	copy(nbi.Data[end-bi.End:Len-(bi.Start-start)], bi.Data)
 	copy(nbi.Data[end-obi.End:Len-(obi.Start-start)], obi.Data)
+
+	if bi.End < obi.Start || obi.End < bi.Start {
+		//没有有交集, 直接相加返回
+		return
+	}
+
+	//有交集, 得到两个索引的重叠部分
+	data1 := bi.Data[bi.End-cEnd : len(bi.Data)-(cStart-bi.Start)]
+	data2 := obi.Data[obi.End-cEnd : len(obi.Data)-(cStart-obi.Start)]
 
 	for i, b1 := range data1 {
 		b2 := data2[i]
