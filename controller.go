@@ -4,10 +4,26 @@ package ogo
 
 import (
 	"fmt"
-	"github.com/zenazn/goji"
-	"github.com/zenazn/goji/web"
 	"net/http"
 	"strings"
+
+	"github.com/zenazn/goji"
+	"github.com/zenazn/goji/web"
+)
+
+const (
+	// generic controller const
+	GC_GET = 1 << iota
+	GC_POST
+	GC_DELETE
+	GC_PATCH
+	//GC_PUT
+	GC_HEAD
+	GC_ALL = GC_GET | GC_POST | GC_DELETE | GC_PATCH | GC_HEAD
+
+	//KEY_SKIPAUTH  = "skipauth"
+	//KEY_SKIPLOGIN = "skiplogin"
+	//KEY_SKIPPERM  = "skipperm"
 )
 
 type Handler func(c *RESTContext)
@@ -46,6 +62,9 @@ type ControllerInterface interface {
 	AddRoute(m string, p interface{}, h Handler, options ...map[string]interface{})
 }
 
+/* {{{ func NewRoute(p interface{}, m string, h Handler, options ...map[string]interface{}) *Route
+ *
+ */
 func NewRoute(p interface{}, m string, h Handler, options ...map[string]interface{}) *Route {
 	r := &Route{
 		Pattern: p,
@@ -61,13 +80,21 @@ func NewRoute(p interface{}, m string, h Handler, options ...map[string]interfac
 	return r
 }
 
+/* }}} */
+
+/* {{{ func getRouteKey(rt *Route) (key string)
+ *
+ */
 func getRouteKey(rt *Route) (key string) {
 	key = fmt.Sprint(strings.ToUpper(rt.Method), " ", rt.Pattern)
 	return
 }
 
-// 封装
-//func handlerWrap(f Handler) web.HandlerFunc { //这里封装了webC到本地的结构中
+/* }}} */
+
+/* {{{ func handlerWrap(rt *Route) web.HandlerFunc
+ * 封装
+ */
 func handlerWrap(rt *Route) web.HandlerFunc { //这里封装了webC到本地的结构中
 	fn := func(c web.C, w http.ResponseWriter, r *http.Request) {
 		// build newest RESTContext
@@ -103,6 +130,8 @@ func handlerWrap(rt *Route) web.HandlerFunc { //这里封装了webC到本地的�
 	return fn
 }
 
+/* }}} */
+
 /* {{{ func (ctr *Controller) New(mux *Mux, endpoint string)
  *
  */
@@ -122,7 +151,9 @@ func (ctr *Controller) GetEndpoint() string {
 
 /* }}} */
 
-//func (ctr *Controller) Init(endpoint string, c ControllerInterface) {
+/* {{{ func (ctr *Controller) Init(c ControllerInterface)
+ *
+ */
 func (ctr *Controller) Init(c ControllerInterface) {
 	//ctr.Endpoint = endpoint
 	ctr.DefaultRoutes(c) //默认路由
@@ -158,6 +189,11 @@ func (ctr *Controller) Init(c ControllerInterface) {
 	ctr.RouteNotFound(notFoundRoute)
 }
 
+/* }}} */
+
+/* {{{ controller默认操作
+ *
+ */
 func (ctr *Controller) Get(c *RESTContext) {
 	c.HTTPError(http.StatusMethodNotAllowed)
 }
@@ -186,6 +222,11 @@ func (ctr *Controller) NotFound(c *RESTContext) {
 	c.HTTPError(http.StatusNotFound)
 }
 
+/* }}} */
+
+/* {{{ func (ctr *Controller) AddRoute(m string, p interface{}, h Handler, options ...map[string]interface{})
+ *
+ */
 func (ctr *Controller) AddRoute(m string, p interface{}, h Handler, options ...map[string]interface{}) {
 	key := fmt.Sprint(strings.ToUpper(m), " ", p)
 	if ctr.Routes == nil {
@@ -201,8 +242,11 @@ func (ctr *Controller) AddRoute(m string, p interface{}, h Handler, options ...m
 	}
 }
 
-// controller default route
-// 默认路由, 如果已经定义了则忽略，没有定义则加上
+/* }}} */
+
+/* {{{ func (ctr *Controller) DefaultRoutes(c ControllerInterface)
+ * 默认路由, 如果已经定义了则忽略，没有定义则加上
+ */
 func (ctr *Controller) DefaultRoutes(c ControllerInterface) {
 	if ctr.Endpoint == "" {
 		//没有endpoint,不需要默认路由
@@ -288,6 +332,11 @@ func (ctr *Controller) DefaultRoutes(c ControllerInterface) {
 	}
 }
 
+/* }}} */
+
+/* {{{ 封装goji的基础方法
+ *
+ */
 func (ctr *Controller) RouteGet(rt *Route) {
 	goji.Get(rt.Pattern, handlerWrap(rt))
 }
@@ -315,3 +364,45 @@ func (ctr *Controller) RouteHead(rt *Route) {
 func (ctr *Controller) RouteNotFound(rt *Route) {
 	goji.NotFound(handlerWrap(rt))
 }
+
+/* }}} */
+
+/* {{{ CRUD
+ * 通用的操作方法, 根据flag返回
+ * 必须符合通用的restful风格
+ */
+func CRUD(m Model, flag int) Handler {
+	get := func(c *RESTContext) {
+	}
+	post := func(c *RESTContext) {
+	}
+	delete := func(c *RESTContext) {
+	}
+	patch := func(c *RESTContext) { //修改
+	}
+	//put := func(c *RESTContext) { //重置
+	//}
+	head := func(c *RESTContext) { //检查字段
+	}
+	deny := func(c *RESTContext) {
+	}
+
+	switch flag {
+	case GC_GET:
+		return get
+	case GC_POST:
+		return post
+	case GC_DELETE:
+		return delete
+	case GC_PATCH:
+		return patch
+	//case GC_PUT:
+	//	return put
+	case GC_HEAD:
+		return head
+	default:
+		return deny
+	}
+}
+
+/* }}} */
