@@ -19,7 +19,7 @@ type Access struct {
 	Method    string       `json:"m"`
 	URI       string       `json:"uri"`
 	Proto     string       `json:"p"`
-	ReqBody   string       `json:"rbd,omitempty"`
+	ReqBody   string       `json:"qb,omitempty"`
 	ReqLength int          `json:"ql"` //请求body大小
 	RepLength int          `json:"pl"` //返回body大小
 	Duration  string       `json:"d"`
