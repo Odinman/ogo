@@ -46,7 +46,6 @@ type Controller struct {
 }
 
 type ControllerInterface interface {
-	//Init(endpoint string, c ControllerInterface)
 	Init(c ControllerInterface)
 	New(mux *Mux, endpoint string)
 	GetEndpoint() string
@@ -367,7 +366,7 @@ func (ctr *Controller) RouteNotFound(rt *Route) {
 
 /* }}} */
 
-/* {{{ CRUD
+/* {{{ func CRUD(m Model, flag int) Handler
  * 通用的操作方法, 根据flag返回
  * 必须符合通用的restful风格
  */

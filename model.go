@@ -58,8 +58,6 @@ type Model interface {
 	PreDelete(m Model, c *RESTContext) (Model, error)                  // 删除前的检查
 	OnAction(m Model, c *RESTContext) error                            //触发器
 	Existense(m Model, c *RESTContext) func(tag string) (Model, error) //检查存在性
-
-	//data
 }
 
 //基础model,在这里可以实现Model接口, 其余的只需要嵌入这个struct,就可以继承这些方法
