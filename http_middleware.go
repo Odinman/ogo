@@ -54,11 +54,12 @@ func EnvInit(c *web.C, h http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
 		ac := new(Access) //access日志信息
 		ac.Time = time.Now()
-		ac.Method = r.Method
-		ac.URI = r.RequestURI
-		ac.Proto = r.Proto
-		ac.Host = r.Host
-		ac.InHeader = &r.Header
+		ac.Http = new(HTTPLog)
+		ac.Http.Method = r.Method
+		ac.Http.URI = r.RequestURI
+		ac.Http.Proto = r.Proto
+		ac.Http.Host = r.Host
+		ac.Http.InHeader = &r.Header
 		// env
 		if c.Env == nil {
 			c.Env = make(map[string]interface{})
@@ -96,14 +97,14 @@ func EnvInit(c *web.C, h http.Handler) http.Handler {
 			c.Env[OriginalRemoteAddrKey] = r.RemoteAddr
 			r.RemoteAddr = rip
 		}
-		ac.IP = r.RemoteAddr
+		ac.Http.IP = r.RemoteAddr
 
 		//init RESTContext
 		var rcErr error
 		var rc *RESTContext
 		rc, rcHolder, rcErr = RCHolder(*c, w, r)
 		rc.Access = ac
-		rc.Access.ReqLength = len(rc.RequestBody)
+		rc.Access.Http.ReqLength = len(rc.RequestBody)
 		if rcErr != nil {
 			rc.RESTBadRequest(rcErr)
 			return
@@ -137,16 +138,16 @@ func Defer(c *web.C, h http.Handler) http.Handler {
 			// save access log here
 			ac := rc.Access
 			ac.Duration = time.Now().Sub(ac.Time).String()
-			ac.Status = rc.Status
-			ac.OutHeader = w.Header()
-			ac.RepLength = rc.ContentLength
+			ac.Http.Status = rc.Status
+			ac.Http.OutHeader = w.Header()
+			ac.Http.RepLength = rc.ContentLength
 			if sb := rc.GetEnv(SaveBodyKey); sb != nil && sb.(bool) == true {
 				//可以由应用程序决定是否记录body
-				ac.ReqBody = string(rc.RequestBody)
+				ac.Http.ReqBody = string(rc.RequestBody)
 			}
 			//ac.App = string(rc.RequestBody)
 
-			rc.Debug("[%s %s] end:%d in %s", ac.Method, ac.URI, ac.Status, ac.Duration)
+			rc.Debug("[%s %s] end:%d in %s", ac.Http.Method, ac.Http.URI, ac.Http.Status, ac.Duration)
 			// save access
 			rc.SaveAccess()
 		}()

@@ -12,9 +12,16 @@ import (
 )
 
 type Access struct {
-	Time      time.Time    `json:"t"`
+	Time     time.Time   `json:"t"`
+	Service  string      `json:"sn,omitempty"`
+	Session  string      `json:"s"`
+	Duration string      `json:"d"`
+	Http     *HTTPLog    `json:"http,omitempty"`
+	App      interface{} `json:"app,omitempty"` //app自定义日志
+}
+
+type HTTPLog struct {
 	Status    int          `json:"sc"`
-	Session   string       `json:"s"`
 	IP        string       `json:"ip"`
 	Method    string       `json:"m"`
 	URI       string       `json:"uri"`
@@ -22,11 +29,9 @@ type Access struct {
 	ReqBody   string       `json:"rbd,omitempty"`
 	ReqLength int          `json:"ql"` //请求body大小
 	RepLength int          `json:"pl"` //返回body大小
-	Duration  string       `json:"d"`
 	Host      string       `json:"h"`
 	InHeader  *http.Header `json:"ih,omitempty"`
 	OutHeader http.Header  `json:"oh,omitempty"`
-	App       interface{}  `json:"app,omitempty"` //app自定义日志
 }
 
 /* {{{ func (ac *Access) Save()

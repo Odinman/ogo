@@ -190,7 +190,7 @@ func (rtr *Router) Init(c RouterInterface) {
 
 /* }}} */
 
-/* {{{ controller默认操作
+/* {{{ Routers默认Action
  *
  */
 func (rtr *Router) Get(c *RESTContext) {
@@ -333,7 +333,7 @@ func (rtr *Router) DefaultRoutes(c RouterInterface) {
 
 /* }}} */
 
-/* {{{ 封装goji的基础方法
+/* {{{ goji's methods
  *
  */
 func (rtr *Router) RouteGet(rt *Route) {
