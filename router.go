@@ -37,7 +37,7 @@ type Route struct {
 	Options RouteOption
 }
 
-type Controller struct {
+type Router struct {
 	Endpoint string
 	Routes   map[string]*Route
 	SRoutes  []*Route //排序的Route
@@ -45,8 +45,8 @@ type Controller struct {
 	Mux      *Mux
 }
 
-type ControllerInterface interface {
-	Init(c ControllerInterface)
+type RouterInterface interface {
+	Init(c RouterInterface)
 	New(mux *Mux, endpoint string)
 	GetEndpoint() string
 	Get(c *RESTContext)
@@ -131,50 +131,50 @@ func handlerWrap(rt *Route) web.HandlerFunc { //这里封装了webC到本地的�
 
 /* }}} */
 
-/* {{{ func (ctr *Controller) New(mux *Mux, endpoint string)
+/* {{{ func (rtr *Router) New(mux *Mux, endpoint string)
  *
  */
-func (ctr *Controller) New(mux *Mux, endpoint string) {
-	ctr.Mux = mux
-	ctr.Endpoint = endpoint
+func (rtr *Router) New(mux *Mux, endpoint string) {
+	rtr.Mux = mux
+	rtr.Endpoint = endpoint
 }
 
 /* }}} */
 
-/* {{{ func (ctr *Controller) GetEndpoint() string
+/* {{{ func (rtr *Router) GetEndpoint() string
  *
  */
-func (ctr *Controller) GetEndpoint() string {
-	return ctr.Endpoint
+func (rtr *Router) GetEndpoint() string {
+	return rtr.Endpoint
 }
 
 /* }}} */
 
-/* {{{ func (ctr *Controller) Init(c ControllerInterface)
+/* {{{ func (rtr *Router) Init(c RouterInterface)
  *
  */
-func (ctr *Controller) Init(c ControllerInterface) {
-	//ctr.Endpoint = endpoint
-	ctr.DefaultRoutes(c) //默认路由
-	if len(ctr.Routes) > 0 {
-		for _, rt := range ctr.SRoutes {
+func (rtr *Router) Init(c RouterInterface) {
+	//rtr.Endpoint = endpoint
+	rtr.DefaultRoutes(c) //默认路由
+	if len(rtr.Routes) > 0 {
+		for _, rt := range rtr.SRoutes {
 			//Debug("pattern: %s", rt.Pattern)
 			key := getRouteKey(rt)
 			// regist routes to Mux
-			ctr.Mux.Routes[key] = rt
+			rtr.Mux.Routes[key] = rt
 			switch strings.ToLower(rt.Method) {
 			case "get":
-				ctr.RouteGet(rt)
+				rtr.RouteGet(rt)
 			case "post":
-				ctr.RoutePost(rt)
+				rtr.RoutePost(rt)
 			case "put":
-				ctr.RoutePut(rt)
+				rtr.RoutePut(rt)
 			case "delete":
-				ctr.RouteDelete(rt)
+				rtr.RouteDelete(rt)
 			case "patch":
-				ctr.RoutePatch(rt)
+				rtr.RoutePatch(rt)
 			case "head":
-				ctr.RouteHead(rt)
+				rtr.RouteHead(rt)
 			default:
 				// unknow method
 			}
@@ -185,7 +185,7 @@ func (ctr *Controller) Init(c ControllerInterface) {
 		Handler: c.NotFound,
 		Options: map[string]interface{}{NoLogKey: true},
 	}
-	ctr.RouteNotFound(notFoundRoute)
+	rtr.RouteNotFound(notFoundRoute)
 }
 
 /* }}} */
@@ -193,141 +193,141 @@ func (ctr *Controller) Init(c ControllerInterface) {
 /* {{{ controller默认操作
  *
  */
-func (ctr *Controller) Get(c *RESTContext) {
+func (rtr *Router) Get(c *RESTContext) {
 	c.HTTPError(http.StatusMethodNotAllowed)
 }
-func (ctr *Controller) Post(c *RESTContext) {
+func (rtr *Router) Post(c *RESTContext) {
 	c.HTTPError(http.StatusMethodNotAllowed)
 }
-func (ctr *Controller) Put(c *RESTContext) {
+func (rtr *Router) Put(c *RESTContext) {
 	c.HTTPError(http.StatusMethodNotAllowed)
 }
-func (ctr *Controller) Delete(c *RESTContext) {
+func (rtr *Router) Delete(c *RESTContext) {
 	c.HTTPError(http.StatusMethodNotAllowed)
 }
-func (ctr *Controller) Patch(c *RESTContext) {
+func (rtr *Router) Patch(c *RESTContext) {
 	c.HTTPError(http.StatusMethodNotAllowed)
 }
-func (ctr *Controller) Head(c *RESTContext) {
+func (rtr *Router) Head(c *RESTContext) {
 	c.HTTPError(http.StatusMethodNotAllowed)
 }
-func (ctr *Controller) Options(c *RESTContext) {
+func (rtr *Router) Options(c *RESTContext) {
 	c.HTTPError(http.StatusMethodNotAllowed)
 }
-func (ctr *Controller) Trace(c *RESTContext) {
+func (rtr *Router) Trace(c *RESTContext) {
 	c.HTTPError(http.StatusMethodNotAllowed)
 }
-func (ctr *Controller) NotFound(c *RESTContext) {
+func (rtr *Router) NotFound(c *RESTContext) {
 	c.HTTPError(http.StatusNotFound)
 }
 
 /* }}} */
 
-/* {{{ func (ctr *Controller) AddRoute(m string, p interface{}, h Handler, options ...map[string]interface{})
+/* {{{ func (rtr *Router) AddRoute(m string, p interface{}, h Handler, options ...map[string]interface{})
  *
  */
-func (ctr *Controller) AddRoute(m string, p interface{}, h Handler, options ...map[string]interface{}) {
+func (rtr *Router) AddRoute(m string, p interface{}, h Handler, options ...map[string]interface{}) {
 	key := fmt.Sprint(strings.ToUpper(m), " ", p)
-	if ctr.Routes == nil {
-		ctr.Routes = make(map[string]*Route)
-		ctr.SRoutes = make([]*Route, 0)
+	if rtr.Routes == nil {
+		rtr.Routes = make(map[string]*Route)
+		rtr.SRoutes = make([]*Route, 0)
 	}
-	if _, ok := ctr.Routes[key]; ok {
+	if _, ok := rtr.Routes[key]; ok {
 		//手动加路由, 如果冲突则以最早的为准
 		Info("route dup: %s", key)
 	} else {
-		ctr.Routes[key] = NewRoute(p, m, h, options...)
-		ctr.SRoutes = append(ctr.SRoutes, ctr.Routes[key])
+		rtr.Routes[key] = NewRoute(p, m, h, options...)
+		rtr.SRoutes = append(rtr.SRoutes, rtr.Routes[key])
 	}
 }
 
 /* }}} */
 
-/* {{{ func (ctr *Controller) DefaultRoutes(c ControllerInterface)
+/* {{{ func (rtr *Router) DefaultRoutes(c RouterInterface)
  * 默认路由, 如果已经定义了则忽略，没有定义则加上
  */
-func (ctr *Controller) DefaultRoutes(c ControllerInterface) {
-	if ctr.Endpoint == "" {
+func (rtr *Router) DefaultRoutes(c RouterInterface) {
+	if rtr.Endpoint == "" {
 		//没有endpoint,不需要默认路由
 		Info("Not need default Routes because no endpoint")
 		return
 	}
 	var pattern, method, key string
 	// GET /{endpoint}
-	pattern = "/" + ctr.Endpoint
+	pattern = "/" + rtr.Endpoint
 	method = "GET"
 	key = method + " " + pattern
-	if ctr.Routes == nil {
-		ctr.Routes = make(map[string]*Route)
-		ctr.SRoutes = make([]*Route, 0)
+	if rtr.Routes == nil {
+		rtr.Routes = make(map[string]*Route)
+		rtr.SRoutes = make([]*Route, 0)
 	}
-	if _, ok := ctr.Routes[key]; ok {
+	if _, ok := rtr.Routes[key]; ok {
 		// exists, warning, 默认路由不能覆盖自定义路由
 		Warn("default route dup: %s", key)
 	} else {
 		rt := NewRoute(pattern, method, c.Get)
-		ctr.Routes[key] = rt
-		ctr.SRoutes = append(ctr.SRoutes, rt)
+		rtr.Routes[key] = rt
+		rtr.SRoutes = append(rtr.SRoutes, rt)
 	}
 
 	// GET /{endpoint}/{id}
-	pattern = "/" + ctr.Endpoint + "/:_id_"
+	pattern = "/" + rtr.Endpoint + "/:_id_"
 	method = "GET"
 	key = method + " " + pattern
-	if _, ok := ctr.Routes[key]; ok {
+	if _, ok := rtr.Routes[key]; ok {
 		// exists, warning, 默认路由不能覆盖自定义路由
 	} else {
 		rt := NewRoute(pattern, method, c.Get)
-		ctr.Routes[key] = rt
-		ctr.SRoutes = append(ctr.SRoutes, rt)
+		rtr.Routes[key] = rt
+		rtr.SRoutes = append(rtr.SRoutes, rt)
 	}
 
 	// POST /{endpoint}
-	pattern = "/" + ctr.Endpoint
+	pattern = "/" + rtr.Endpoint
 	method = "POST"
 	key = method + " " + pattern
-	if _, ok := ctr.Routes[key]; ok {
+	if _, ok := rtr.Routes[key]; ok {
 		// exists, warning, 默认路由不能覆盖自定义路由
 	} else {
 		rt := NewRoute(pattern, method, c.Post)
-		ctr.Routes[key] = rt
-		ctr.SRoutes = append(ctr.SRoutes, rt)
+		rtr.Routes[key] = rt
+		rtr.SRoutes = append(rtr.SRoutes, rt)
 	}
 
 	// DELETE /{endpoint}/{id}
-	pattern = "/" + ctr.Endpoint + "/:_id_"
+	pattern = "/" + rtr.Endpoint + "/:_id_"
 	method = "DELETE"
 	key = method + " " + pattern
-	if _, ok := ctr.Routes[key]; ok {
+	if _, ok := rtr.Routes[key]; ok {
 		// exists, warning, 默认路由不能覆盖自定义路由
 	} else {
 		rt := NewRoute(pattern, method, c.Delete)
-		ctr.Routes[key] = rt
-		ctr.SRoutes = append(ctr.SRoutes, rt)
+		rtr.Routes[key] = rt
+		rtr.SRoutes = append(rtr.SRoutes, rt)
 	}
 
 	// PATCH /{endpoint}/{id}
-	pattern = "/" + ctr.Endpoint + "/:_id_"
+	pattern = "/" + rtr.Endpoint + "/:_id_"
 	method = "PATCH"
 	key = method + " " + pattern
-	if _, ok := ctr.Routes[key]; ok {
+	if _, ok := rtr.Routes[key]; ok {
 		// exists, warning, 默认路由不能覆盖自定义路由
 	} else {
 		rt := NewRoute(pattern, method, c.Patch)
-		ctr.Routes[key] = rt
-		ctr.SRoutes = append(ctr.SRoutes, rt)
+		rtr.Routes[key] = rt
+		rtr.SRoutes = append(rtr.SRoutes, rt)
 	}
 
 	// PUT /{endpoint}/{id}
-	pattern = "/" + ctr.Endpoint + "/:_id_"
+	pattern = "/" + rtr.Endpoint + "/:_id_"
 	method = "PUT"
 	key = method + " " + pattern
-	if _, ok := ctr.Routes[key]; ok {
+	if _, ok := rtr.Routes[key]; ok {
 		// exists, warning, 默认路由不能覆盖自定义路由
 	} else {
 		rt := NewRoute(pattern, method, c.Put)
-		ctr.Routes[key] = rt
-		ctr.SRoutes = append(ctr.SRoutes, rt)
+		rtr.Routes[key] = rt
+		rtr.SRoutes = append(rtr.SRoutes, rt)
 	}
 }
 
@@ -336,31 +336,31 @@ func (ctr *Controller) DefaultRoutes(c ControllerInterface) {
 /* {{{ 封装goji的基础方法
  *
  */
-func (ctr *Controller) RouteGet(rt *Route) {
+func (rtr *Router) RouteGet(rt *Route) {
 	goji.Get(rt.Pattern, handlerWrap(rt))
 }
 
-func (ctr *Controller) RoutePost(rt *Route) {
+func (rtr *Router) RoutePost(rt *Route) {
 	goji.Post(rt.Pattern, handlerWrap(rt))
 }
 
-func (ctr *Controller) RoutePut(rt *Route) {
+func (rtr *Router) RoutePut(rt *Route) {
 	goji.Put(rt.Pattern, handlerWrap(rt))
 }
 
-func (ctr *Controller) RouteDelete(rt *Route) {
+func (rtr *Router) RouteDelete(rt *Route) {
 	goji.Delete(rt.Pattern, handlerWrap(rt))
 }
 
-func (ctr *Controller) RoutePatch(rt *Route) {
+func (rtr *Router) RoutePatch(rt *Route) {
 	goji.Patch(rt.Pattern, handlerWrap(rt))
 }
 
-func (ctr *Controller) RouteHead(rt *Route) {
+func (rtr *Router) RouteHead(rt *Route) {
 	goji.Head(rt.Pattern, handlerWrap(rt))
 }
 
-func (ctr *Controller) RouteNotFound(rt *Route) {
+func (rtr *Router) RouteNotFound(rt *Route) {
 	goji.NotFound(handlerWrap(rt))
 }
 

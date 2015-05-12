@@ -36,11 +36,11 @@ func Run() {
 
 /* }}} */
 
-/* {{{ func NewController(c ControllerInterface, endpoint string) ControllerInterface
- * 默认用DMux设置给controller
+/* {{{ func NewRouter(c RouterInterface, endpoint string) RouterInterface
+ * 默认用DMux设置给router
  */
-func NewController(c ControllerInterface, endpoint string) ControllerInterface {
-	return DMux.NewController(c, endpoint)
+func NewRouter(c RouterInterface, endpoint string) RouterInterface {
+	return DMux.NewRouter(c, endpoint)
 }
 
 /* }}} */
