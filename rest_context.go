@@ -35,6 +35,12 @@ const (
 	ContentMD5Key     = "_md5_"
 	DispositionPrefix = "_dp_"
 
+	DIMENSION_KEY  = "_dimension_" //在restcontext中的key
+	SIDE_KEY       = "_sidekey_"
+	USERID_KEY     = "_userid_"
+	APPID_KEY      = "_appid_"
+	PERMISSION_KEY = "_perm_"
+
 	//1x1 gir
 	base64GifPixel = "R0lGODlhAQABAIAAAP///wAAACwAAAAAAQABAAACAkQBADs="
 	//base64GifPixel = "R0lGODlhAQABAJAAAP8AAAAAACH5BAUQAAAALAAAAAABAAEAAAICBAEAOw=="

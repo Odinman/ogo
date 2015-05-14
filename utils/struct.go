@@ -32,7 +32,25 @@ func ReadStructColumns(i interface{}, underscore bool, tags ...string) (cols []S
 
 /* }}} */
 
-/* {{{ func typeStructColumns(i interface{}, tag string, underscore bool) (cols []string)
+/* {{{ func FieldByIndex(v reflect.Value, index []int) reflect.Value
+ * 通过索引返回field
+ */
+func FieldByIndex(v reflect.Value, index []int) reflect.Value {
+	for _, i := range index {
+		if v.Kind() == reflect.Ptr {
+			if v.IsNil() {
+				return reflect.Value{}
+			}
+			v = v.Elem()
+		}
+		v = v.Field(i)
+	}
+	return v
+}
+
+/* }}} */
+
+/* {{{ func typeStructColumns(t reflect.Type, underscore bool, tags ...string) (cols []StructColumn)
  * 从struct中读取字段名
  * 默认从struct的FieldName读取, 如果tag里有db, 则以db为准
  */

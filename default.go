@@ -114,3 +114,12 @@ func PostHook(hook OgoHook) {
 }
 
 /* }}} */
+
+/* {{{ func AddTagHook(tag string, hook TagHook)
+ * tag hook
+ */
+func AddTagHook(tag string, hook TagHook) {
+	DMux.AddTagHook(tag, hook)
+}
+
+/* }}} */

@@ -11,21 +11,6 @@ import (
 	"github.com/zenazn/goji/web"
 )
 
-const (
-	// generic controller const
-	GC_GET = 1 << iota
-	GC_POST
-	GC_DELETE
-	GC_PATCH
-	//GC_PUT
-	GC_HEAD
-	GC_ALL = GC_GET | GC_POST | GC_DELETE | GC_PATCH | GC_HEAD
-
-	//KEY_SKIPAUTH  = "skipauth"
-	//KEY_SKIPLOGIN = "skiplogin"
-	//KEY_SKIPPERM  = "skipperm"
-)
-
 type Handler func(c *RESTContext)
 
 type RouteOption map[string]interface{}
@@ -40,6 +25,7 @@ type Route struct {
 type Router struct {
 	Endpoint string
 	Routes   map[string]*Route
+	Hooks    map[string]TagHook
 	SRoutes  []*Route //排序的Route
 	ReqCount int      //访问计数
 	Mux      *Mux
@@ -48,7 +34,11 @@ type Router struct {
 type RouterInterface interface {
 	Init(c RouterInterface)
 	New(mux *Mux, endpoint string)
+	AddRoute(m string, p interface{}, h Handler, options ...map[string]interface{})
+	DefaultRoutes(c RouterInterface) //默认路由
 	GetEndpoint() string
+
+	//method
 	Get(c *RESTContext)
 	Post(c *RESTContext)
 	Put(c *RESTContext)
@@ -58,7 +48,6 @@ type RouterInterface interface {
 	Options(c *RESTContext)
 	Trace(c *RESTContext)
 	NotFound(c *RESTContext)
-	AddRoute(m string, p interface{}, h Handler, options ...map[string]interface{})
 }
 
 /* {{{ func NewRoute(p interface{}, m string, h Handler, options ...map[string]interface{}) *Route
@@ -366,42 +355,38 @@ func (rtr *Router) RouteNotFound(rt *Route) {
 
 /* }}} */
 
-/* {{{ func CRUD(m Model, flag int) Handler
- * 通用的操作方法, 根据flag返回
- * 必须符合通用的restful风格
+/* {{{ func (rtr *Router) GenericRoute(i interface{}, flag int)
+ * 自动路由, 任何implelent了Action的类型都可以使用
  */
-func CRUD(m Model, flag int) Handler {
-	get := func(c *RESTContext) {
+func (rtr *Router) GenericRoute(i interface{}, flag int) {
+	act := i.(Action)
+	endpoint := rtr.GetEndpoint()
+	if flag&GA_HEAD > 0 {
+		// HEAD /{endpoint}
+		rtr.AddRoute("HEAD", "/"+endpoint, act.CRUD(i, GA_HEAD), RouteOption{KEY_SKIPLOGIN: true}) //HEAD默认无需登录
 	}
-	post := func(c *RESTContext) {
+	if flag&GA_GET > 0 {
+		// GET /{endpoint}
+		rtr.AddRoute("GET", "/"+endpoint, act.CRUD(i, GA_SEARCH))
+		// GET /{endpoint}/{id}
+		rtr.AddRoute("GET", "/"+endpoint+"/:_id_", act.CRUD(i, GA_GET))
 	}
-	delete := func(c *RESTContext) {
+	if flag&GA_POST > 0 {
+		// POST /{endpoint}
+		rtr.AddRoute("POST", "/"+endpoint, act.CRUD(i, GA_POST))
 	}
-	patch := func(c *RESTContext) { //修改
+	if flag&GA_DELETE > 0 {
+		// DELETE /{endpoint}/{id}
+		rtr.AddRoute("DELETE", "/"+endpoint+"/:_id_", act.CRUD(i, GA_DELETE))
 	}
-	//put := func(c *RESTContext) { //重置
+	if flag&GA_PATCH > 0 {
+		// PATCH /{endpoint}/{id}
+		rtr.AddRoute("PATCH", "/"+endpoint+"/:_id_", act.CRUD(i, GA_PATCH))
+	}
+	//if flag&GA_PUT > 0 {
+	//	// PUT /{endpoint}/{id}
+	//	rtr.AddRoute("PUT", "/"+endpoint+"/:_id_", CRUD(m, GA_PUT))
 	//}
-	head := func(c *RESTContext) { //检查字段
-	}
-	deny := func(c *RESTContext) {
-	}
-
-	switch flag {
-	case GC_GET:
-		return get
-	case GC_POST:
-		return post
-	case GC_DELETE:
-		return delete
-	case GC_PATCH:
-		return patch
-	//case GC_PUT:
-	//	return put
-	case GC_HEAD:
-		return head
-	default:
-		return deny
-	}
 }
 
 /* }}} */

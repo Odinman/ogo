@@ -53,6 +53,7 @@ type Mux struct {
 	Workers  map[string]*Worker
 	Routes   map[string]*Route
 	Hooks    HStack
+	TagHooks map[string]TagHook
 }
 
 /* }}} */
@@ -67,6 +68,7 @@ func New() *Mux {
 			preHooks:  make([]OgoHook, 0),
 			postHooks: make([]OgoHook, 0),
 		},
+		TagHooks: make(map[string]TagHook),
 	}
 }
 
@@ -86,6 +88,15 @@ func (mux *Mux) PreHook(hook OgoHook) {
  */
 func (mux *Mux) PostHook(hook OgoHook) {
 	mux.Hooks.postHooks = append(mux.Hooks.postHooks, hook)
+}
+
+/* }}} */
+
+/* {{{ func (mux *Mux) AddTagHook(tag string, hook TagHook)
+ * 正式程序之后的钩子
+ */
+func (mux *Mux) AddTagHook(tag string, hook TagHook) {
+	mux.TagHooks[tag] = hook
 }
 
 /* }}} */

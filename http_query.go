@@ -48,6 +48,19 @@ type Condition struct {
 
 type Conditions map[string]*Condition
 
+func GetCondition(cs Conditions, k string) (con *Condition, err error) {
+	if cs == nil {
+		err = fmt.Errorf("conditions empty")
+	} else {
+		if _, ok := cs[k]; !ok {
+			err = fmt.Errorf("cannot found condition: %s", k)
+		} else {
+			con = cs[k]
+		}
+	}
+	return
+}
+
 /* {{{ func NewPagation(page, perPage string) (p *Pagination)
  */
 func NewPagination(page, perPage string) (p *Pagination) {
@@ -88,12 +101,7 @@ func (rc *RESTContext) GetCondition(k string) (con *Condition, err error) {
 		rc.SetEnv(ConditionsKey, make(Conditions))
 		return nil, fmt.Errorf("Not found conditions! %s", ConditionsKey)
 	} else {
-		conditions := cs.(Conditions)
-		if _, ok := conditions[k]; !ok {
-			return nil, fmt.Errorf("Not found condition: %s", k)
-		} else {
-			con = conditions[k]
-		}
+		return GetCondition(cs.(Conditions), k)
 	}
 	return
 }
