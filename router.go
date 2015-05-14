@@ -260,7 +260,7 @@ func (rtr *Router) DefaultRoutes(c RouterInterface) {
 	}
 
 	// GET /{endpoint}/{id}
-	pattern = "/" + rtr.Endpoint + "/:_id_"
+	pattern = "/" + rtr.Endpoint + "/:" + RowkeyKey
 	method = "GET"
 	key = method + " " + pattern
 	if _, ok := rtr.Routes[key]; ok {
@@ -284,7 +284,7 @@ func (rtr *Router) DefaultRoutes(c RouterInterface) {
 	}
 
 	// DELETE /{endpoint}/{id}
-	pattern = "/" + rtr.Endpoint + "/:_id_"
+	pattern = "/" + rtr.Endpoint + "/:" + RowkeyKey
 	method = "DELETE"
 	key = method + " " + pattern
 	if _, ok := rtr.Routes[key]; ok {
@@ -296,7 +296,7 @@ func (rtr *Router) DefaultRoutes(c RouterInterface) {
 	}
 
 	// PATCH /{endpoint}/{id}
-	pattern = "/" + rtr.Endpoint + "/:_id_"
+	pattern = "/" + rtr.Endpoint + "/:" + RowkeyKey
 	method = "PATCH"
 	key = method + " " + pattern
 	if _, ok := rtr.Routes[key]; ok {
@@ -308,7 +308,7 @@ func (rtr *Router) DefaultRoutes(c RouterInterface) {
 	}
 
 	// PUT /{endpoint}/{id}
-	pattern = "/" + rtr.Endpoint + "/:_id_"
+	pattern = "/" + rtr.Endpoint + "/:" + RowkeyKey
 	method = "PUT"
 	key = method + " " + pattern
 	if _, ok := rtr.Routes[key]; ok {
@@ -369,7 +369,7 @@ func (rtr *Router) GenericRoute(i interface{}, flag int) {
 		// GET /{endpoint}
 		rtr.AddRoute("GET", "/"+endpoint, act.CRUD(i, GA_SEARCH))
 		// GET /{endpoint}/{id}
-		rtr.AddRoute("GET", "/"+endpoint+"/:_id_", act.CRUD(i, GA_GET))
+		rtr.AddRoute("GET", "/"+endpoint+"/:"+RowkeyKey, act.CRUD(i, GA_GET))
 	}
 	if flag&GA_POST > 0 {
 		// POST /{endpoint}
@@ -377,15 +377,15 @@ func (rtr *Router) GenericRoute(i interface{}, flag int) {
 	}
 	if flag&GA_DELETE > 0 {
 		// DELETE /{endpoint}/{id}
-		rtr.AddRoute("DELETE", "/"+endpoint+"/:_id_", act.CRUD(i, GA_DELETE))
+		rtr.AddRoute("DELETE", "/"+endpoint+"/:"+RowkeyKey, act.CRUD(i, GA_DELETE))
 	}
 	if flag&GA_PATCH > 0 {
 		// PATCH /{endpoint}/{id}
-		rtr.AddRoute("PATCH", "/"+endpoint+"/:_id_", act.CRUD(i, GA_PATCH))
+		rtr.AddRoute("PATCH", "/"+endpoint+"/:"+RowkeyKey, act.CRUD(i, GA_PATCH))
 	}
 	//if flag&GA_PUT > 0 {
 	//	// PUT /{endpoint}/{id}
-	//	rtr.AddRoute("PUT", "/"+endpoint+"/:_id_", CRUD(m, GA_PUT))
+	//	rtr.AddRoute("PUT", "/"+endpoint+"/:"+RowkeyKey, CRUD(m, GA_PUT))
 	//}
 }
 

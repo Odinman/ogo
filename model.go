@@ -5,7 +5,6 @@ package ogo
 import (
 	"bytes"
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"reflect"
@@ -30,6 +29,7 @@ const (
 	TAG_REPORT     = "RPT" //报表字段
 	TAG_ORDERBY    = "O"   //可排序
 	TAG_VERIFIABLE = "V"   //验证后可修改
+	TAG_RETURN     = "RET" // 返回,创建后需要返回数值
 )
 
 type List struct {
@@ -54,8 +54,7 @@ type Model interface {
 	SetConditions(m Model, ocs Conditions) (Conditions, error)
 	GetConditions() Conditions
 
-	New(m Model, c *RESTContext) Model
-	//NewList(m Model) *[]Model // 返回一个空结构列表
+	New(m Model, c ...interface{}) Model
 	NewList(m Model) interface{} // 返回一个空结构列表
 
 	AddTable(m Model)
@@ -64,9 +63,10 @@ type Model interface {
 	PKey(m Model) string           // key字段
 	ReadPrepare(m Model) (*gorp.Builder, error)
 
-	Filter(m Model) error
 	GetRow(m Model, id string) (Model, error)          //获取单条记录
-	GetRows(m Model) (*List, error)                    //获取单条记录
+	GetRows(m Model) (*List, error)                    //获取多条记录
+	CreateRow(m Model) error                           //创建单条记录
+	UpdateRow(m Model) (int64, error)                  //更新记录
 	Existense(m Model) func(tag string) (Model, error) //检查存在性
 }
 
@@ -103,13 +103,15 @@ func (bm *BaseModel) GetConditions() Conditions {
 
 /* }}} */
 
-/* {{{ func (m *BaseModel) New(c *RESTContext) interface{}
- *
+/* {{{ func (_ *BaseModel) New(m Model, c ...interface{}) Model
+ * 初始化model, 后面的c选填
  */
-func (_ *BaseModel) New(m Model, c *RESTContext) Model {
+func (_ *BaseModel) New(m Model, c ...interface{}) Model {
 	//nm := reflect.ValueOf(m).Interface().(Model)
 	nm := reflect.New(reflect.Indirect(reflect.ValueOf(m)).Type()).Interface()
-	nm.(Model).SetCtx(c)
+	if len(c) > 0 {
+		nm.(Model).SetCtx(c[0].(*RESTContext))
+	}
 	return nm.(Model)
 }
 
@@ -177,97 +179,6 @@ func (_ *BaseModel) Existense(m Model) func(tag string) (Model, error) {
 
 /* }}} */
 
-/* {{{ func (_ *BaseModel) Filter(m Model) (err error)
- *
- */
-func (_ *BaseModel) Filter(m Model) (err error) {
-	c := m.GetCtx()
-	if err = json.Unmarshal(c.RequestBody, m); err != nil {
-		return
-	}
-	v := reflect.ValueOf(m)
-	// existense checker
-	eChecker := m.Existense(m)
-	if cols := utils.ReadStructColumns(m, true); cols != nil {
-		for _, col := range cols {
-			fv := utils.FieldByIndex(v, col.Index)
-			c.Trace("name:%s; kind:%v; type:%s; extag: %s", col.Tag, fv.Kind(), fv.Type().String(), col.ExtTag)
-			// check required field
-			if col.ExtOptions.Contains(TAG_REQUIRED) && (!fv.IsValid() || utils.IsEmptyValue(fv)) {
-				c.Debug("field %s required but empty", col.Tag)
-				return fmt.Errorf("field %s required but empty", col.Tag)
-			}
-			// server generate,忽略传入的信息
-			if col.ExtOptions.Contains(TAG_GENERATE) && fv.IsValid() && !utils.IsEmptyValue(fv) { // 服务器生成
-				fv.Set(reflect.Zero(fv.Type()))
-			}
-			switch col.ExtTag { //根据tag, 会对数据进行预处理
-			case "userid": //替换为userid
-				c.Trace("userid")
-				var userid string
-				if uid := c.GetEnv(USERID_KEY); uid == nil {
-					userid = "0"
-					c.Debug("userid not exists")
-				} else {
-					userid = uid.(string)
-					c.Debug("userid: %s", userid)
-				}
-				switch fv.Type().String() {
-				case "*string":
-					fv.Set(reflect.ValueOf(&userid))
-				case "string":
-					fv.Set(reflect.ValueOf(userid))
-				default:
-					return fmt.Errorf("field(%s) must be string, not %s", col.Tag, fv.Kind().String())
-				}
-			case "existense": //检查存在性
-				c.Trace("Existense")
-				if exValue, err := eChecker(col.Tag); err != nil {
-					return fmt.Errorf("%s existense check failed: %s", col.Tag, err.Error())
-				} else {
-					c.Debug("%s existense: %v", col.Tag, exValue)
-					fv.Set(reflect.ValueOf(exValue))
-				}
-			case "uuid":
-				//c.Trace("uuid")
-				switch fv.Type().String() {
-				case "*string":
-					h := utils.NewShortUUID()
-					fv.Set(reflect.ValueOf(&h))
-				case "string":
-					h := utils.NewShortUUID()
-					fv.Set(reflect.ValueOf(h))
-				default:
-					return fmt.Errorf("field(%s) must be string, not %s", col.Tag, fv.Kind().String())
-				}
-			case "sha1":
-				switch fv.Type().String() {
-				case "*string":
-					sv := fv.Elem().String()
-					h := utils.HashSha1(sv, PASSWORD_SALT)
-					fv.Set(reflect.ValueOf(&h))
-					c.Debug("password: %s, encoded: %s", sv, h)
-				case "string":
-					sv := fv.String()
-					h := utils.HashSha1(sv, PASSWORD_SALT)
-					fv.Set(reflect.ValueOf(h))
-					c.Debug("password: %s, encoded: %s", sv, h)
-				default:
-					return fmt.Errorf("field(%s) must be string, not %s", col.Tag, fv.Kind().String())
-				}
-			default:
-				//可自定义,初始化时放到tagHooks里面
-				if hk, ok := DMux.TagHooks[col.ExtTag]; ok {
-					fv.Set(hk(fv))
-				}
-			}
-		}
-	}
-	return
-}
-
-/* }}} */
-
 /* {{{ func (_ *BaseModel) GetRow(m Model, id string) (Model, error)
  * 根据条件获取一条记录, model为表结构
  */
@@ -283,6 +194,26 @@ func (_ *BaseModel) GetRow(m Model, id string) (Model, error) {
 	} else {
 		return obj.(Model), nil
 	}
+}
+
+/* }}} */
+
+/* {{{ func (_ *BaseModel) CreateRow(m Model) error
+ * 根据条件获取一条记录, model为表结构
+ */
+func (_ *BaseModel) CreateRow(m Model) error {
+	db := m.DBConn("db")
+	return db.Insert(m)
+}
+
+/* }}} */
+
+/* {{{ func (_ *BaseModel) UpdateRow(m Model) (affected int64, err error)
+ * 根据条件获取一条记录, model为表结构
+ */
+func (_ *BaseModel) UpdateRow(m Model) (affected int64, err error) {
+	db := m.DBConn("db")
+	return db.Update(m)
 }
 
 /* }}} */

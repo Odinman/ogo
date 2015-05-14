@@ -81,8 +81,8 @@ var UC *U = &U{ogo.Controller{Routes: make(map[string]*ogo.Route)}} //先初始�
 
 func init() {
 	//先自定义路由, 因为优先级高, 自定义路由后定义的会覆盖先定义的
-	UC.AddRoute("GET", "/user/:_id_", UC.Test1)
-	UC.AddRoute("GET", "/user/:_id_", UC.Test2)
+	UC.AddRoute("GET", "/user/:_rk_", UC.Test1)
+	UC.AddRoute("GET", "/user/:_rk_", UC.Test2)
 	// 初始化并载入默认路由, 默认路由不会覆盖自定义路由
 	UC.Init("user", UC)
 
@@ -95,7 +95,7 @@ type U struct {
 func (u *U) Get(ctx *ogo.RESTContext) {
 	//ctx.Response.Write([]byte("123"))
 	u.Request += 1
-	fmt.Fprintf(ctx.Response, "Hello, this is Get, %s!, %d??", ctx.Context.URLParams["_id_"], u.Request)
+	fmt.Fprintf(ctx.Response, "Hello, this is Get, %s!, %d??", ctx.Context.URLParams["_rk_"], u.Request)
 }
 
 func (u *U) Post(ctx *ogo.RESTContext) {
@@ -104,13 +104,13 @@ func (u *U) Post(ctx *ogo.RESTContext) {
 
 func (u *U) Test1(ctx *ogo.RESTContext) {
 	//ctx.Response.Write([]byte("123"))
-	fmt.Fprintf(ctx.Response, "Test1, %s!, %s?", ctx.Context.URLParams["_id_"], ctx.Context.URLParams["_selector_"])
+	fmt.Fprintf(ctx.Response, "Test1, %s!, %s?", ctx.Context.URLParams["_rk_"], ctx.Context.URLParams["_selector_"])
 }
 
 func (u *U) Test2(ctx *ogo.RESTContext) {
 	u.Request += 1
 	//ctx.Response.Write([]byte("223"))
-	fmt.Fprintf(ctx.Response, "Test2, %s!, %s?, %d!!", ctx.Context.URLParams["_id_"], ctx.Context.URLParams["_selector_"], u.Request)
+	fmt.Fprintf(ctx.Response, "Test2, %s!, %s?, %d!!", ctx.Context.URLParams["_rk_"], ctx.Context.URLParams["_selector_"], u.Request)
 }
 ```
 
