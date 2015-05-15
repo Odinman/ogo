@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
-	"strconv"
 
 	"github.com/Odinman/ogo/utils"
 )
@@ -32,25 +31,30 @@ const (
 type Action interface {
 	CRUD(i interface{}, flag int) Handler
 
-	Valid(i interface{}) (interface{}, error)  //数据验证
-	Filter(i interface{}) (interface{}, error) //数据验证
+	Valid(i interface{}) (interface{}, error)   //数据验证
+	Filter(i interface{}) (interface{}, error)  //数据过滤
+	Trigger(i interface{}) (interface{}, error) //触发器
 
-	PreGet(i interface{}) (interface{}, error)  //获取前调整
-	PostGet(i interface{}) (interface{}, error) //获取后调整
+	PreGet(i interface{}) (interface{}, error)  //获取前
+	OnGet(i interface{}) (interface{}, error)   //获取中
+	PostGet(i interface{}) (interface{}, error) //获取后
 
 	PreSearch(i interface{}) (interface{}, error)  // 搜索前的检查
+	OnSearch(i interface{}) (interface{}, error)   // 搜索前的检查
 	PostSearch(i interface{}) (interface{}, error) // 搜索后的检查
 
 	PreCreate(i interface{}) (interface{}, error)  // 插入前的检查
+	OnCreate(i interface{}) (interface{}, error)   // 插入前的检查
 	PostCreate(i interface{}) (interface{}, error) // 插入后的处理
 
 	PreUpdate(i interface{}) (interface{}, error)  // 更新前的检查
+	OnUpdate(i interface{}) (interface{}, error)   // 更新前的检查
 	PostUpdate(i interface{}) (interface{}, error) // 更新后的操作
 
 	PreDelete(i interface{}) (interface{}, error)  // 删除前的检查
+	OnDelete(i interface{}) (interface{}, error)   // 删除前的检查
 	PostDelete(i interface{}) (interface{}, error) // 删除后的检查
 
-	OnAction(i interface{}) (interface{}, error) //触发器
 }
 
 /* {{{ func (_ *BaseModel) Valid(i interface{}) (interface{}, error)
@@ -105,7 +109,7 @@ func (_ *BaseModel) Valid(i interface{}) (interface{}, error) {
 
 /* }}} */
 /* {{{ func (_ *BaseModel) Filter(i interface{}) (interface{}, error)
- *
+ * 处理后过滤
  */
 func (_ *BaseModel) Filter(i interface{}) (interface{}, error) {
 	c := i.(Model).GetCtx()
@@ -127,11 +131,33 @@ func (_ *BaseModel) Filter(i interface{}) (interface{}, error) {
 }
 
 /* }}} */
+/* {{{ func (_ *BaseModel) Trigger(i interface{}) (interface{}, error)
+ *
+ */
+func (_ *BaseModel) Trigger(i interface{}) (interface{}, error) {
+	return i, nil
+}
+
+/* }}} */
+
 /* {{{ func (_ *BaseModel) PreGet(i interface{}) (interface{}, error)
  *
  */
 func (_ *BaseModel) PreGet(i interface{}) (interface{}, error) {
 	return i, nil
+}
+
+/* }}} */
+/* {{{ func (_ *BaseModel) OnGet(i interface{}) (interface{}, error)
+ *
+ */
+func (_ *BaseModel) OnGet(i interface{}) (interface{}, error) {
+	var err error
+	m := i.(Model)
+	c := m.GetCtx()
+	id := c.URLParams[RowkeyKey]
+	m, err = m.GetRow(m, id)
+	return m, err
 }
 
 /* }}} */
@@ -143,7 +169,8 @@ func (_ *BaseModel) PostGet(i interface{}) (interface{}, error) {
 }
 
 /* }}} */
-/* {{{ func (_ *BaseModel) PreSearch(m Model) (nm Model, err error)
+
+/* {{{ func (_ *BaseModel) PreSearch(i interface{}) (interface{}, error)
  *
  */
 func (_ *BaseModel) PreSearch(i interface{}) (interface{}, error) {
@@ -156,6 +183,15 @@ func (_ *BaseModel) PreSearch(i interface{}) (interface{}, error) {
 }
 
 /* }}} */
+/* {{{ func (_ *BaseModel) OnSearch(i interface{}) (interface{}, error)
+ *
+ */
+func (_ *BaseModel) OnSearch(i interface{}) (interface{}, error) {
+	m := i.(Model)
+	return m.GetRows(m)
+}
+
+/* }}} */
 /* {{{ func (_ *BaseModel) PostSearch(i interface{}) (interface{}, error)
  *
  */
@@ -164,6 +200,7 @@ func (_ *BaseModel) PostSearch(i interface{}) (interface{}, error) {
 }
 
 /* }}} */
+
 /* {{{ func (_ *BaseModel) PreCreate(i interface{}) (interface{}, error)
  *
  */
@@ -232,6 +269,19 @@ func (_ *BaseModel) PreCreate(i interface{}) (interface{}, error) {
 }
 
 /* }}} */
+/* {{{ func (_ *BaseModel) OnCreate(i interface{}) (interface{}, error)
+ *
+ */
+func (_ *BaseModel) OnCreate(i interface{}) (interface{}, error) {
+	m := i.(Model)
+	if err := m.CreateRow(m); err != nil {
+		return nil, err
+	} else {
+		return m, nil
+	}
+}
+
+/* }}} */
 /* {{{ func (_ *BaseModel) PostCreate(i interface{}) (interface{}, error)
  *
  */
@@ -241,6 +291,7 @@ func (_ *BaseModel) PostCreate(i interface{}) (interface{}, error) {
 }
 
 /* }}} */
+
 /* {{{ func (_ *BaseModel) PreUpdate(i interface{}) (interface{}, error)
  *
  */
@@ -280,30 +331,6 @@ func (_ *BaseModel) PreUpdate(i interface{}) (interface{}, error) {
 				} else { //忽略
 					continue
 				}
-			}
-			if col.TagOptions.Contains(DBTAG_PK) {
-				//更新一定要有pk, 不管这里是什么,  以url的为准
-				switch fv.Type().String() {
-				case "*string":
-					fv.Set(reflect.ValueOf(&rk))
-				case "string":
-					fv.Set(reflect.ValueOf(rk))
-				case "*int64":
-					pv, _ := strconv.ParseInt(rk, 10, 64)
-					fv.Set(reflect.ValueOf(&pv))
-				case "int64":
-					pv, _ := strconv.ParseInt(rk, 10, 64)
-					fv.Set(reflect.ValueOf(pv))
-				case "*int":
-					pv, _ := strconv.ParseInt(rk, 10, 0)
-					fv.Set(reflect.ValueOf(&pv))
-				case "int":
-					pv, _ := strconv.ParseInt(rk, 10, 0)
-					fv.Set(reflect.ValueOf(pv))
-				default:
-					return nil, fmt.Errorf("field(%s) not support %s", col.Tag, fv.Kind().String())
-				}
-				continue
 			}
 			// server generate,忽略传入的信息
 			switch col.ExtTag { //根据tag, 会对数据进行预处理
@@ -347,124 +374,220 @@ func (_ *BaseModel) PreUpdate(i interface{}) (interface{}, error) {
 }
 
 /* }}} */
-/* {{{ func (bm *BaseModel) PostUpdate(m Model) (nm Model, err error)
+/* {{{ func (_ *BaseModel) OnUpdate(i interface{}) (interface{}, error)
  *
  */
-func (bm *BaseModel) PostUpdate(i interface{}) (interface{}, error) {
+func (_ *BaseModel) OnUpdate(i interface{}) (interface{}, error) {
+	m := i.(Model)
+	c := m.GetCtx()
+	rk := c.URLParams[RowkeyKey]
+	if affected, err := m.UpdateRow(m, rk); err != nil {
+		return nil, err
+	} else {
+		if affected <= 0 {
+			c.Info("OnUpdate not affected any record")
+		}
+		return m, nil
+	}
+}
+
+/* }}} */
+/* {{{ func (_ *BaseModel) PostUpdate(i interface{}) (interface{}, error)
+ *
+ */
+func (_ *BaseModel) PostUpdate(i interface{}) (interface{}, error) {
 	act := i.(Action)
 	return act.Filter(i)
 }
 
 /* }}} */
-/* {{{ func (bm *BaseModel) PreDelete(m Model) (nm Model, err error)
+
+/* {{{ func (_ *BaseModel) PreDelete(i interface{}) (interface{}, error)
  *
  */
-func (bm *BaseModel) PreDelete(i interface{}) (interface{}, error) {
+func (_ *BaseModel) PreDelete(i interface{}) (interface{}, error) {
 	return i, nil
 }
 
 /* }}} */
-/* {{{ func (bm *BaseModel) PostDelete(m Model) (nm Model, err error)
+/* {{{ func (_ *BaseModel) OnDelete(i interface{}) (interface{}, error)
  *
  */
-func (bm *BaseModel) PostDelete(i interface{}) (interface{}, error) {
+func (_ *BaseModel) OnDelete(i interface{}) (interface{}, error) {
+	m := i.(Model)
+	c := m.GetCtx()
+	rk := c.URLParams[RowkeyKey]
+	if affected, err := m.DeleteRow(m, rk); err != nil {
+		return nil, err
+	} else {
+		if affected <= 0 {
+			c.Info("OnDelete not affected any record")
+		}
+		return m, nil
+	}
+}
+
+/* }}} */
+/* {{{ func (_ *BaseModel) PostDelete(i interface{}) (interface{}, error)
+ *
+ */
+func (_ *BaseModel) PostDelete(i interface{}) (interface{}, error) {
 	return i, nil
 }
 
 /* }}} */
-/* {{{ func (bm *BaseModel) OnAction(m Model) (err error)
- *
- */
-func (bm *BaseModel) OnAction(i interface{}) (interface{}, error) {
-	return nil, fmt.Errorf("nothing to to")
-}
 
-/* }}} */
-/* {{{ func (bm *BaseModel) CRUD(m Model, flag int) Handler
+/* {{{ func (_ *BaseModel) CRUD(m Model, flag int) Handler
  * 通用的操作方法, 根据flag返回
  * 必须符合通用的restful风格
  */
-func (bm *BaseModel) CRUD(i interface{}, flag int) Handler {
+func (_ *BaseModel) CRUD(i interface{}, flag int) Handler {
 	act := i.(Action)
 	get := func(c *RESTContext) {
 		m := i.(Model).New(i.(Model), c) // New会把c藏到m里面
+
 		if _, err := act.PreGet(m); err != nil {
+			c.Warn("PreGet error: %s", err)
 			c.RESTBadRequest(err)
+			return
 		}
-		id := c.URLParams[RowkeyKey]
-		if obj, err := m.GetRow(m, id); err == nil {
-			r, _ := act.PostGet(obj)
-			c.RESTOK(r)
-		} else if err == ErrNoRecord {
-			c.RESTNotFound(err)
+
+		var r interface{}
+		var err error
+		if r, err = act.OnGet(m); err != nil {
+			c.Warn("OnGet error: %s", err)
+			if err == ErrNoRecord {
+				c.RESTNotFound(err)
+			} else {
+				c.RESTPanic(err)
+			}
+			return
+		}
+
+		if r, err = act.PostGet(r); err != nil {
+			c.Warn("PostGet error: %s", err)
+			c.RESTNotOK(err)
 		} else {
-			c.RESTPanic(err)
+			c.RESTOK(r)
 		}
 
 		return
 	}
 	search := func(c *RESTContext) {
-		m := i.(Model).New(i.(Model), c)            // New会把c藏到m里面
+		m := i.(Model).New(i.(Model), c) // New会把c藏到m里面
+
 		if _, err := act.PreSearch(m); err != nil { // presearch准备条件等
+			c.Warn("PreSearch error: %s", err)
 			c.RESTBadRequest(err)
 			return
 		}
-		if l, err := m.GetRows(m); err == nil {
-			rl, _ := act.PostSearch(l)
-			c.RESTOK(rl)
-		} else if err == ErrNoRecord {
-			c.RESTNotFound(err)
+
+		if l, err := act.OnSearch(m); err != nil {
+			c.Warn("OnSearch error: %s", err)
+			if err == ErrNoRecord {
+				c.RESTNotFound(err)
+			} else {
+				c.RESTPanic(err)
+			}
 		} else {
-			c.RESTPanic(err)
+			if rl, err := act.PostSearch(l); err != nil {
+				c.Warn("PostSearch error: %s", err)
+				c.RESTNotOK(err)
+			} else {
+				c.RESTOK(rl)
+			}
 		}
 
 		return
+
 	}
+
 	post := func(c *RESTContext) {
-		m := i.(Model).New(i.(Model), c)            // New会把c藏到m里面
+		m := i.(Model).New(i.(Model), c) // New会把c藏到m里面
+
 		if _, err := act.PreCreate(m); err != nil { // presearch准备条件等
+			c.Warn("PreCreate error: %s", err)
 			c.RESTBadRequest(err)
 			return
 		}
-		if err := m.CreateRow(m); err != nil {
-			c.Debug("error: %s", err)
-			c.RESTNotOK(err)
-		} else {
-			// insert ok
-			r, _ := act.PostCreate(m)
 
-			// 触发器
-			if _, err := act.OnAction(m); err != nil {
-				c.Debug("OnAction: %s", err)
-			}
+		if _, err := act.OnCreate(m); err != nil {
+			c.Warn("OnCreate error: %s", err)
+			c.RESTNotOK(err)
+			return
+		}
+
+		if _, err := act.PostCreate(m); err != nil {
+			c.Warn("postCreate error: %s", err)
+		}
+
+		if r, err := act.Trigger(m); err != nil {
+			c.Warn("Trigger error: %s", err)
+		} else {
 			c.RESTOK(r)
 		}
 		return
 	}
+
 	delete := func(c *RESTContext) {
-	}
-	patch := func(c *RESTContext) { //修改
-		m := i.(Model).New(i.(Model), c)            // New会把c藏到m里面
-		if _, err := act.PreUpdate(m); err != nil { // presearch准备条件等
+		m := i.(Model).New(i.(Model), c) // New会把c藏到m里面
+		var err error
+
+		if _, err = act.PreDelete(m); err != nil { // presearch准备条件等
+			c.Warn("PreUpdat error: %s", err)
 			c.RESTBadRequest(err)
 			return
 		}
-		if affected, err := m.UpdateRow(m); err != nil {
-			c.Debug("error: %s", err)
-			c.RESTNotOK(err)
-		} else {
-			if affected <= 0 {
-				c.Info("not affected any record: %d", affected)
-			}
-			// update ok
-			r, _ := act.PostUpdate(m)
 
-			// 触发器
-			if _, err := act.OnAction(m); err != nil {
-				c.Debug("OnAction: %s", err)
-			}
-			c.RESTOK(r)
+		if _, err = act.OnDelete(m); err != nil {
+			c.Warn("OnUpdat error: %s", err)
+			c.RESTNotOK(err)
+			return
 		}
+
+		// update ok
+		var r interface{}
+		if r, err = act.PostDelete(m); err != nil {
+			c.Warn("postCreate error: %s", err)
+		}
+
+		// 触发器
+		_, err = act.Trigger(m)
+		if err != nil {
+			c.Warn("Trigger error: %s", err)
+		}
+		c.RESTOK(r)
+		return
+	}
+
+	patch := func(c *RESTContext) { //修改
+		m := i.(Model).New(i.(Model), c) // New会把c藏到m里面
+		var err error
+
+		if _, err = act.PreUpdate(m); err != nil { // presearch准备条件等
+			c.Warn("PreUpdate error: %s", err)
+			c.RESTBadRequest(err)
+			return
+		}
+
+		if _, err = act.OnUpdate(m); err != nil {
+			c.Warn("OnUpdat error: %s", err)
+			c.RESTNotOK(err)
+			return
+		}
+
+		// update ok
+		var r interface{}
+		if r, err = act.PostUpdate(m); err != nil {
+			c.Warn("postCreate error: %s", err)
+		}
+
+		// 触发器
+		_, err = act.Trigger(m)
+		if err != nil {
+			c.Warn("Trigger error: %s", err)
+		}
+		c.RESTOK(r)
 		return
 	}
 	//put := func(c *RESTContext) { //重置

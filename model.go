@@ -66,12 +66,14 @@ type Model interface {
 	GetRow(m Model, id string) (Model, error)          //获取单条记录
 	GetRows(m Model) (*List, error)                    //获取多条记录
 	CreateRow(m Model) error                           //创建单条记录
-	UpdateRow(m Model) (int64, error)                  //更新记录
+	UpdateRow(m Model, id string) (int64, error)       //更新记录
+	DeleteRow(m Model, id string) (int64, error)       //更新记录
 	Existense(m Model) func(tag string) (Model, error) //检查存在性
 }
 
 //基础model,在这里可以实现Model接口, 其余的只需要嵌入这个struct,就可以继承这些方法
 type BaseModel struct {
+	Error      error        `json:"-" db:"-"`
 	ctx        *RESTContext `json:"-" db:"-"`
 	conditions Conditions   `json:"-" db:"-"`
 }
@@ -208,11 +210,27 @@ func (_ *BaseModel) CreateRow(m Model) error {
 
 /* }}} */
 
-/* {{{ func (_ *BaseModel) UpdateRow(m Model) (affected int64, err error)
+/* {{{ func (_ *BaseModel) UpdateRow(m Model, id string) (affected int64, err error)
  * 根据条件获取一条记录, model为表结构
  */
-func (_ *BaseModel) UpdateRow(m Model) (affected int64, err error) {
+func (_ *BaseModel) UpdateRow(m Model, id string) (affected int64, err error) {
 	db := m.DBConn("db")
+	if err = utils.ImportValue(m, map[string]string{DBTAG_PK: id}); err != nil {
+		return
+	}
+	return db.Update(m)
+}
+
+/* }}} */
+
+/* {{{ func (_ *BaseModel) DeleteRow(m Model, id string) (affected int64, err error)
+ * 删除记录(逻辑删除)
+ */
+func (_ *BaseModel) DeleteRow(m Model, id string) (affected int64, err error) {
+	db := m.DBConn("db")
+	if err = utils.ImportValue(m, map[string]string{DBTAG_PK: id, DBTAG_LOGIC: "-1"}); err != nil {
+		return
+	}
 	return db.Update(m)
 }
 

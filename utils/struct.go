@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"reflect"
 	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -46,6 +47,50 @@ func FieldByIndex(v reflect.Value, index []int) reflect.Value {
 		v = v.Field(i)
 	}
 	return v
+}
+
+/* }}} */
+
+/* {{{ func ImportVal(i interface{}, import map[string]string) (err error)
+ * 将tag匹配的值导入结构
+ */
+func ImportValue(i interface{}, is map[string]string) (err error) {
+	v := reflect.ValueOf(i)
+	if cols := ReadStructColumns(i, true); cols != nil {
+		for _, col := range cols {
+			fmt.Println(is)
+			for tag, iv := range is {
+				fmt.Printf("t: %s\n", tag)
+				if col.TagOptions.Contains(tag) {
+					fmt.Printf("tag: %s\n", col.Tag)
+					fv := FieldByIndex(v, col.Index)
+					switch fv.Type().String() {
+					case "*string":
+						fv.Set(reflect.ValueOf(&iv))
+					case "string":
+						fv.Set(reflect.ValueOf(iv))
+					case "*int64":
+						pv, _ := strconv.ParseInt(iv, 10, 64)
+						fv.Set(reflect.ValueOf(&pv))
+					case "int64":
+						pv, _ := strconv.ParseInt(iv, 10, 64)
+						fv.Set(reflect.ValueOf(pv))
+					case "*int":
+						tv, _ := strconv.ParseInt(iv, 10, 0)
+						pv := int(tv)
+						fv.Set(reflect.ValueOf(&pv))
+					case "int":
+						tv, _ := strconv.ParseInt(iv, 10, 0)
+						pv := int(tv)
+						fv.Set(reflect.ValueOf(pv))
+					default:
+						err = fmt.Errorf("field(%s) not support %s", col.Tag, fv.Kind().String())
+					}
+				}
+			}
+		}
+	}
+	return
 }
 
 /* }}} */
