@@ -58,11 +58,8 @@ func ImportValue(i interface{}, is map[string]string) (err error) {
 	v := reflect.ValueOf(i)
 	if cols := ReadStructColumns(i, true); cols != nil {
 		for _, col := range cols {
-			fmt.Println(is)
 			for tag, iv := range is {
-				fmt.Printf("t: %s\n", tag)
 				if col.TagOptions.Contains(tag) {
-					fmt.Printf("tag: %s\n", col.Tag)
 					fv := FieldByIndex(v, col.Index)
 					switch fv.Type().String() {
 					case "*string":
