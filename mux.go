@@ -239,6 +239,11 @@ func (mux *Mux) initEnv() (err error) {
 		return err
 	}
 
+	//db init,目前只有mysql
+	if dns := cfg.String("data::dns"); dns != "" {
+		OpenDB(DBTAG, dns)
+	}
+
 	return nil
 }
 

@@ -3,7 +3,6 @@
 package ogo
 
 import (
-	"bytes"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -11,11 +10,17 @@ import (
 	"time"
 
 	"github.com/Odinman/gorp"
-	"github.com/Odinman/ogo/utils"
 	_ "github.com/go-sql-driver/mysql"
 )
 
+var (
+	DataAccessor = make(map[string]string) // tablename::{read/write} => tag
+)
+
 const (
+	DBTAG      string = "db"
+	READTAG    string = "read"
+	WRITETAG   string = "write"
 	base       string = "0000-00-00 00:00:00.0000000"
 	timeFormat string = "2006-01-02 15:04:05.999999"
 )
@@ -28,16 +33,17 @@ type SelfConverter interface {
 
 type BaseConverter struct{}
 
-/* {{{ func OpenDB(tag,dns string)
+/* {{{ func OpenDB(tag,dns string) error
  *
  */
-func OpenDB(tag, dns string) {
+func OpenDB(tag, dns string) (err error) {
 	Debug("open mysql: %s,%s", tag, dns)
-	gorp.TraceOn("[db]", Logger())
-	if err := gorp.Open(tag, "mysql", dns); err != nil {
-		Warn("open error: %s", err)
-	}
+	gorp.TraceOn(fmt.Sprintf("[%s]", tag), Logger())
 	gorp.SetTypeConvert(BaseConverter{})
+	if err = gorp.Open(tag, "mysql", dns); err != nil {
+		Debug("open error: %s", err)
+	}
+	return
 }
 
 /* }}} */
@@ -186,132 +192,6 @@ func (_ BaseConverter) FromDb(target interface{}) (gorp.CustomScanner, bool) {
 		}
 	}
 	return gorp.CustomScanner{}, false
-}
-
-/* }}} */
-
-/* {{{ func ReportPrepare(model interface{}, cons ogo.Conditions, c *ogo.RESTContext) (b *gorp.Builder, err error)
- * 报表查询准备
- */
-func ReportPrepare(m Model, cons Conditions, c *RESTContext) (b *gorp.Builder, err error) {
-	db := m.DBConn("db")
-	tb := m.TableName(m)
-	b = gorp.NewBuilder(db).Table(tb)
-
-	// time range, 凡可进行time range的字段都应该加上索引
-	if tr := c.GetEnv(TimeRangeKey); tr != nil {
-		//存在timerange条件
-		if cols := utils.ReadStructColumns(m, true); cols != nil {
-			for _, col := range cols {
-				if col.ExtOptions.Contains(TAG_TIMERANGE) { //时间范围
-					c.Debug("time range field: %s, start: %s, end: %s", col.Tag, tr.(*TimeRange).Start, tr.(*TimeRange).End)
-					b.Where(fmt.Sprintf("T.`%s` BETWEEN ? AND ?", col.Tag), tr.(*TimeRange).Start, tr.(*TimeRange).End)
-				}
-			}
-		}
-	}
-	// order by
-	if ob := c.GetEnv(OrderByKey); ob != nil {
-		if cols := utils.ReadStructColumns(m, true); cols != nil {
-			for _, col := range cols {
-				if col.ExtOptions.Contains(TAG_ORDERBY) && col.Tag == ob.(*OrderBy).Field { //排序
-					c.Debug("order by field: %s, sort: %s", ob.(*OrderBy).Field, ob.(*OrderBy).Sort)
-					b.Order(fmt.Sprintf("T.`%s` %s", ob.(*OrderBy).Field, ob.(*OrderBy).Sort))
-				}
-			}
-		}
-	}
-
-	// permission
-	//b.Where(PermCondition(c, m))
-
-	// condition
-	if len(cons) > 0 {
-		for _, v := range cons {
-			c.Trace("cons value: %v", v)
-			if v.Is != nil {
-				switch vt := v.Is.(type) {
-				case string:
-					b.Where(fmt.Sprintf("T.`%s` = ?", v.Field), vt)
-				case []string:
-					vs := bytes.Buffer{}
-					first := true
-					vs.WriteString("(")
-					for _, vv := range vt {
-						if !first {
-							vs.WriteString(",")
-						}
-						vs.WriteString(fmt.Sprintf("'%s'", vv))
-						first = false
-					}
-					vs.WriteString(")")
-					b.Where(fmt.Sprintf("T.`%s` IN %s", v.Field, vs.String()))
-				default:
-				}
-			}
-			if v.Not != nil {
-				switch vt := v.Not.(type) {
-				case string:
-					b.Where(fmt.Sprintf("T.`%s` != ?", v.Field), vt)
-				case []string:
-					vs := bytes.Buffer{}
-					first := true
-					vs.WriteString("(")
-					for _, vv := range vt {
-						if !first {
-							vs.WriteString(",")
-						}
-						vs.WriteString(fmt.Sprintf("'%s'", vv))
-						first = false
-					}
-					vs.WriteString(")")
-					b.Where(fmt.Sprintf("T.`%s` NOT IN %s", v.Field, vs.String()))
-				default:
-				}
-			}
-			if v.Like != nil {
-				switch vt := v.Like.(type) {
-				case string:
-					b.Where(fmt.Sprintf("T.`%s` LIKE '%%%s%%'", v.Field, vt))
-				case []string:
-					vs := bytes.Buffer{}
-					first := true
-					vs.WriteString("(")
-					for _, vv := range vt {
-						if !first {
-							vs.WriteString(" OR ")
-						}
-						vs.WriteString(fmt.Sprintf("T.`%s` LIKE '%%%s%%'", v.Field, vv))
-						first = false
-					}
-					vs.WriteString(")")
-					b.Where(vs.String())
-				default:
-				}
-			}
-		}
-	}
-
-	//权限相关,todo
-	return
-}
-
-/* }}} */
-
-/* {{{ GetDbFields(i interface{}) (s string)
- * 从struct中解析数据库字段以及字段选项
- */
-func GetDbFields(i interface{}) (s []string) {
-	if cols := utils.ReadStructColumns(i, true); cols != nil {
-		s = make([]string, 0)
-		for _, col := range cols {
-			if col.Tag == "-" || col.ExtOptions.Contains(TAG_SECRET) { //保密,不对外
-				continue
-			}
-			s = append(s, col.Tag)
-		}
-	}
-	return
 }
 
 /* }}} */

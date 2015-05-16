@@ -57,10 +57,10 @@ type Model interface {
 	New(m Model, c ...interface{}) Model
 	NewList(m Model) interface{} // 返回一个空结构列表
 
-	AddTable(m Model)
-	DBConn(tag string) *gorp.DbMap // 数据库连接
-	TableName(m Model) string      // 返回表名称, 默认结构type名字(小写), 有特别的表名称,则自己implement 这个方法
-	PKey(m Model) string           // key字段
+	AddTable(m Model, tags ...string)
+	DBConn(m Model, tag string) *gorp.DbMap // 数据库连接
+	TableName(m Model) string               // 返回表名称, 默认结构type名字(小写), 有特别的表名称,则自己implement 这个方法
+	PKey(m Model) string                    // key字段
 	ReadPrepare(m Model) (*gorp.Builder, error)
 
 	GetRow(m Model, id string) (Model, error)          //获取单条记录
@@ -79,7 +79,7 @@ type BaseModel struct {
 	conditions Conditions   `json:"-" db:"-"`
 }
 
-/* {{{ func (m *BaseModel) SetCtx(c *RESTContext) Model
+/* {{{ func (bm *BaseModel) SetCtx(c *RESTContext) Model
  *
  */
 func (bm *BaseModel) SetCtx(c *RESTContext) {
@@ -88,7 +88,7 @@ func (bm *BaseModel) SetCtx(c *RESTContext) {
 
 /* }}} */
 
-/* {{{ func (m *BaseModel) GetCtx() *RESTContext
+/* {{{ func (bm *BaseModel) GetCtx() *RESTContext
  *
  */
 func (bm *BaseModel) GetCtx() *RESTContext {
@@ -131,12 +131,15 @@ func (_ *BaseModel) NewList(m Model) interface{} {
 
 /* }}} */
 
-/* {{{ func (m *BaseModel) DBConn(tag string) *gorp.DbMap
+/* {{{ func (m *BaseModel) DBConn(m Model,tag string) *gorp.DbMap
  * 默认数据库连接为admin
  */
-func (_ *BaseModel) DBConn(tag string) *gorp.DbMap {
-	Debug("using %s", tag)
-	return gorp.Using(tag)
+func (_ *BaseModel) DBConn(m Model, tag string) *gorp.DbMap {
+	tb := m.TableName(m)
+	if dt, ok := DataAccessor[tb+"::"+tag]; ok && dt != "" {
+		return gorp.Using(dt)
+	}
+	return gorp.Using(DBTAG)
 }
 
 /* }}} */
@@ -186,7 +189,7 @@ func (_ *BaseModel) Existense(m Model) func(tag string) (Model, error) {
  * 根据条件获取一条记录, model为表结构
  */
 func (_ *BaseModel) GetRow(m Model, id string) (Model, error) {
-	db := m.DBConn("db")
+	db := m.DBConn(m, READTAG)
 	if obj, err := db.Get(m, id); err != nil {
 		//Debug("get error: %s, %v", err, obj)
 		if err == sql.ErrNoRows {
@@ -205,7 +208,7 @@ func (_ *BaseModel) GetRow(m Model, id string) (Model, error) {
  * 根据条件获取一条记录, model为表结构
  */
 func (_ *BaseModel) CreateRow(m Model) error {
-	db := m.DBConn("db")
+	db := m.DBConn(m, WRITETAG)
 	return db.Insert(m)
 }
 
@@ -215,7 +218,7 @@ func (_ *BaseModel) CreateRow(m Model) error {
  * 根据条件获取一条记录, model为表结构
  */
 func (_ *BaseModel) UpdateRow(m Model, id string) (affected int64, err error) {
-	db := m.DBConn("db")
+	db := m.DBConn(m, WRITETAG)
 	if err = utils.ImportValue(m, map[string]string{DBTAG_PK: id}); err != nil {
 		return
 	}
@@ -228,7 +231,7 @@ func (_ *BaseModel) UpdateRow(m Model, id string) (affected int64, err error) {
  * 删除记录(逻辑删除)
  */
 func (_ *BaseModel) DeleteRow(m Model, id string) (affected int64, err error) {
-	db := m.DBConn("db")
+	db := m.DBConn(m, WRITETAG)
 	if err = utils.ImportValue(m, map[string]string{DBTAG_PK: id, DBTAG_LOGIC: "-1"}); err != nil {
 		return
 	}
@@ -304,14 +307,41 @@ func (_ *BaseModel) GetCount(m Model) (cnt int64, err error) {
 
 /* }}} */
 
-/* {{{ func (_ *BaseModel) AddTable(m Model)
- *
+/* {{{ func (_ *BaseModel) AddTable(m Model, tags ...string)
+ * 注册表结构
  */
-func (_ *BaseModel) AddTable(m Model) {
+func (_ *BaseModel) AddTable(m Model, tags ...string) {
 	reflectVal := reflect.ValueOf(m)
 	mv := reflect.Indirect(reflectVal).Interface()
 	Debug("table name: %s", m.TableName(m))
-	gorp.AddTableWithName(mv, m.TableName(m)).SetKeys(true, m.PKey(m))
+	tb := m.TableName(m)
+	gorp.AddTableWithName(mv, tb).SetKeys(true, m.PKey(m))
+
+	//data accessor, 默认都是DBTAG
+	DataAccessor[tb+"::"+WRITETAG] = DBTAG
+	DataAccessor[tb+"::"+READTAG] = DBTAG
+	if len(tags) > 0 {
+		writeTag := tags[0]
+		if dns := Config().String("data::" + writeTag); dns != "" {
+			Info("%s's writer: %s", tb, dns)
+			if err := OpenDB(writeTag, dns); err != nil {
+				Warn("open db(%s) error: %s", writeTag, err)
+			} else {
+				DataAccessor[tb+"::"+WRITETAG] = writeTag
+			}
+		}
+	}
+	if len(tags) > 1 {
+		readTag := tags[1]
+		if dns := Config().String("data::" + readTag); dns != "" {
+			Info("%s's reader: %s", tb, dns)
+			if err := OpenDB(readTag, dns); err != nil {
+				Warn("open db(%s) error: %s", readTag, err)
+			} else {
+				DataAccessor[tb+"::"+READTAG] = readTag
+			}
+		}
+	}
 }
 
 /* }}} */
@@ -320,7 +350,7 @@ func (_ *BaseModel) AddTable(m Model) {
  * 查询准备
  */
 func (_ *BaseModel) ReadPrepare(m Model) (b *gorp.Builder, err error) {
-	db := m.DBConn("db")
+	db := m.DBConn(m, READTAG)
 	tb := m.TableName(m)
 	b = gorp.NewBuilder(db).Table(tb)
 	c := m.GetCtx()
@@ -490,6 +520,132 @@ func underscore(str string) string {
 		}
 	}
 	return buf.String()
+}
+
+/* }}} */
+
+/* {{{ GetDbFields(i interface{}) (s string)
+ * 从struct中解析数据库字段以及字段选项
+ */
+func GetDbFields(i interface{}) (s []string) {
+	if cols := utils.ReadStructColumns(i, true); cols != nil {
+		s = make([]string, 0)
+		for _, col := range cols {
+			if col.Tag == "-" || col.ExtOptions.Contains(TAG_SECRET) { //保密,不对外
+				continue
+			}
+			s = append(s, col.Tag)
+		}
+	}
+	return
+}
+
+/* }}} */
+
+/* {{{ func ReportPrepare(model interface{}, cons ogo.Conditions, c *ogo.RESTContext) (b *gorp.Builder, err error)
+ * 报表查询准备
+ */
+func ReportPrepare(m Model, cons Conditions, c *RESTContext) (b *gorp.Builder, err error) {
+	db := m.DBConn(m, READTAG)
+	tb := m.TableName(m)
+	b = gorp.NewBuilder(db).Table(tb)
+
+	// time range, 凡可进行time range的字段都应该加上索引
+	if tr := c.GetEnv(TimeRangeKey); tr != nil {
+		//存在timerange条件
+		if cols := utils.ReadStructColumns(m, true); cols != nil {
+			for _, col := range cols {
+				if col.ExtOptions.Contains(TAG_TIMERANGE) { //时间范围
+					c.Debug("time range field: %s, start: %s, end: %s", col.Tag, tr.(*TimeRange).Start, tr.(*TimeRange).End)
+					b.Where(fmt.Sprintf("T.`%s` BETWEEN ? AND ?", col.Tag), tr.(*TimeRange).Start, tr.(*TimeRange).End)
+				}
+			}
+		}
+	}
+	// order by
+	if ob := c.GetEnv(OrderByKey); ob != nil {
+		if cols := utils.ReadStructColumns(m, true); cols != nil {
+			for _, col := range cols {
+				if col.ExtOptions.Contains(TAG_ORDERBY) && col.Tag == ob.(*OrderBy).Field { //排序
+					c.Debug("order by field: %s, sort: %s", ob.(*OrderBy).Field, ob.(*OrderBy).Sort)
+					b.Order(fmt.Sprintf("T.`%s` %s", ob.(*OrderBy).Field, ob.(*OrderBy).Sort))
+				}
+			}
+		}
+	}
+
+	// permission
+	//b.Where(PermCondition(c, m))
+
+	// condition
+	if len(cons) > 0 {
+		for _, v := range cons {
+			c.Trace("cons value: %v", v)
+			if v.Is != nil {
+				switch vt := v.Is.(type) {
+				case string:
+					b.Where(fmt.Sprintf("T.`%s` = ?", v.Field), vt)
+				case []string:
+					vs := bytes.Buffer{}
+					first := true
+					vs.WriteString("(")
+					for _, vv := range vt {
+						if !first {
+							vs.WriteString(",")
+						}
+						vs.WriteString(fmt.Sprintf("'%s'", vv))
+						first = false
+					}
+					vs.WriteString(")")
+					b.Where(fmt.Sprintf("T.`%s` IN %s", v.Field, vs.String()))
+				default:
+				}
+			}
+			if v.Not != nil {
+				switch vt := v.Not.(type) {
+				case string:
+					b.Where(fmt.Sprintf("T.`%s` != ?", v.Field), vt)
+				case []string:
+					vs := bytes.Buffer{}
+					first := true
+					vs.WriteString("(")
+					for _, vv := range vt {
+						if !first {
+							vs.WriteString(",")
+						}
+						vs.WriteString(fmt.Sprintf("'%s'", vv))
+						first = false
+					}
+					vs.WriteString(")")
+					b.Where(fmt.Sprintf("T.`%s` NOT IN %s", v.Field, vs.String()))
+				default:
+				}
+			}
+			if v.Like != nil {
+				switch vt := v.Like.(type) {
+				case string:
+					b.Where(fmt.Sprintf("T.`%s` LIKE '%%%s%%'", v.Field, vt))
+				case []string:
+					vs := bytes.Buffer{}
+					first := true
+					vs.WriteString("(")
+					for _, vv := range vt {
+						if !first {
+							vs.WriteString(" OR ")
+						}
+						vs.WriteString(fmt.Sprintf("T.`%s` LIKE '%%%s%%'", v.Field, vv))
+						first = false
+					}
+					vs.WriteString(")")
+					b.Where(vs.String())
+				default:
+				}
+			}
+		}
+	}
+
+	//权限相关,todo
+	return
 }
 
 /* }}} */
