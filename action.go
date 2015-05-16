@@ -5,6 +5,7 @@ package ogo
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"reflect"
 
 	"github.com/Odinman/ogo/utils"
@@ -55,6 +56,9 @@ type Action interface {
 	OnDelete(i interface{}) (interface{}, error)   // 删除前的检查
 	PostDelete(i interface{}) (interface{}, error) // 删除后的检查
 
+	PreCheck(i interface{}) (interface{}, error)  // 搜索前的检查
+	OnCheck(i interface{}) (interface{}, error)   // 搜索前的检查
+	PostCheck(i interface{}) (interface{}, error) // 搜索后的检查
 }
 
 /* {{{ func (_ *BaseModel) Valid(i interface{}) (interface{}, error)
@@ -175,7 +179,6 @@ func (_ *BaseModel) PostGet(i interface{}) (interface{}, error) {
  */
 func (_ *BaseModel) PreSearch(i interface{}) (interface{}, error) {
 	c := i.(Model).GetCtx()
-	c.Debug("herehere")
 	if cons := c.GetEnv(ConditionsKey); cons != nil { //从context里面获取参数条件
 		i.(Model).SetConditions(i.(Model), cons.(Conditions))
 	}
@@ -437,6 +440,36 @@ func (_ *BaseModel) PostDelete(i interface{}) (interface{}, error) {
 
 /* }}} */
 
+/* {{{ func (_ *BaseModel) PreCheck(i interface{}) (interface{}, error)
+ *
+ */
+func (_ *BaseModel) PreCheck(i interface{}) (interface{}, error) {
+	c := i.(Model).GetCtx()
+	if cons := c.GetEnv(ConditionsKey); cons != nil { //从context里面获取参数条件
+		i.(Model).SetConditions(i.(Model), cons.(Conditions))
+	}
+	return i, nil
+}
+
+/* }}} */
+/* {{{ func (_ *BaseModel) OnCheck(i interface{}) (interface{}, error)
+ *
+ */
+func (_ *BaseModel) OnCheck(i interface{}) (interface{}, error) {
+	m := i.(Model)
+	return m.GetCount(m)
+}
+
+/* }}} */
+/* {{{ func (_ *BaseModel) PostCheck(i interface{}) (interface{}, error)
+ *
+ */
+func (_ *BaseModel) PostCheck(i interface{}) (interface{}, error) {
+	return i, nil
+}
+
+/* }}} */
+
 /* {{{ func (_ *BaseModel) CRUD(m Model, flag int) Handler
  * 通用的操作方法, 根据flag返回
  * 必须符合通用的restful风格
@@ -593,8 +626,34 @@ func (_ *BaseModel) CRUD(i interface{}, flag int) Handler {
 	//put := func(c *RESTContext) { //重置
 	//}
 	head := func(c *RESTContext) { //检查字段
+		m := i.(Model).New(i.(Model), c) // New会把c藏到m里面
+
+		if _, err := act.PreCheck(m); err != nil { // presearch准备条件等
+			c.Warn("PreCheck error: %s", err)
+			c.RESTBadRequest(err)
+			return
+		}
+
+		if cnt, err := act.OnCheck(m); err != nil {
+			c.Warn("OnCheck error: %s", err)
+			if err == ErrNoRecord {
+				c.RESTNotFound(err)
+			} else {
+				c.RESTPanic(err)
+			}
+		} else {
+			if cnt, _ := act.PostCheck(cnt); cnt.(int64) > 0 {
+				c.Warn("PostCheck error: %s", err)
+				c.RESTNotOK(nil)
+			} else {
+				c.RESTOK(nil)
+			}
+		}
+
+		return
 	}
 	deny := func(c *RESTContext) {
+		c.HTTPError(http.StatusMethodNotAllowed)
 	}
 
 	switch flag {

@@ -65,6 +65,7 @@ type Model interface {
 
 	GetRow(m Model, id string) (Model, error)          //获取单条记录
 	GetRows(m Model) (*List, error)                    //获取多条记录
+	GetCount(m Model) (int64, error)                   //获取多条记录
 	CreateRow(m Model) error                           //创建单条记录
 	UpdateRow(m Model, id string) (int64, error)       //更新记录
 	DeleteRow(m Model, id string) (int64, error)       //更新记录
@@ -288,7 +289,17 @@ func (_ *BaseModel) GetRows(m Model) (l *List, err error) {
 	}
 
 	return l, nil
-	return
+}
+
+/* }}} */
+
+/* {{{ func (_ *BaseModel) GetCount(m Model) (cnt int64, err error)
+ * 获取list, 通用函数
+ */
+func (_ *BaseModel) GetCount(m Model) (cnt int64, err error) {
+	builder, _ := m.ReadPrepare(m)
+	return builder.Count()
+
 }
 
 /* }}} */
