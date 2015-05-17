@@ -219,8 +219,10 @@ func (_ *BaseModel) CreateRow(m Model) error {
  */
 func (_ *BaseModel) UpdateRow(m Model, id string) (affected int64, err error) {
 	db := m.DBConn(m, WRITETAG)
-	if err = utils.ImportValue(m, map[string]string{DBTAG_PK: id}); err != nil {
-		return
+	if id != "" {
+		if err = utils.ImportValue(m, map[string]string{DBTAG_PK: id}); err != nil {
+			return
+		}
 	}
 	return db.Update(m)
 }

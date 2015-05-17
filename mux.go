@@ -15,6 +15,7 @@ import (
 	"github.com/Odinman/ogo/libs/config"
 	"github.com/Odinman/ogo/libs/logs"
 	"github.com/Odinman/ogo/utils"
+	omq "github.com/Odinman/omq/utils"
 )
 
 /* }}} */
@@ -50,6 +51,7 @@ type Mux struct {
 	cfg      config.ConfigContainer //配置信息
 	logger   *logs.OLogger          //debug日志记录
 	accessor *logs.OLogger          //日志
+	omqpool  *omq.Pool              // omq连接池
 	Workers  map[string]*Worker
 	Routes   map[string]*Route
 	Hooks    HStack
@@ -239,6 +241,11 @@ func (mux *Mux) initEnv() (err error) {
 		return err
 	}
 
+	//omq
+	if omqpool, err = mux.OmqPool(); err != nil {
+		Warn("omq error: %s", err)
+	}
+
 	//db init,目前只有mysql
 	if dns := cfg.String("data::dns"); dns != "" {
 		OpenDB(DBTAG, dns)
@@ -317,6 +324,32 @@ func (mux *Mux) Accessor() (*logs.OLogger, error) {
 	}
 
 	return mux.accessor, nil
+}
+
+/* }}} */
+
+/* {{{ func (mux *Mux) OmqPool() (*omq.Pool, error)
+ *
+ */
+func (mux *Mux) OmqPool() (*omq.Pool, error) {
+	if mux.omqpool == nil {
+		if cfg, err := mux.Config(); err != nil {
+			return nil, err
+		} else {
+			var omqHost, omqPort string
+			if omqHost = cfg.String("omq::host"); omqHost != "" {
+				if omqPort = cfg.String("omq::port"); omqPort == "" {
+					omqPort = "7000"
+				}
+				Info("[omq][%s:%s]", omqHost, omqPort)
+				mux.omqpool = omq.NewPool(omq.ReqNewer(fmt.Sprint("tcp://", omqHost, ":", omqPort)), 100, 60*time.Second)
+			} else {
+				return nil, fmt.Errorf("[omq]not found config info")
+			}
+		}
+	}
+
+	return mux.omqpool, nil
 }
 
 /* }}} */

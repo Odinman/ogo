@@ -8,6 +8,7 @@ import (
 
 	"github.com/Odinman/ogo/libs/config"
 	"github.com/Odinman/ogo/libs/logs"
+	omq "github.com/Odinman/omq/utils"
 )
 
 /* {{{ func init()
@@ -92,6 +93,19 @@ func Accessor() *logs.OLogger {
 		return nil
 	} else {
 		return accessor
+	}
+}
+
+/* }}} */
+
+/* {{{ func OmqPool() *omq.Pool
+ *
+ */
+func OmqPool() *omq.Pool {
+	if omqpool, err := DMux.OmqPool(); err != nil {
+		return nil
+	} else {
+		return omqpool
 	}
 }
 

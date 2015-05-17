@@ -7,6 +7,7 @@ package ogo
 import (
 	"github.com/Odinman/ogo/libs/config"
 	"github.com/Odinman/ogo/libs/logs"
+	omq "github.com/Odinman/omq/utils"
 )
 
 /* }}} */
@@ -29,6 +30,7 @@ var (
 	cfg      config.ConfigContainer
 	logger   *logs.OLogger
 	accessor *logs.OLogger
+	omqpool  *omq.Pool
 )
 
 /* }}} */
