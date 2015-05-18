@@ -165,7 +165,7 @@ func (_ *BaseModel) PKey(m Model) string {
 		for _, col := range cols {
 			// check required field
 			if col.TagOptions.Contains(DBTAG_PK) {
-				return col.Name
+				return col.Tag
 			}
 		}
 	}
