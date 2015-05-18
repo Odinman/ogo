@@ -38,45 +38,6 @@ type Pagination struct {
 }
 
 // 条件信息
-type Condition struct {
-	Field string
-	Is    interface{}
-	Not   interface{}
-	Like  interface{}
-	Join  interface{}
-}
-
-func NewIsCondition(s ...string) *Condition {
-	if len(s) <= 1 { //至少2个元素,第一个为字段,第二个为值
-		return nil
-	}
-	field := s[0]
-	con := &Condition{
-		Field: field,
-	}
-	if len(s) == 2 {
-		con.Is = s[1]
-	} else {
-		con.Is = s[1:]
-	}
-	return con
-}
-
-type Conditions map[string]*Condition
-
-func (cs Conditions) Get(k string) (con *Condition, err error) {
-	if cs == nil {
-		err = fmt.Errorf("conditions empty")
-	} else {
-		if _, ok := cs[k]; !ok {
-			err = fmt.Errorf("cannot found condition: %s", k)
-		} else {
-			con = cs[k]
-		}
-	}
-	return
-}
-
 /* {{{ func NewPagation(page, perPage string) (p *Pagination)
  */
 func NewPagination(page, perPage string) (p *Pagination) {

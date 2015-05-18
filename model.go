@@ -48,6 +48,102 @@ var (
 	ErrNeedField     = errors.New("Need field but missing")
 )
 
+type Condition struct {
+	Field string
+	Is    interface{}
+	Not   interface{}
+	Like  interface{}
+	Join  interface{}
+	Range interface{}
+}
+
+func NewIsCondition(s ...string) *Condition {
+	if len(s) < 2 { //至少2个元素,第一个为字段,第二个为值
+		return nil
+	}
+	field := s[0]
+	con := &Condition{
+		Field: field,
+	}
+	if len(s) == 2 {
+		con.Is = s[1]
+	} else {
+		con.Is = s[1:]
+	}
+	return con
+}
+func NewNotCondition(s ...string) *Condition {
+	if len(s) < 2 { //至少2个元素,第一个为字段,第二个为值
+		return nil
+	}
+	field := s[0]
+	con := &Condition{
+		Field: field,
+	}
+	if len(s) == 2 {
+		con.Not = s[1]
+	} else {
+		con.Not = s[1:]
+	}
+	return con
+}
+func NewLikeCondition(s ...string) *Condition {
+	if len(s) < 2 { //至少2个元素,第一个为字段,第二个为值
+		return nil
+	}
+	field := s[0]
+	con := &Condition{
+		Field: field,
+	}
+	if len(s) == 2 {
+		con.Like = s[1]
+	} else {
+		con.Like = s[1:]
+	}
+	return con
+}
+func NewJoinCondition(s ...string) *Condition {
+	if len(s) < 2 { //至少2个元素,第一个为字段,第二个为值
+		return nil
+	}
+	field := s[0]
+	con := &Condition{
+		Field: field,
+	}
+	if len(s) == 2 {
+		con.Join = s[1]
+	} else {
+		con.Join = s[1:]
+	}
+	return con
+}
+func NewRangeCondition(s ...string) *Condition {
+	if len(s) < 3 { //至少3个元素,第一个为字段,第2/3为值
+		return nil
+	}
+	field := s[0]
+	con := &Condition{
+		Field: field,
+		Range: s[1:],
+	}
+	return con
+}
+
+type Conditions map[string]*Condition
+
+func (cs Conditions) Get(k string) (con *Condition, err error) {
+	if cs == nil {
+		err = fmt.Errorf("conditions empty")
+	} else {
+		if _, ok := cs[k]; !ok {
+			err = fmt.Errorf("cannot found condition: %s", k)
+		} else {
+			con = cs[k]
+		}
+	}
+	return
+}
+
 type Model interface {
 	SetCtx(c *RESTContext)
 	GetCtx() *RESTContext
@@ -77,6 +173,8 @@ type BaseModel struct {
 	Error      error        `json:"-" db:"-"`
 	ctx        *RESTContext `json:"-" db:"-"`
 	conditions Conditions   `json:"-" db:"-"`
+	group      []string     `json:"-" db:"-"`
+	orderBy    []string     `json:"-" db:"-"`
 }
 
 /* {{{ func (bm *BaseModel) SetCtx(c *RESTContext) Model
@@ -376,29 +474,30 @@ func (_ *BaseModel) ReadPrepare(m Model) (b *gorp.Builder, err error) {
 	tb := m.TableName(m)
 	b = gorp.NewBuilder(db).Table(tb)
 	c := m.GetCtx()
-	cons := m.GetConditions()
 
-	// time range, 凡有time range的表都应该加上索引
-	if tr := c.GetEnv(TimeRangeKey); tr != nil {
-		//存在timerange条件
-		if cols := utils.ReadStructColumns(m, true); cols != nil {
-			for _, col := range cols {
-				if col.ExtOptions.Contains(TAG_TIMERANGE) { //时间范围
-					c.Debug("time range field: %s, start: %s, end: %s", col.Tag, tr.(*TimeRange).Start, tr.(*TimeRange).End)
-					b.Where(fmt.Sprintf("T.`%s` BETWEEN ? AND ?", col.Tag), tr.(*TimeRange).Start, tr.(*TimeRange).End)
+	ordered := false
+	if c != nil {
+		// time range, 凡有time range的表都应该加上索引
+		if tr := c.GetEnv(TimeRangeKey); tr != nil {
+			//存在timerange条件
+			if cols := utils.ReadStructColumns(m, true); cols != nil {
+				for _, col := range cols {
+					if col.ExtOptions.Contains(TAG_TIMERANGE) { //时间范围
+						c.Debug("time range field: %s, start: %s, end: %s", col.Tag, tr.(*TimeRange).Start, tr.(*TimeRange).End)
+						b.Where(fmt.Sprintf("T.`%s` BETWEEN ? AND ?", col.Tag), tr.(*TimeRange).Start, tr.(*TimeRange).End)
+					}
 				}
 			}
 		}
-	}
 
-	ordered := false
-	if ob := c.GetEnv(OrderByKey); ob != nil {
-		if cols := utils.ReadStructColumns(m, true); cols != nil {
-			for _, col := range cols {
-				if col.ExtOptions.Contains(TAG_ORDERBY) && col.Tag == ob.(*OrderBy).Field { //排序
-					c.Debug("order by field: %s, sort: %s", ob.(*OrderBy).Field, ob.(*OrderBy).Sort)
-					b.Order(fmt.Sprintf("T.`%s` %s", ob.(*OrderBy).Field, ob.(*OrderBy).Sort))
-					ordered = true
+		if ob := c.GetEnv(OrderByKey); ob != nil {
+			if cols := utils.ReadStructColumns(m, true); cols != nil {
+				for _, col := range cols {
+					if col.ExtOptions.Contains(TAG_ORDERBY) && col.Tag == ob.(*OrderBy).Field { //排序
+						c.Debug("order by field: %s, sort: %s", ob.(*OrderBy).Field, ob.(*OrderBy).Sort)
+						b.Order(fmt.Sprintf("T.`%s` %s", ob.(*OrderBy).Field, ob.(*OrderBy).Sort))
+						ordered = true
+					}
 				}
 			}
 		}
@@ -414,14 +513,12 @@ func (_ *BaseModel) ReadPrepare(m Model) (b *gorp.Builder, err error) {
 		}
 	}
 
-	// permission
-	//b.Where(PermCondition(c, m))
-
 	// condition
+	cons := m.GetConditions()
 	if len(cons) > 0 {
 		jc := 0
 		for _, v := range cons {
-			c.Trace("cons value: %v", v)
+			//c.Trace("cons value: %v", v)
 			if v.Is != nil {
 				switch vt := v.Is.(type) {
 				case string:
@@ -485,25 +582,25 @@ func (_ *BaseModel) ReadPrepare(m Model) (b *gorp.Builder, err error) {
 			if v.Join != nil { //关联查询
 				switch vt := v.Join.(type) {
 				case *Condition:
-					c.Trace("%s will join %s.%s", v.Field, v.Field, vt.Field)
+					//c.Trace("%s will join %s.%s", v.Field, v.Field, vt.Field)
 					if vt.Is != nil {
 						jt := v.Field
 						jf := vt.Field
 						var canJoin bool
 						if t, ok := gorp.GetTable(jt); ok {
-							c.Trace("table: %s; type name: %s", jt, t.Gotype.Name())
+							//c.Trace("table: %s; type name: %s", jt, t.Gotype.Name())
 							if cols := utils.ReadStructColumns(reflect.New(t.Gotype).Interface(), true); cols != nil {
 								for _, col := range cols {
-									c.Trace("%s %s", jt, col.Tag)
+									//c.Trace("%s %s", jt, col.Tag)
 									if col.Tag == jf && col.ExtOptions.Contains(TAG_CONDITION) { //可作为条件
-										c.Trace("%s.%s can join", jt, jf)
+										//c.Trace("%s.%s can join", jt, jf)
 										canJoin = true
 										break
 									}
 								}
 							}
 						} else {
-							c.Info("unknown table %s", jt)
+							//c.Info("unknown table %s", jt)
 						}
 						if canJoin {
 							js := fmt.Sprintf("LEFT JOIN `%s` T%d ON T.`%s` = T%d.`id`", jt, jc, v.Field, jc)
@@ -511,11 +608,11 @@ func (_ *BaseModel) ReadPrepare(m Model) (b *gorp.Builder, err error) {
 							b.Where(fmt.Sprintf("T%d.`%s`=?", jc, jf), vt.Is.(string))
 							jc++
 						} else {
-							c.Trace("%s.%s can't join", jt, jf)
+							//c.Trace("%s.%s can't join", jt, jf)
 						}
 					}
 				default:
-					c.Trace("not support !*Condition: %v", vt)
+					//c.Trace("not support !*Condition: %v", vt)
 				}
 			}
 		}
