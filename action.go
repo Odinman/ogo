@@ -535,28 +535,32 @@ func (_ *BaseModel) CRUD(i interface{}, flag int) Handler {
 
 	post := func(c *RESTContext) {
 		m := i.(Model).New(i.(Model), c) // New会把c藏到m里面
+		var err error
 
-		if _, err := act.PreCreate(m); err != nil { // presearch准备条件等
+		if _, err = act.PreCreate(m); err != nil { // presearch准备条件等
 			c.Warn("PreCreate error: %s", err)
 			c.RESTBadRequest(err)
 			return
 		}
 
-		if _, err := act.OnCreate(m); err != nil {
+		if _, err = act.OnCreate(m); err != nil {
 			c.Warn("OnCreate error: %s", err)
 			c.RESTNotOK(err)
 			return
 		}
 
-		if _, err := act.PostCreate(m); err != nil {
-			c.Warn("postCreate error: %s", err)
+		// 触发器
+		_, err = act.Trigger(m)
+		if err != nil {
+			c.Warn("Trigger error: %s", err)
 		}
 
-		if r, err := act.Trigger(m); err != nil {
-			c.Warn("Trigger error: %s", err)
-		} else {
-			c.RESTOK(r)
+		// create ok, return
+		var r interface{}
+		if r, err = act.PostCreate(m); err != nil {
+			c.Warn("postCreate error: %s", err)
 		}
+		c.RESTOK(r)
 		return
 	}
 
@@ -607,17 +611,18 @@ func (_ *BaseModel) CRUD(i interface{}, flag int) Handler {
 			return
 		}
 
+		// 触发器
+		_, err = act.Trigger(m)
+		if err != nil {
+			c.Warn("Trigger error: %s", err)
+		}
+
 		// update ok
 		var r interface{}
 		if r, err = act.PostUpdate(m); err != nil {
 			c.Warn("postCreate error: %s", err)
 		}
 
-		// 触发器
-		_, err = act.Trigger(m)
-		if err != nil {
-			c.Warn("Trigger error: %s", err)
-		}
 		c.RESTOK(r)
 		return
 	}
