@@ -146,6 +146,15 @@ func (_ *BaseModel) Trigger(i interface{}) (interface{}, error) {
  *
  */
 func (_ *BaseModel) PreGet(i interface{}) (interface{}, error) {
+	m := i.(Model)
+	c := m.GetCtx()
+	// pk,放入条件
+	id := c.URLParams[RowkeyKey]
+	m.SetConditions(m, Conditions{m.PKey(m): NewIsCondition(m.PKey(m), id)})
+	// 从restcontext里获取条件
+	if cons := c.GetEnv(ConditionsKey); cons != nil { //从context里面获取参数条件
+		m.SetConditions(m, cons.(Conditions))
+	}
 	return i, nil
 }
 

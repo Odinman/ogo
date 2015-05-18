@@ -189,17 +189,36 @@ func (_ *BaseModel) Existense(m Model) func(tag string) (Model, error) {
  * 根据条件获取一条记录, model为表结构
  */
 func (_ *BaseModel) GetRow(m Model, id string) (Model, error) {
-	db := m.DBConn(m, READTAG)
-	if obj, err := db.Get(m, id); err != nil {
-		//Debug("get error: %s, %v", err, obj)
-		if err == sql.ErrNoRows {
-			return nil, ErrNoRecord
-		} else {
-			return nil, err
-		}
-	} else {
-		return obj.(Model), nil
+	//db := m.DBConn(m, READTAG)
+	//if obj, err := db.Get(m, id); err != nil {
+	//	//Debug("get error: %s, %v", err, obj)
+	//	if err == sql.ErrNoRows {
+	//		return nil, ErrNoRecord
+	//	} else {
+	//		return nil, err
+	//	}
+	//} else {
+	//	return obj.(Model), nil
+	//}
+	c := m.GetCtx()
+	builder, _ := m.ReadPrepare(m)
+	ms := m.NewList(m)
+	var err error
+	err = builder.Select(GetDbFields(m)).Limit("1").Find(ms)
+	if err != nil && err != sql.ErrNoRows {
+		//支持出错
+		return nil, err
+	} else if ms == nil {
+		//没找到记录
+		return nil, ErrNoRecord
 	}
+
+	resultsValue := reflect.Indirect(reflect.ValueOf(ms))
+	if resultsValue.Len() <= 0 {
+		c.Debug("len: %d, no record", resultsValue.Len())
+		return nil, ErrNoRecord
+	}
+	return resultsValue.Index(0).Interface().(Model), nil
 }
 
 /* }}} */
@@ -242,20 +261,22 @@ func (_ *BaseModel) DeleteRow(m Model, id string) (affected int64, err error) {
 
 /* }}} */
 
-/* {{{ func (_ *BaseModel) SetConditions(m Model, ocs Conditions) (cons Conditions, err error)
+/* {{{ func (bm *BaseModel) SetConditions(m Model, ocs Conditions) (cons Conditions, err error)
  * 生成条件
  */
 func (bm *BaseModel) SetConditions(m Model, ocs Conditions) (cons Conditions, err error) {
-	cons = make(Conditions)
+	if bm.conditions == nil {
+		bm.conditions = make(Conditions)
+	}
 	if cols := utils.ReadStructColumns(m, true); cols != nil {
 		for _, col := range cols {
 			// check required field
 			//c.Trace("tag: %s, name: %s, exops: %s", col.Tag, col.Name, col.ExtOptions)
 			if col.ExtOptions.Contains(TAG_CONDITION) { //可作为条件
 				//c.Trace("tag: %s, name: %s", col.Tag, col.Name)
-				if condition, e := GetCondition(ocs, col.Tag); e == nil {
+				if condition, e := ocs.Get(col.Tag); e == nil {
 					//Trace("condition: %v", condition)
-					cons[col.Tag] = condition
+					bm.conditions[col.Tag] = condition
 				} else {
 					Trace("get condition failed: %s", e)
 				}
@@ -264,8 +285,7 @@ func (bm *BaseModel) SetConditions(m Model, ocs Conditions) (cons Conditions, er
 			}
 		}
 	}
-	bm.conditions = cons
-	return
+	return bm.conditions, nil
 }
 
 /* }}} */

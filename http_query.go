@@ -46,9 +46,25 @@ type Condition struct {
 	Join  interface{}
 }
 
+func NewIsCondition(s ...string) *Condition {
+	if len(s) <= 1 { //至少2个元素,第一个为字段,第二个为值
+		return nil
+	}
+	field := s[0]
+	con := &Condition{
+		Field: field,
+	}
+	if len(s) == 2 {
+		con.Is = s[1]
+	} else {
+		con.Is = s[1:]
+	}
+	return con
+}
+
 type Conditions map[string]*Condition
 
-func GetCondition(cs Conditions, k string) (con *Condition, err error) {
+func (cs Conditions) Get(k string) (con *Condition, err error) {
 	if cs == nil {
 		err = fmt.Errorf("conditions empty")
 	} else {
@@ -101,7 +117,7 @@ func (rc *RESTContext) GetCondition(k string) (con *Condition, err error) {
 		rc.SetEnv(ConditionsKey, make(Conditions))
 		return nil, fmt.Errorf("Not found conditions! %s", ConditionsKey)
 	} else {
-		return GetCondition(cs.(Conditions), k)
+		return cs.(Conditions).Get(k)
 	}
 	return
 }
