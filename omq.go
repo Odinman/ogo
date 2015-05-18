@@ -30,7 +30,7 @@ func OmqSet(key, value string, expire int) error {
 
 /* }}} */
 
-/* {{{ OmqGet(key string) error
+/* {{{ func OmqGet(key string) (string, error)
  *
  */
 func OmqGet(key string) (string, error) {

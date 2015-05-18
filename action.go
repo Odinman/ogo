@@ -22,8 +22,6 @@ const (
 	GA_HEAD
 	GA_ALL = GA_GET | GA_SEARCH | GA_POST | GA_DELETE | GA_PATCH | GA_HEAD
 
-	PASSWORD_SALT = "ogo"
-
 	KEY_SKIPAUTH  = "skipauth"
 	KEY_SKIPLOGIN = "skiplogin"
 	KEY_SKIPPERM  = "skipperm"
@@ -84,12 +82,12 @@ func (_ *BaseModel) Valid(i interface{}) (interface{}, error) {
 					switch fv.Type().String() {
 					case "*string":
 						sv := fv.Elem().String()
-						h := utils.HashSha1(sv, PASSWORD_SALT)
+						h := utils.HashSha1(sv)
 						fv.Set(reflect.ValueOf(&h))
 						c.Debug("password: %s, encoded: %s", sv, h)
 					case "string":
 						sv := fv.String()
-						h := utils.HashSha1(sv, PASSWORD_SALT)
+						h := utils.HashSha1(sv)
 						fv.Set(reflect.ValueOf(h))
 						c.Debug("password: %s, encoded: %s", sv, h)
 					default:
