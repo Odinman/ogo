@@ -29,12 +29,6 @@ const (
 	_PPREFIX_NOT  = '!'
 	_PPREFIX_LIKE = '~'
 
-	// 查询类型
-	_CTYPE_IS   = 0
-	_CTYPE_NOT  = 1
-	_CTYPE_LIKE = 2
-	_CTYPE_JOIN = 3
-
 	OriginalRemoteAddrKey = "originalRemoteAddr"
 )
 
@@ -217,23 +211,6 @@ func ParseParams(c *web.C, h http.Handler) http.Handler {
 		var p, pp string
 		rc.setTimeRangeFromStartEnd()
 		for k, v := range r.Form {
-			rc.Trace("key: %s, value: %s", k, v)
-			//根据参数名第一个字符来判断条件类型
-			prefix := k[0] //param prefix
-			switch prefix {
-			case _PPREFIX_NOT:
-				rc.Trace("having prefix not: %s", k)
-				k = k[1:]
-				cType = _CTYPE_NOT
-				rc.Trace("key change to: %s, condition type: %d", k, cType)
-			case _PPREFIX_LIKE:
-				k = k[1:]
-				cType = _CTYPE_LIKE
-			default:
-				cType = _CTYPE_IS
-				// do nothing
-			}
-
 			switch k { //处理参数
 			case _PARAM_DATE:
 				rc.setTimeRangeFromDate(v)
@@ -253,7 +230,7 @@ func ParseParams(c *web.C, h http.Handler) http.Handler {
 			default:
 				//除了以上的特别字段,其他都是条件查询
 				var cv interface{}
-				var con, jc *Condition
+				var con *Condition
 				var err error
 
 				if len(v) > 1 {
@@ -268,24 +245,29 @@ func ParseParams(c *web.C, h http.Handler) http.Handler {
 					}
 				}
 
+				//根据参数名第一个字符来判断条件类型
+				prefix := k[0] //param prefix
+				switch prefix {
+				case _PPREFIX_NOT:
+					rc.Trace("having prefix not: %s", k)
+					k = k[1:]
+					cType = _CTYPE_NOT
+					rc.Trace("key change to: %s, condition type: %d", k, cType)
+				case _PPREFIX_LIKE:
+					k = k[1:]
+					cType = _CTYPE_LIKE
+				default:
+					cType = _CTYPE_IS
+				}
+
 				//如果参数中包含".",代表有关联查询
 				if strings.Contains(k, ".") {
 					js := strings.SplitN(k, ".", 2)
 					if js[0] != "" && js[1] != "" {
 						k = js[0]
-						jc = new(Condition)
-						jc.Field = js[1]
-						switch cType {
-						case _CTYPE_IS:
-							jc.Is = cv
-						case _CTYPE_NOT:
-							jc.Not = cv
-						case _CTYPE_LIKE:
-							jc.Like = cv
-						default:
-						}
+						cv = NewCondition(cType, js[1], cv)
 						//查询类型变为join
-						rc.Trace("join: %s, %s; con: %v", k, jc.Field, jc)
+						rc.Trace("join: %s, %s; con: %v", k, cv.(*Condition).Field, cv)
 						cType = _CTYPE_JOIN
 					}
 				}
@@ -295,19 +277,7 @@ func ParseParams(c *web.C, h http.Handler) http.Handler {
 					con = new(Condition)
 					rc.setCondition(k, con)
 				}
-				con.Field = k
-				switch cType {
-				case _CTYPE_IS:
-					con.Is = cv
-				case _CTYPE_NOT:
-					con.Not = cv
-				case _CTYPE_LIKE:
-					con.Like = cv
-				case _CTYPE_JOIN:
-					rc.Trace("field: %s, join condition: %v", k, jc)
-					con.Join = jc
-				default:
-				}
+				con = NewCondition(cType, k, cv)
 				rc.Trace("con: %v", con)
 			}
 		}

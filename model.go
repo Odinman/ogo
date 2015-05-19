@@ -30,6 +30,12 @@ const (
 	TAG_ORDERBY    = "O"   //可排序
 	TAG_VERIFIABLE = "V"   //验证后可修改
 	TAG_RETURN     = "RET" // 返回,创建后需要返回数值
+	// 查询类型
+	_CTYPE_IS    = 0
+	_CTYPE_NOT   = 1
+	_CTYPE_LIKE  = 2
+	_CTYPE_JOIN  = 3
+	_CTYPE_RANGE = 4
 )
 
 type List struct {
@@ -54,77 +60,33 @@ type Condition struct {
 	Not   interface{}
 	Like  interface{}
 	Join  interface{}
-	Range interface{}
+	Range interface{} //范围条件, btween ? and ?
+	Raw   string      //原始字符串
 }
 
-func NewIsCondition(s ...string) *Condition {
-	if len(s) < 2 { //至少2个元素,第一个为字段,第二个为值
+func NewCondition(typ int, field string, cs ...interface{}) *Condition {
+	if field == "" || len(cs) < 1 { //至少1个元素
 		return nil
 	}
-	field := s[0]
-	con := &Condition{
-		Field: field,
-	}
-	if len(s) == 2 {
-		con.Is = s[1]
+	con := &Condition{Field: field}
+	var v interface{}
+	if len(cs) == 1 {
+		v = cs[0]
 	} else {
-		con.Is = s[1:]
+		v = cs
 	}
-	return con
-}
-func NewNotCondition(s ...string) *Condition {
-	if len(s) < 2 { //至少2个元素,第一个为字段,第二个为值
-		return nil
-	}
-	field := s[0]
-	con := &Condition{
-		Field: field,
-	}
-	if len(s) == 2 {
-		con.Not = s[1]
-	} else {
-		con.Not = s[1:]
-	}
-	return con
-}
-func NewLikeCondition(s ...string) *Condition {
-	if len(s) < 2 { //至少2个元素,第一个为字段,第二个为值
-		return nil
-	}
-	field := s[0]
-	con := &Condition{
-		Field: field,
-	}
-	if len(s) == 2 {
-		con.Like = s[1]
-	} else {
-		con.Like = s[1:]
-	}
-	return con
-}
-func NewJoinCondition(s ...string) *Condition {
-	if len(s) < 2 { //至少2个元素,第一个为字段,第二个为值
-		return nil
-	}
-	field := s[0]
-	con := &Condition{
-		Field: field,
-	}
-	if len(s) == 2 {
-		con.Join = s[1]
-	} else {
-		con.Join = s[1:]
-	}
-	return con
-}
-func NewRangeCondition(s ...string) *Condition {
-	if len(s) < 3 { //至少3个元素,第一个为字段,第2/3为值
-		return nil
-	}
-	field := s[0]
-	con := &Condition{
-		Field: field,
-		Range: s[1:],
+	switch typ {
+	case _CTYPE_IS:
+		con.Is = v
+	case _CTYPE_NOT:
+		con.Not = v
+	case _CTYPE_JOIN:
+		con.Join = v
+	case _CTYPE_LIKE:
+		con.Like = v
+	case _CTYPE_RANGE:
+		con.Like = v
+	default:
 	}
 	return con
 }

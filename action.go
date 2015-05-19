@@ -152,7 +152,7 @@ func (_ *BaseModel) PreGet(i interface{}) (interface{}, error) {
 	id := c.URLParams[RowkeyKey]
 	pk := m.PKey(m)
 	c.Debug("[PreGet][pk: %s, id: %s]", pk, id)
-	m.SetConditions(m, Conditions{pk: NewIsCondition(pk, id)})
+	m.SetConditions(m, Conditions{pk: NewCondition(_CTYPE_IS, pk, id)})
 	// 从restcontext里获取条件
 	if cons := c.GetEnv(ConditionsKey); cons != nil { //从context里面获取参数条件
 		m.SetConditions(m, cons.(Conditions))
