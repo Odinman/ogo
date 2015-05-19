@@ -36,6 +36,8 @@ const (
 	_CTYPE_LIKE  = 2
 	_CTYPE_JOIN  = 3
 	_CTYPE_RANGE = 4
+	_CTYPE_ORDER = 5
+	_CTYPE_PAGE  = 6
 )
 
 type List struct {
@@ -55,19 +57,29 @@ var (
 )
 
 type Condition struct {
+	Table string
 	Field string
 	Is    interface{}
 	Not   interface{}
 	Like  interface{}
 	Join  interface{}
 	Range interface{} //范围条件, btween ? and ?
-	Raw   string      //原始字符串
+	Order interface{}
+	Page  interface{}
+	Raw   string //原始字符串
+}
+
+//order by
+type OrderBy struct {
+	Field string
+	Sort  string
 }
 
 func NewCondition(typ int, field string, cs ...interface{}) *Condition {
 	if field == "" || len(cs) < 1 { //至少1个元素
 		return nil
 	}
+	//Debug("[NewCondition]field: %s", field)
 	con := &Condition{Field: field}
 	var v interface{}
 	if len(cs) == 1 {
@@ -85,32 +97,37 @@ func NewCondition(typ int, field string, cs ...interface{}) *Condition {
 	case _CTYPE_LIKE:
 		con.Like = v
 	case _CTYPE_RANGE:
-		con.Like = v
+		con.Range = v
+	case _CTYPE_ORDER:
+		con.Order = v
+	case _CTYPE_PAGE:
+		con.Page = v
 	default:
 	}
 	return con
 }
 
-type Conditions map[string]*Condition
-
-func (cs Conditions) Get(k string) (con *Condition, err error) {
+func GetCondition(cs []*Condition, k string) (con *Condition, err error) {
 	if cs == nil {
 		err = fmt.Errorf("conditions empty")
 	} else {
-		if _, ok := cs[k]; !ok {
-			err = fmt.Errorf("cannot found condition: %s", k)
-		} else {
-			con = cs[k]
+		for _, c := range cs {
+			//Debug("field: %s, key: %s", c.Field, k)
+			if c.Field == k {
+				return c, nil
+			}
 		}
 	}
-	return
+	return nil, fmt.Errorf("cannot found condition: %s", k)
 }
 
 type Model interface {
 	SetCtx(c *RESTContext)
 	GetCtx() *RESTContext
-	SetConditions(m Model, ocs Conditions) (Conditions, error)
-	GetConditions() Conditions
+	SetConditions(m Model, cs ...*Condition) ([]*Condition, error)
+	GetConditions() []*Condition
+	SetPagination(p *Pagination)
+	GetPagination() *Pagination
 
 	New(m Model, c ...interface{}) Model
 	NewList(m Model) interface{} // 返回一个空结构列表
@@ -134,9 +151,8 @@ type Model interface {
 type BaseModel struct {
 	Error      error        `json:"-" db:"-"`
 	ctx        *RESTContext `json:"-" db:"-"`
-	conditions Conditions   `json:"-" db:"-"`
-	group      []string     `json:"-" db:"-"`
-	orderBy    []string     `json:"-" db:"-"`
+	conditions []*Condition `json:"-" db:"-"`
+	pagination *Pagination  `json:"-" db:"-"`
 }
 
 /* {{{ func (bm *BaseModel) SetCtx(c *RESTContext) Model
@@ -157,10 +173,74 @@ func (bm *BaseModel) GetCtx() *RESTContext {
 
 /* }}} */
 
-/* {{{ func (m *BaseModel) GetConditions() Conditions
+/* {{{ func (bm *BaseModel) SetConditions(m Model, cs ...*Condition) (cons []*Condition, err error)
+ * 生成条件
+ */
+func (bm *BaseModel) SetConditions(m Model, cs ...*Condition) (cons []*Condition, err error) {
+	if bm.conditions == nil {
+		bm.conditions = make([]*Condition, 0)
+	}
+	if cols := utils.ReadStructColumns(m, true); cols != nil {
+		for _, col := range cols {
+			// check required field
+			if col.ExtOptions.Contains(TAG_TIMERANGE) {
+				if condition, e := GetCondition(cs, TAG_TIMERANGE); e == nil && condition.Range != nil {
+					//Debug("[SetConditions]timerange")
+					condition.Field = col.Tag
+					bm.conditions = append(bm.conditions, condition)
+				} else {
+					Trace("get condition failed: %s", e)
+				}
+			}
+			if col.ExtOptions.Contains(TAG_ORDERBY) {
+				if condition, e := GetCondition(cs, TAG_ORDERBY); e == nil && condition.Order != nil {
+					//Debug("[SetConditions]order")
+					condition.Field = col.Tag
+					bm.conditions = append(bm.conditions, condition)
+				} else {
+					Trace("get condition failed: %s", e)
+				}
+			}
+			if col.ExtOptions.Contains(TAG_CONDITION) { //可作为条件
+				if condition, e := GetCondition(cs, col.Tag); e == nil && (condition.Is != nil || condition.Not != nil || condition.Like != nil || condition.Join != nil) {
+					//Debug("condition field: %s, %v", col.Tag, condition)
+					bm.conditions = append(bm.conditions, condition)
+				} else {
+					Trace("get condition failed: %s", e)
+				}
+			}
+		}
+	}
+	return bm.conditions, nil
+}
+
+/* }}} */
+
+/* {{{ func (bm *BaseModel) SetPagination(p *Pagination)
+ * 生成条件
+ */
+func (bm *BaseModel) SetPagination(p *Pagination) {
+	if bm.conditions == nil {
+		bm.pagination = new(Pagination)
+	}
+	bm.pagination = p
+}
+
+/* }}} */
+
+/* {{{ func (bm *BaseModel) GetPagination() *Pagination
  *
  */
-func (bm *BaseModel) GetConditions() Conditions {
+func (bm *BaseModel) GetPagination() *Pagination {
+	return bm.pagination
+}
+
+/* }}} */
+
+/* {{{ func (bm *BaseModel) GetPagination() *Pagination
+ *
+ */
+func (bm *BaseModel) GetConditions() []*Condition {
 	return bm.conditions
 }
 
@@ -321,44 +401,16 @@ func (_ *BaseModel) DeleteRow(m Model, id string) (affected int64, err error) {
 
 /* }}} */
 
-/* {{{ func (bm *BaseModel) SetConditions(m Model, ocs Conditions) (cons Conditions, err error)
- * 生成条件
- */
-func (bm *BaseModel) SetConditions(m Model, ocs Conditions) (cons Conditions, err error) {
-	if bm.conditions == nil {
-		bm.conditions = make(Conditions)
-	}
-	if cols := utils.ReadStructColumns(m, true); cols != nil {
-		for _, col := range cols {
-			// check required field
-			//c.Trace("tag: %s, name: %s, exops: %s", col.Tag, col.Name, col.ExtOptions)
-			if col.ExtOptions.Contains(TAG_CONDITION) { //可作为条件
-				//c.Trace("tag: %s, name: %s", col.Tag, col.Name)
-				if condition, e := ocs.Get(col.Tag); e == nil {
-					//Trace("condition: %v", condition)
-					bm.conditions[col.Tag] = condition
-				} else {
-					Trace("get condition failed: %s", e)
-				}
-			} else {
-				//Trace("not condition, tag: %s, name: %s, exttag: %s", col.Tag, col.Name, col.ExtOptions)
-			}
-		}
-	}
-	return bm.conditions, nil
-}
-
-/* }}} */
-
 /* {{{ func (_ *BaseModel) GetRows(m Model) (l *List, err error)
  * 获取list, 通用函数
  */
 func (_ *BaseModel) GetRows(m Model) (l *List, err error) {
-	c := m.GetCtx()
+	//c := m.GetCtx()
 	builder, _ := m.ReadPrepare(m)
 	count, _ := builder.Count() //结果数
 	ms := m.NewList(m)
-	p := c.GetEnv(PaginationKey).(*Pagination)
+	//p := c.GetEnv(PaginationKey).(*Pagination)
+	p := m.GetPagination()
 	err = builder.Select(GetDbFields(m)).Offset(p.Offset).Limit(p.PerPage).Find(ms)
 	if err != nil && err != sql.ErrNoRows {
 		//支持出错
@@ -435,52 +487,26 @@ func (_ *BaseModel) ReadPrepare(m Model) (b *gorp.Builder, err error) {
 	db := m.DBConn(m, READTAG)
 	tb := m.TableName(m)
 	b = gorp.NewBuilder(db).Table(tb)
-	c := m.GetCtx()
-
-	ordered := false
-	if c != nil {
-		// time range, 凡有time range的表都应该加上索引
-		if tr := c.GetEnv(TimeRangeKey); tr != nil {
-			//存在timerange条件
-			if cols := utils.ReadStructColumns(m, true); cols != nil {
-				for _, col := range cols {
-					if col.ExtOptions.Contains(TAG_TIMERANGE) { //时间范围
-						c.Debug("time range field: %s, start: %s, end: %s", col.Tag, tr.(*TimeRange).Start, tr.(*TimeRange).End)
-						b.Where(fmt.Sprintf("T.`%s` BETWEEN ? AND ?", col.Tag), tr.(*TimeRange).Start, tr.(*TimeRange).End)
-					}
-				}
-			}
-		}
-
-		if ob := c.GetEnv(OrderByKey); ob != nil {
-			if cols := utils.ReadStructColumns(m, true); cols != nil {
-				for _, col := range cols {
-					if col.ExtOptions.Contains(TAG_ORDERBY) && col.Tag == ob.(*OrderBy).Field { //排序
-						c.Debug("order by field: %s, sort: %s", ob.(*OrderBy).Field, ob.(*OrderBy).Sort)
-						b.Order(fmt.Sprintf("T.`%s` %s", ob.(*OrderBy).Field, ob.(*OrderBy).Sort))
-						ordered = true
-					}
-				}
-			}
-		}
-	}
-	if !ordered {
-		//默认排序
-		if cols := utils.ReadStructColumns(m, true); cols != nil {
-			for _, col := range cols {
-				if col.TagOptions.Contains(DBTAG_PK) { // 默认为pk降序
-					b.Order(fmt.Sprintf("T.`%s` DESC", col.Tag))
-				}
+	cons := m.GetConditions()
+	//range condition,先搞范围查询
+	for _, v := range cons {
+		if v.Range != nil {
+			Debug("[perpare]timerange")
+			switch vt := v.Range.(type) {
+			case *TimeRange: //只支持timerange
+				b.Where(fmt.Sprintf("T.`%s` BETWEEN ? AND ?", v.Field), vt.Start, vt.End)
+			case TimeRange: //只支持timerange
+				b.Where(fmt.Sprintf("T.`%s` BETWEEN ? AND ?", v.Field), vt.Start, vt.End)
+			default:
+				//nothing
 			}
 		}
 	}
 
 	// condition
-	cons := m.GetConditions()
 	if len(cons) > 0 {
 		jc := 0
 		for _, v := range cons {
-			//c.Trace("cons value: %v", v)
 			if v.Is != nil {
 				switch vt := v.Is.(type) {
 				case string:
@@ -579,6 +605,34 @@ func (_ *BaseModel) ReadPrepare(m Model) (b *gorp.Builder, err error) {
 			}
 		}
 	}
+
+	//order
+	ordered := false
+	for _, v := range cons {
+		if v.Order != nil {
+			switch vt := v.Range.(type) {
+			case *OrderBy: //只支持timerange
+				b.Order(fmt.Sprintf("T.`%s` %s", vt.Field, vt.Sort))
+				ordered = true
+			case OrderBy: //只支持timerange
+				b.Order(fmt.Sprintf("T.`%s` %s", vt.Field, vt.Sort))
+				ordered = true
+			default:
+				//nothing
+			}
+		}
+	}
+	if !ordered {
+		//默认排序
+		if cols := utils.ReadStructColumns(m, true); cols != nil {
+			for _, col := range cols {
+				if col.TagOptions.Contains(DBTAG_PK) { // 默认为pk降序
+					b.Order(fmt.Sprintf("T.`%s` DESC", col.Tag))
+				}
+			}
+		}
+	}
+
 	//b.Where(SkipLogicDeleted(m))
 	return
 }
@@ -618,114 +672,6 @@ func GetDbFields(i interface{}) (s []string) {
 			s = append(s, col.Tag)
 		}
 	}
-	return
-}
-
-/* }}} */
-
-/* {{{ func ReportPrepare(model interface{}, cons ogo.Conditions, c *ogo.RESTContext) (b *gorp.Builder, err error)
- * 报表查询准备
- */
-func ReportPrepare(m Model, cons Conditions, c *RESTContext) (b *gorp.Builder, err error) {
-	db := m.DBConn(m, READTAG)
-	tb := m.TableName(m)
-	b = gorp.NewBuilder(db).Table(tb)
-
-	// time range, 凡可进行time range的字段都应该加上索引
-	if tr := c.GetEnv(TimeRangeKey); tr != nil {
-		//存在timerange条件
-		if cols := utils.ReadStructColumns(m, true); cols != nil {
-			for _, col := range cols {
-				if col.ExtOptions.Contains(TAG_TIMERANGE) { //时间范围
-					c.Debug("time range field: %s, start: %s, end: %s", col.Tag, tr.(*TimeRange).Start, tr.(*TimeRange).End)
-					b.Where(fmt.Sprintf("T.`%s` BETWEEN ? AND ?", col.Tag), tr.(*TimeRange).Start, tr.(*TimeRange).End)
-				}
-			}
-		}
-	}
-	// order by
-	if ob := c.GetEnv(OrderByKey); ob != nil {
-		if cols := utils.ReadStructColumns(m, true); cols != nil {
-			for _, col := range cols {
-				if col.ExtOptions.Contains(TAG_ORDERBY) && col.Tag == ob.(*OrderBy).Field { //排序
-					c.Debug("order by field: %s, sort: %s", ob.(*OrderBy).Field, ob.(*OrderBy).Sort)
-					b.Order(fmt.Sprintf("T.`%s` %s", ob.(*OrderBy).Field, ob.(*OrderBy).Sort))
-				}
-			}
-		}
-	}
-
-	// permission
-	//b.Where(PermCondition(c, m))
-
-	// condition
-	if len(cons) > 0 {
-		for _, v := range cons {
-			c.Trace("cons value: %v", v)
-			if v.Is != nil {
-				switch vt := v.Is.(type) {
-				case string:
-					b.Where(fmt.Sprintf("T.`%s` = ?", v.Field), vt)
-				case []string:
-					vs := bytes.Buffer{}
-					first := true
-					vs.WriteString("(")
-					for _, vv := range vt {
-						if !first {
-							vs.WriteString(",")
-						}
-						vs.WriteString(fmt.Sprintf("'%s'", vv))
-						first = false
-					}
-					vs.WriteString(")")
-					b.Where(fmt.Sprintf("T.`%s` IN %s", v.Field, vs.String()))
-				default:
-				}
-			}
-			if v.Not != nil {
-				switch vt := v.Not.(type) {
-				case string:
-					b.Where(fmt.Sprintf("T.`%s` != ?", v.Field), vt)
-				case []string:
-					vs := bytes.Buffer{}
-					first := true
-					vs.WriteString("(")
-					for _, vv := range vt {
-						if !first {
-							vs.WriteString(",")
-						}
-						vs.WriteString(fmt.Sprintf("'%s'", vv))
-						first = false
-					}
-					vs.WriteString(")")
-					b.Where(fmt.Sprintf("T.`%s` NOT IN %s", v.Field, vs.String()))
-				default:
-				}
-			}
-			if v.Like != nil {
-				switch vt := v.Like.(type) {
-				case string:
-					b.Where(fmt.Sprintf("T.`%s` LIKE '%%%s%%'", v.Field, vt))
-				case []string:
-					vs := bytes.Buffer{}
-					first := true
-					vs.WriteString("(")
-					for _, vv := range vt {
-						if !first {
-							vs.WriteString(" OR ")
-						}
-						vs.WriteString(fmt.Sprintf("T.`%s` LIKE '%%%s%%'", v.Field, vv))
-						first = false
-					}
-					vs.WriteString(")")
-					b.Where(vs.String())
-				default:
-				}
-			}
-		}
-	}
-
-	//权限相关,todo
 	return
 }
 

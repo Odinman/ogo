@@ -230,8 +230,8 @@ func ParseParams(c *web.C, h http.Handler) http.Handler {
 			default:
 				//除了以上的特别字段,其他都是条件查询
 				var cv interface{}
-				var con *Condition
-				var err error
+				//var con *Condition
+				//var err error
 
 				if len(v) > 1 {
 					cv = v
@@ -272,13 +272,7 @@ func ParseParams(c *web.C, h http.Handler) http.Handler {
 					}
 				}
 
-				if con, err = rc.GetCondition(k); err != nil {
-					//没有这个condition,初始化
-					con = new(Condition)
-					rc.setCondition(k, con)
-				}
-				con = NewCondition(cType, k, cv)
-				rc.Trace("con: %v", con)
+				rc.setCondition(NewCondition(cType, k, cv))
 			}
 		}
 		//记录分页信息

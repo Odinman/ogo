@@ -24,12 +24,6 @@ type TimeRange struct {
 	End   time.Time
 }
 
-//order by
-type OrderBy struct {
-	Field string
-	Sort  string
-}
-
 // 分页信息
 type Pagination struct {
 	Page    int
@@ -75,28 +69,27 @@ func NewPagination(page, perPage string) (p *Pagination) {
 func (rc *RESTContext) GetCondition(k string) (con *Condition, err error) {
 	if cs, ok := rc.Env[ConditionsKey]; !ok {
 		//没有conditions,自动初始化
-		rc.SetEnv(ConditionsKey, make(Conditions))
+		rc.SetEnv(ConditionsKey, make([]*Condition, 0))
 		return nil, fmt.Errorf("Not found conditions! %s", ConditionsKey)
 	} else {
-		return cs.(Conditions).Get(k)
+		return GetCondition(cs.([]*Condition), k)
 	}
 	return
 }
 
 /* }}} */
 
-/* {{{ func (rc *RESTContext) setCondition(k string, con *Condition) (err error) {
+/* {{{ func (rc *RESTContext) setCondition(con *Condition) (err error) {
 	return
  *
 */
-func (rc *RESTContext) setCondition(k string, con *Condition) {
-	if k != "" {
-		if _, ok := rc.Env[ConditionsKey]; !ok {
-			//没有conditions,自动初始化
-			rc.SetEnv(ConditionsKey, make(Conditions))
-		}
-		rc.Env[ConditionsKey].(Conditions)[k] = con
+func (rc *RESTContext) setCondition(con *Condition) {
+	//Debug("[setCondition]%v", con)
+	if _, ok := rc.Env[ConditionsKey]; !ok {
+		//没有conditions,自动初始化
+		rc.SetEnv(ConditionsKey, make([]*Condition, 0))
 	}
+	rc.Env[ConditionsKey] = append(rc.Env[ConditionsKey].([]*Condition), con)
 }
 
 /* }}} */
