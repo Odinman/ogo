@@ -251,13 +251,13 @@ func ParseParams(c *web.C, h http.Handler) http.Handler {
 				case _PPREFIX_NOT:
 					rc.Trace("having prefix not: %s", k)
 					k = k[1:]
-					cType = _CTYPE_NOT
+					cType = CTYPE_NOT
 					rc.Trace("key change to: %s, condition type: %d", k, cType)
 				case _PPREFIX_LIKE:
 					k = k[1:]
-					cType = _CTYPE_LIKE
+					cType = CTYPE_LIKE
 				default:
-					cType = _CTYPE_IS
+					cType = CTYPE_IS
 				}
 
 				//如果参数中包含".",代表有关联查询
@@ -268,7 +268,7 @@ func ParseParams(c *web.C, h http.Handler) http.Handler {
 						cv = NewCondition(cType, js[1], cv)
 						//查询类型变为join
 						rc.Trace("join: %s, %s; con: %v", k, cv.(*Condition).Field, cv)
-						cType = _CTYPE_JOIN
+						cType = CTYPE_JOIN
 					}
 				}
 

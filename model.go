@@ -31,13 +31,13 @@ const (
 	TAG_VERIFIABLE = "V"   //验证后可修改
 	TAG_RETURN     = "RET" // 返回,创建后需要返回数值
 	// 查询类型
-	_CTYPE_IS    = 0
-	_CTYPE_NOT   = 1
-	_CTYPE_LIKE  = 2
-	_CTYPE_JOIN  = 3
-	_CTYPE_RANGE = 4
-	_CTYPE_ORDER = 5
-	_CTYPE_PAGE  = 6
+	CTYPE_IS    = 0
+	CTYPE_NOT   = 1
+	CTYPE_LIKE  = 2
+	CTYPE_JOIN  = 3
+	CTYPE_RANGE = 4
+	CTYPE_ORDER = 5
+	CTYPE_PAGE  = 6
 )
 
 type List struct {
@@ -88,19 +88,19 @@ func NewCondition(typ int, field string, cs ...interface{}) *Condition {
 		v = cs
 	}
 	switch typ {
-	case _CTYPE_IS:
+	case CTYPE_IS:
 		con.Is = v
-	case _CTYPE_NOT:
+	case CTYPE_NOT:
 		con.Not = v
-	case _CTYPE_JOIN:
+	case CTYPE_JOIN:
 		con.Join = v
-	case _CTYPE_LIKE:
+	case CTYPE_LIKE:
 		con.Like = v
-	case _CTYPE_RANGE:
+	case CTYPE_RANGE:
 		con.Range = v
-	case _CTYPE_ORDER:
+	case CTYPE_ORDER:
 		con.Order = v
-	case _CTYPE_PAGE:
+	case CTYPE_PAGE:
 		con.Page = v
 	default:
 	}

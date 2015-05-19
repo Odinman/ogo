@@ -152,10 +152,10 @@ func (_ *BaseModel) PreGet(i interface{}) (interface{}, error) {
 	id := c.URLParams[RowkeyKey]
 	pk := m.PKey(m)
 	c.Debug("[PreGet][pk: %s, id: %s]", pk, id)
-	m.SetConditions(m, NewCondition(_CTYPE_IS, pk, id))
+	m.SetConditions(m, NewCondition(CTYPE_IS, pk, id))
 	// 从restcontext里获取条件
 	if tr := c.GetEnv(TimeRangeKey); tr != nil { //时间段参数
-		m.SetConditions(m, NewCondition(_CTYPE_IS, TAG_TIMERANGE, tr.(*TimeRange)))
+		m.SetConditions(m, NewCondition(CTYPE_IS, TAG_TIMERANGE, tr.(*TimeRange)))
 	}
 	if cons := c.GetEnv(ConditionsKey); cons != nil { //从context里面获取参数条件
 		m.SetConditions(m, cons.([]*Condition)...)
@@ -197,10 +197,10 @@ func (_ *BaseModel) PreSearch(i interface{}) (interface{}, error) {
 		m.SetPagination(p.(*Pagination))
 	}
 	if ob := c.GetEnv(OrderByKey); ob != nil { //排序
-		m.SetConditions(m, NewCondition(_CTYPE_ORDER, TAG_ORDERBY, ob.(*OrderBy)))
+		m.SetConditions(m, NewCondition(CTYPE_ORDER, TAG_ORDERBY, ob.(*OrderBy)))
 	}
 	if tr := c.GetEnv(TimeRangeKey); tr != nil { //时间段参数
-		m.SetConditions(m, NewCondition(_CTYPE_RANGE, TAG_TIMERANGE, tr.(*TimeRange)))
+		m.SetConditions(m, NewCondition(CTYPE_RANGE, TAG_TIMERANGE, tr.(*TimeRange)))
 	}
 	if cons := c.GetEnv(ConditionsKey); cons != nil { //从context里面获取参数条件
 		m.SetConditions(m, cons.([]*Condition)...)
@@ -471,7 +471,7 @@ func (_ *BaseModel) PreCheck(i interface{}) (interface{}, error) {
 	m := i.(Model)
 	// 从restcontext里获取条件
 	if tr := c.GetEnv(TimeRangeKey); tr != nil { //时间段参数
-		m.SetConditions(m, NewCondition(_CTYPE_IS, TAG_TIMERANGE, tr.(*TimeRange)))
+		m.SetConditions(m, NewCondition(CTYPE_IS, TAG_TIMERANGE, tr.(*TimeRange)))
 	}
 	if cons := c.GetEnv(ConditionsKey); cons != nil { //从context里面获取参数条件
 		m.SetConditions(m, cons.([]*Condition)...)
