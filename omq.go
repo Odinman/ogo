@@ -104,7 +104,7 @@ func OmqTask(msg ...string) error {
 /* {{{ func OmqPop(msg ...string) error
  *
  */
-func OmqPop(msg ...string) error {
+func OmqPop(msg ...string) ([]string, error) {
 	if requester, e := OmqPool().Get(); e == nil && len(msg) > 1 {
 		defer requester.Close()
 		key := msg[0]
@@ -112,16 +112,19 @@ func OmqPop(msg ...string) error {
 		if reply, e := requester.Do(10000*time.Millisecond, "POP", key, values); e == nil {
 			Debug("Received: %s", reply[0])
 			if reply[0] == "OK" {
-				return nil
+				return reply[1:], e
+			} else {
+				Info("task %s is empty", key)
+				return nil, nil
 			}
 		} else {
 			Info("task %s error: %s", key, e)
-			return e
+			return nil, e
 		}
 	} else {
-		return e
+		return nil, e
 	}
-	return fmt.Errorf("pop task failed")
+	return nil, fmt.Errorf("pop task failed")
 }
 
 /* }}} */
