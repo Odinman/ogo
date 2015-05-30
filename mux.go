@@ -337,12 +337,18 @@ func (mux *Mux) OmqPool() (*omq.Pool, error) {
 			return nil, err
 		} else {
 			var omqHost, omqPort string
+			var omqMax int
 			if omqHost = cfg.String("omq::host"); omqHost != "" {
 				if omqPort = cfg.String("omq::port"); omqPort == "" {
 					omqPort = "7000"
 				}
+				if max, err := cfg.Int("omq::max"); err != nil {
+					omqMax = max
+				} else {
+					omqMax = 100
+				}
 				Info("[omq][%s:%s]", omqHost, omqPort)
-				mux.omqpool = omq.NewPool(omq.ReqNewer(fmt.Sprint("tcp://", omqHost, ":", omqPort)), 10, 60*time.Second)
+				mux.omqpool = omq.NewPool(omq.ReqNewer(fmt.Sprint("tcp://", omqHost, ":", omqPort)), omqMax, 60*time.Second)
 			} else {
 				return nil, fmt.Errorf("[omq]not found config info")
 			}
