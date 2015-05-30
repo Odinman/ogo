@@ -410,8 +410,11 @@ func (_ *BaseModel) GetRows(m Model) (l *List, err error) {
 	count, _ := builder.Count() //结果数
 	ms := m.NewList(m)
 	//p := c.GetEnv(PaginationKey).(*Pagination)
-	p := m.GetPagination()
-	err = builder.Select(GetDbFields(m)).Offset(p.Offset).Limit(p.PerPage).Find(ms)
+	if p := m.GetPagination(); p != nil {
+		err = builder.Select(GetDbFields(m)).Offset(p.Offset).Limit(p.PerPage).Find(ms)
+	} else {
+		err = builder.Select(GetDbFields(m)).Find(ms)
+	}
 	if err != nil && err != sql.ErrNoRows {
 		//支持出错
 		return l, err

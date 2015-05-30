@@ -287,6 +287,17 @@ func (_ *BaseModel) PreCreate(i interface{}) (interface{}, error) {
 				default:
 					return nil, fmt.Errorf("field(%s) must be string, not %s", col.Tag, fv.Kind().String())
 				}
+			case "luuid":
+				switch fv.Type().String() {
+				case "*string":
+					h := utils.NewUUID()
+					fv.Set(reflect.ValueOf(&h))
+				case "string":
+					h := utils.NewUUID()
+					fv.Set(reflect.ValueOf(h))
+				default:
+					return nil, fmt.Errorf("field(%s) must be string, not %s", col.Tag, fv.Kind().String())
+				}
 			default:
 			}
 		}

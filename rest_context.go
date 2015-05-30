@@ -79,13 +79,13 @@ type RESTContext struct {
 }
 
 type RESTError struct {
-	Massage string            `json:"massage"`
+	Message string            `json:"message"`
 	Errors  map[string]string `json:"errors"`
 	status  int
 }
 
 // implement error interface
-func (re *RESTError) Error() string { return re.Massage }
+func (re *RESTError) Error() string { return re.Message }
 
 /* {{{ func newContext(c web.C, w http.ResponseWriter, r *http.Request) *RESTContext
  *
@@ -160,7 +160,7 @@ func (rc *RESTContext) NewRESTError(status int, msg interface{}) (re error) {
 		message = fmt.Sprint(msg)
 	}
 	re = &RESTError{
-		Massage: message,
+		Message: message,
 		Errors:  errors,
 		status:  status,
 	}
