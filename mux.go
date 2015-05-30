@@ -342,7 +342,7 @@ func (mux *Mux) OmqPool() (*omq.Pool, error) {
 					omqPort = "7000"
 				}
 				Info("[omq][%s:%s]", omqHost, omqPort)
-				mux.omqpool = omq.NewPool(omq.ReqNewer(fmt.Sprint("tcp://", omqHost, ":", omqPort)), 100, 60*time.Second)
+				mux.omqpool = omq.NewPool(omq.ReqNewer(fmt.Sprint("tcp://", omqHost, ":", omqPort)), 10, 60*time.Second)
 			} else {
 				return nil, fmt.Errorf("[omq]not found config info")
 			}
