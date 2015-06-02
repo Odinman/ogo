@@ -114,7 +114,7 @@ func (_ *BaseModel) Valid(i interface{}) (interface{}, error) {
  * 处理后过滤
  */
 func (_ *BaseModel) Filter(i interface{}) (interface{}, error) {
-	c := i.(Model).GetCtx()
+	//c := i.(Model).GetCtx()
 	r := i.(Model).New(i.(Model))
 	m := reflect.ValueOf(r)
 	v := reflect.ValueOf(i)
@@ -122,7 +122,7 @@ func (_ *BaseModel) Filter(i interface{}) (interface{}, error) {
 		for _, col := range cols {
 			fv := utils.FieldByIndex(v, col.Index)
 			mv := utils.FieldByIndex(m, col.Index)
-			c.Trace("field:%s; name: %s, kind:%v; type:%s", col.Tag, col.Name, fv.Kind(), fv.Type().String())
+			//c.Trace("field:%s; name: %s, kind:%v; type:%s", col.Tag, col.Name, fv.Kind(), fv.Type().String())
 			if col.TagOptions.Contains(DBTAG_PK) || col.ExtOptions.Contains(TAG_RETURN) {
 				//pk以及定义了返回tag的赋值
 				mv.Set(fv)
@@ -603,13 +603,13 @@ func (_ *BaseModel) CRUD(i interface{}, flag int) Handler {
 		m = r.(Model)
 
 		// 触发器
-		_, err = act.Trigger(m)
+		r, err = act.Trigger(m)
 		if err != nil {
 			c.Warn("Trigger error: %s", err)
 		}
 
 		// create ok, return
-		if r, err = act.PostCreate(m); err != nil {
+		if r, err = act.PostCreate(r); err != nil {
 			c.Warn("postCreate error: %s", err)
 		}
 		c.RESTOK(r)
