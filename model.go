@@ -138,10 +138,10 @@ type Model interface {
 	PKey(m Model) string                    // key字段
 	ReadPrepare(m Model) (*gorp.Builder, error)
 
-	GetRow(m Model, id string) (Model, error)          //获取单条记录
+	GetRow(m Model, ext ...interface{}) (Model, error) //获取单条记录
 	GetRows(m Model) (*List, error)                    //获取多条记录
 	GetCount(m Model) (int64, error)                   //获取多条记录
-	CreateRow(m Model) error                           //创建单条记录
+	CreateRow(m Model) (Model, error)                  //创建单条记录
 	UpdateRow(m Model, id string) (int64, error)       //更新记录
 	DeleteRow(m Model, id string) (int64, error)       //更新记录
 	Existense(m Model) func(tag string) (Model, error) //检查存在性
@@ -182,7 +182,7 @@ func (bm *BaseModel) SetConditions(m Model, cs ...*Condition) (cons []*Condition
 	}
 	if cols := utils.ReadStructColumns(m, true); cols != nil {
 		for _, col := range cols {
-			// check required field
+			// time range
 			if col.ExtOptions.Contains(TAG_TIMERANGE) {
 				if condition, e := GetCondition(cs, TAG_TIMERANGE); e == nil && condition.Range != nil {
 					//Debug("[SetConditions]timerange")
@@ -201,12 +201,17 @@ func (bm *BaseModel) SetConditions(m Model, cs ...*Condition) (cons []*Condition
 					Trace("get condition failed: %s", e)
 				}
 			}
-			if col.ExtOptions.Contains(TAG_CONDITION) { //可作为条件
+			if col.TagOptions.Contains(DBTAG_PK) || col.ExtOptions.Contains(TAG_CONDITION) { //primary key or conditional
 				if condition, e := GetCondition(cs, col.Tag); e == nil && (condition.Is != nil || condition.Not != nil || condition.Like != nil || condition.Join != nil) {
-					//Debug("condition field: %s, %v", col.Tag, condition)
 					bm.conditions = append(bm.conditions, condition)
-				} else {
-					Trace("get condition failed: %s", e)
+				} else { //如果m有值也可以
+					v := reflect.ValueOf(m)
+					fv := utils.FieldByIndex(v, col.Index)
+					if fv.IsValid() && !utils.IsEmptyValue(fv) { //有值
+						if fs := utils.GetRealString(fv); fs != "" {
+							bm.conditions = append(bm.conditions, NewCondition(CTYPE_IS, col.Tag, fs))
+						}
+					}
 				}
 			}
 		}
@@ -325,10 +330,10 @@ func (_ *BaseModel) Existense(m Model) func(tag string) (Model, error) {
 
 /* }}} */
 
-/* {{{ func (_ *BaseModel) GetRow(m Model, id string) (Model, error)
+/* {{{ func (_ *BaseModel) GetRow(m Model, ext ...interface{}) (Model, error)
  * 根据条件获取一条记录, model为表结构
  */
-func (_ *BaseModel) GetRow(m Model, id string) (Model, error) {
+func (_ *BaseModel) GetRow(m Model, ext ...interface{}) (Model, error) {
 	//db := m.DBConn(m, READTAG)
 	//if obj, err := db.Get(m, id); err != nil {
 	//	//Debug("get error: %s, %v", err, obj)
@@ -341,6 +346,11 @@ func (_ *BaseModel) GetRow(m Model, id string) (Model, error) {
 	//	return obj.(Model), nil
 	//}
 	c := m.GetCtx()
+	if len(ext) > 0 {
+		if id, ok := ext[0].(string); ok {
+			m.SetConditions(m, NewCondition(CTYPE_IS, m.PKey(m), id))
+		}
+	}
 	builder, _ := m.ReadPrepare(m)
 	ms := m.NewList(m)
 	var err error
@@ -363,12 +373,16 @@ func (_ *BaseModel) GetRow(m Model, id string) (Model, error) {
 
 /* }}} */
 
-/* {{{ func (_ *BaseModel) CreateRow(m Model) error
+/* {{{ func (_ *BaseModel) CreateRow(m Model) (Model, error)
  * 根据条件获取一条记录, model为表结构
  */
-func (_ *BaseModel) CreateRow(m Model) error {
+func (_ *BaseModel) CreateRow(m Model) (Model, error) {
 	db := m.DBConn(m, WRITETAG)
-	return db.Insert(m)
+	if err := db.Insert(m); err != nil {
+		return nil, err
+	} else {
+		return m, nil
+	}
 }
 
 /* }}} */
@@ -607,6 +621,18 @@ func (_ *BaseModel) ReadPrepare(m Model) (b *gorp.Builder, err error) {
 				}
 			}
 		}
+	} else { //没有条件从自身找
+		if cols := utils.ReadStructColumns(m, true); cols != nil {
+			v := reflect.ValueOf(m)
+			for _, col := range cols {
+				fv := utils.FieldByIndex(v, col.Index)
+				if (col.TagOptions.Contains(DBTAG_PK) || col.ExtOptions.Contains(TAG_CONDITION)) && fv.IsValid() && !utils.IsEmptyValue(fv) { //有值
+					if fs := utils.GetRealString(fv); fs != "" {
+						b.Where(fmt.Sprintf("T.`%s` = ?", col.Tag), fs)
+					}
+				}
+			}
+		}
 	}
 
 	//order
@@ -669,7 +695,8 @@ func GetDbFields(i interface{}) (s []string) {
 	if cols := utils.ReadStructColumns(i, true); cols != nil {
 		s = make([]string, 0)
 		for _, col := range cols {
-			if col.Tag == "-" || col.ExtOptions.Contains(TAG_SECRET) { //保密,不对外
+			//if col.Tag == "-" || col.ExtOptions.Contains(TAG_SECRET) { //保密,不对外
+			if col.Tag == "-" { //保密,不对外
 				continue
 			}
 			s = append(s, col.Tag)

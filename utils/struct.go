@@ -24,11 +24,11 @@ type StructColumn struct {
  * 默认从struct的FieldName读取, 如果tag里有db, 则以db为准
  */
 func ReadStructColumns(i interface{}, underscore bool, tags ...string) (cols []StructColumn) {
-	t, err := toType(i)
-	if err != nil {
+	if t := toType(i); t.Kind() != reflect.Struct {
 		return
+	} else {
+		return typeStructColumns(t, underscore, tags...)
 	}
-	return typeStructColumns(t, underscore, tags...)
 }
 
 /* }}} */
@@ -170,10 +170,10 @@ func typeStructColumns(t reflect.Type, underscore bool, tags ...string) (cols []
 
 /* }}} */
 
-/* {{{ toType(i interface{}) (reflect.Type, error)
+/* {{{ func toType(i interface{}) reflect.Type
  * 如果是指针, 则调用Elem()至Type为止, 如果Type不是struct, 报错
  */
-func toType(i interface{}) (reflect.Type, error) {
+func toType(i interface{}) reflect.Type {
 	t := reflect.TypeOf(i)
 
 	// If a Pointer to a type, follow
@@ -181,10 +181,10 @@ func toType(i interface{}) (reflect.Type, error) {
 		t = t.Elem()
 	}
 
-	if t.Kind() != reflect.Struct {
-		return nil, fmt.Errorf("utils: Cannot SELECT into this type: %v", reflect.TypeOf(i))
-	}
-	return t, nil
+	//if t.Kind() != reflect.Struct {
+	//	return nil, fmt.Errorf("utils: Cannot SELECT into this type: %v", reflect.TypeOf(i))
+	//}
+	return t
 }
 
 /* }}} */
@@ -238,6 +238,30 @@ func IsEmptyValue(v reflect.Value) bool {
 		// return true
 	}
 	return false
+}
+
+/* }}} */
+
+/* {{{ func GetRealString(v reflect.Value) string
+ *
+ */
+func GetRealString(v reflect.Value) string {
+	switch v.Kind() {
+	case reflect.String:
+		return v.String()
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return strconv.FormatInt(v.Int(), 10)
+	case reflect.Float32, reflect.Float64:
+		return strconv.FormatFloat(v.Float(), 'f', 2, 64)
+	case reflect.Ptr:
+		if v.IsNil() {
+			return ""
+		}
+		return GetRealString(v.Elem())
+	default:
+		//nothing
+	}
+	return ""
 }
 
 /* }}} */

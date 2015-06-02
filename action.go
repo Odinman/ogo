@@ -170,9 +170,9 @@ func (_ *BaseModel) PreGet(i interface{}) (interface{}, error) {
 func (_ *BaseModel) OnGet(i interface{}) (interface{}, error) {
 	var err error
 	m := i.(Model)
-	c := m.GetCtx()
-	id := c.URLParams[RowkeyKey]
-	m, err = m.GetRow(m, id)
+	//c := m.GetCtx()
+	//id := c.URLParams[RowkeyKey]
+	m, err = m.GetRow(m)
 	return m, err
 }
 
@@ -181,7 +181,17 @@ func (_ *BaseModel) OnGet(i interface{}) (interface{}, error) {
  *
  */
 func (_ *BaseModel) PostGet(i interface{}) (interface{}, error) {
+	if cols := utils.ReadStructColumns(i, true); cols != nil {
+		v := reflect.ValueOf(i)
+		for _, col := range cols {
+			if col.ExtOptions.Contains(TAG_SECRET) { //保密,不对外
+				fv := utils.FieldByIndex(v, col.Index)
+				fv.Set(reflect.Zero(fv.Type()))
+			}
+		}
+	}
 	return i, nil
+
 }
 
 /* }}} */
@@ -311,10 +321,10 @@ func (_ *BaseModel) PreCreate(i interface{}) (interface{}, error) {
  */
 func (_ *BaseModel) OnCreate(i interface{}) (interface{}, error) {
 	m := i.(Model)
-	if err := m.CreateRow(m); err != nil {
+	if r, err := m.CreateRow(m); err != nil {
 		return nil, err
 	} else {
-		return m, nil
+		return r, nil
 	}
 }
 
@@ -342,15 +352,15 @@ func (_ *BaseModel) PreUpdate(i interface{}) (interface{}, error) {
 		m = mi.(Model)
 	}
 
-	var rk string
-	var ok bool
-	if rk, ok = c.URLParams[RowkeyKey]; !ok {
-		return nil, fmt.Errorf("rowkey empty")
-	}
+	//var rk string
+	//var ok bool
+	//if rk, ok = c.URLParams[RowkeyKey]; !ok {
+	//	return nil, fmt.Errorf("rowkey empty")
+	//}
 	// old
 	var older Model
 	var err error
-	if older, err = m.GetRow(m.New(m), rk); err != nil {
+	if older, err = m.GetRow(m.New(m)); err != nil {
 		return nil, err
 	}
 	v := reflect.ValueOf(m)
@@ -584,11 +594,13 @@ func (_ *BaseModel) CRUD(i interface{}, flag int) Handler {
 			return
 		}
 
-		if _, err = act.OnCreate(m); err != nil {
+		var r interface{}
+		if r, err = act.OnCreate(m); err != nil {
 			c.Warn("OnCreate error: %s", err)
 			c.RESTNotOK(err)
 			return
 		}
+		m = r.(Model)
 
 		// 触发器
 		_, err = act.Trigger(m)
@@ -597,7 +609,6 @@ func (_ *BaseModel) CRUD(i interface{}, flag int) Handler {
 		}
 
 		// create ok, return
-		var r interface{}
 		if r, err = act.PostCreate(m); err != nil {
 			c.Warn("postCreate error: %s", err)
 		}
