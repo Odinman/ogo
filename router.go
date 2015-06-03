@@ -242,6 +242,35 @@ func (rtr *Router) DefaultRoutes(c RouterInterface) {
 		return
 	}
 	var pattern, method, key string
+
+	// HEAD /{endpoint}
+	pattern = "/" + rtr.Endpoint
+	method = "HEAD"
+	key = method + " " + pattern
+	if rtr.Routes == nil {
+		rtr.Routes = make(map[string]*Route)
+		rtr.SRoutes = make([]*Route, 0)
+	}
+	if _, ok := rtr.Routes[key]; ok {
+		// exists, warning, 默认路由不能覆盖自定义路由
+		Warn("default route dup: %s", key)
+	} else {
+		rt := NewRoute(pattern, method, c.Head)
+		rtr.Routes[key] = rt
+		rtr.SRoutes = append(rtr.SRoutes, rt)
+	}
+	// HEAD /{endpoint}/{id}
+	pattern = "/" + rtr.Endpoint + "/:" + RowkeyKey
+	method = "HEAD"
+	key = method + " " + pattern
+	if _, ok := rtr.Routes[key]; ok {
+		// exists, warning, 默认路由不能覆盖自定义路由
+	} else {
+		rt := NewRoute(pattern, method, c.Head)
+		rtr.Routes[key] = rt
+		rtr.SRoutes = append(rtr.SRoutes, rt)
+	}
+
 	// GET /{endpoint}
 	pattern = "/" + rtr.Endpoint
 	method = "GET"
