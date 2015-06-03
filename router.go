@@ -388,29 +388,28 @@ func (rtr *Router) RouteNotFound(rt *Route) {
  * 自动路由, 任何implelent了Action的类型都可以使用
  */
 func (rtr *Router) GenericRoute(i interface{}, flag int) {
-	act := i.(Action)
 	endpoint := rtr.GetEndpoint()
 	if flag&GA_HEAD > 0 {
 		// HEAD /{endpoint}
-		rtr.AddRoute("HEAD", "/"+endpoint, act.CRUD(i, GA_HEAD), RouteOption{KEY_SKIPLOGIN: true}) //HEAD默认无需登录
+		rtr.AddRoute("HEAD", "/"+endpoint, rtr.CRUD(i, GA_HEAD), RouteOption{KEY_SKIPLOGIN: true}) //HEAD默认无需登录
 	}
 	if flag&GA_GET > 0 {
 		// GET /{endpoint}
-		rtr.AddRoute("GET", "/"+endpoint, act.CRUD(i, GA_SEARCH))
+		rtr.AddRoute("GET", "/"+endpoint, rtr.CRUD(i, GA_SEARCH))
 		// GET /{endpoint}/{id}
-		rtr.AddRoute("GET", "/"+endpoint+"/:"+RowkeyKey, act.CRUD(i, GA_GET))
+		rtr.AddRoute("GET", "/"+endpoint+"/:"+RowkeyKey, rtr.CRUD(i, GA_GET))
 	}
 	if flag&GA_POST > 0 {
 		// POST /{endpoint}
-		rtr.AddRoute("POST", "/"+endpoint, act.CRUD(i, GA_POST))
+		rtr.AddRoute("POST", "/"+endpoint, rtr.CRUD(i, GA_POST))
 	}
 	if flag&GA_DELETE > 0 {
 		// DELETE /{endpoint}/{id}
-		rtr.AddRoute("DELETE", "/"+endpoint+"/:"+RowkeyKey, act.CRUD(i, GA_DELETE))
+		rtr.AddRoute("DELETE", "/"+endpoint+"/:"+RowkeyKey, rtr.CRUD(i, GA_DELETE))
 	}
 	if flag&GA_PATCH > 0 {
 		// PATCH /{endpoint}/{id}
-		rtr.AddRoute("PATCH", "/"+endpoint+"/:"+RowkeyKey, act.CRUD(i, GA_PATCH))
+		rtr.AddRoute("PATCH", "/"+endpoint+"/:"+RowkeyKey, rtr.CRUD(i, GA_PATCH))
 	}
 	//if flag&GA_PUT > 0 {
 	//	// PUT /{endpoint}/{id}

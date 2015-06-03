@@ -59,10 +59,10 @@ type Action interface {
 	PostCheck(i interface{}) (interface{}, error) // 搜索后的检查
 }
 
-/* {{{ func (_ *BaseModel) Valid(i interface{}) (interface{}, error)
+/* {{{ func (_ *Router) Valid(i interface{}) (interface{}, error)
  *
  */
-func (_ *BaseModel) Valid(i interface{}) (interface{}, error) {
+func (_ *Router) Valid(i interface{}) (interface{}, error) {
 	m := i.(Model)
 	c := m.GetCtx()
 	if err := json.Unmarshal(c.RequestBody, m); err != nil {
@@ -110,10 +110,10 @@ func (_ *BaseModel) Valid(i interface{}) (interface{}, error) {
 }
 
 /* }}} */
-/* {{{ func (_ *BaseModel) Filter(i interface{}) (interface{}, error)
+/* {{{ func (_ *Router) Filter(i interface{}) (interface{}, error)
  * 处理后过滤
  */
-func (_ *BaseModel) Filter(i interface{}) (interface{}, error) {
+func (_ *Router) Filter(i interface{}) (interface{}, error) {
 	//c := i.(Model).GetCtx()
 	r := i.(Model).New(i.(Model))
 	m := reflect.ValueOf(r)
@@ -133,19 +133,19 @@ func (_ *BaseModel) Filter(i interface{}) (interface{}, error) {
 }
 
 /* }}} */
-/* {{{ func (_ *BaseModel) Trigger(i interface{}) (interface{}, error)
+/* {{{ func (_ *Router) Trigger(i interface{}) (interface{}, error)
  *
  */
-func (_ *BaseModel) Trigger(i interface{}) (interface{}, error) {
+func (_ *Router) Trigger(i interface{}) (interface{}, error) {
 	return i, nil
 }
 
 /* }}} */
 
-/* {{{ func (_ *BaseModel) PreGet(i interface{}) (interface{}, error)
+/* {{{ func (_ *Router) PreGet(i interface{}) (interface{}, error)
  *
  */
-func (_ *BaseModel) PreGet(i interface{}) (interface{}, error) {
+func (_ *Router) PreGet(i interface{}) (interface{}, error) {
 	m := i.(Model)
 	c := m.GetCtx()
 	// pk,放入条件
@@ -164,10 +164,10 @@ func (_ *BaseModel) PreGet(i interface{}) (interface{}, error) {
 }
 
 /* }}} */
-/* {{{ func (_ *BaseModel) OnGet(i interface{}) (interface{}, error)
+/* {{{ func (_ *Router) OnGet(i interface{}) (interface{}, error)
  *
  */
-func (_ *BaseModel) OnGet(i interface{}) (interface{}, error) {
+func (_ *Router) OnGet(i interface{}) (interface{}, error) {
 	var err error
 	m := i.(Model)
 	//c := m.GetCtx()
@@ -177,10 +177,10 @@ func (_ *BaseModel) OnGet(i interface{}) (interface{}, error) {
 }
 
 /* }}} */
-/* {{{ func (_ *BaseModel) PostGet(i interface{}) (interface{}, error)
+/* {{{ func (_ *Router) PostGet(i interface{}) (interface{}, error)
  *
  */
-func (_ *BaseModel) PostGet(i interface{}) (interface{}, error) {
+func (_ *Router) PostGet(i interface{}) (interface{}, error) {
 	if cols := utils.ReadStructColumns(i, true); cols != nil {
 		v := reflect.ValueOf(i)
 		for _, col := range cols {
@@ -196,10 +196,10 @@ func (_ *BaseModel) PostGet(i interface{}) (interface{}, error) {
 
 /* }}} */
 
-/* {{{ func (_ *BaseModel) PreSearch(i interface{}) (interface{}, error)
+/* {{{ func (_ *Router) PreSearch(i interface{}) (interface{}, error)
  *
  */
-func (_ *BaseModel) PreSearch(i interface{}) (interface{}, error) {
+func (_ *Router) PreSearch(i interface{}) (interface{}, error) {
 	c := i.(Model).GetCtx()
 	m := i.(Model)
 	// 从restcontext里获取条件
@@ -219,32 +219,31 @@ func (_ *BaseModel) PreSearch(i interface{}) (interface{}, error) {
 }
 
 /* }}} */
-/* {{{ func (_ *BaseModel) OnSearch(i interface{}) (interface{}, error)
+/* {{{ func (_ *Router) OnSearch(i interface{}) (interface{}, error)
  *
  */
-func (_ *BaseModel) OnSearch(i interface{}) (interface{}, error) {
+func (_ *Router) OnSearch(i interface{}) (interface{}, error) {
 	m := i.(Model)
 	return m.GetRows(m)
 }
 
 /* }}} */
-/* {{{ func (_ *BaseModel) PostSearch(i interface{}) (interface{}, error)
+/* {{{ func (_ *Router) PostSearch(i interface{}) (interface{}, error)
  *
  */
-func (_ *BaseModel) PostSearch(i interface{}) (interface{}, error) {
+func (_ *Router) PostSearch(i interface{}) (interface{}, error) {
 	return i, nil
 }
 
 /* }}} */
 
-/* {{{ func (_ *BaseModel) PreCreate(i interface{}) (interface{}, error)
+/* {{{ func (_ *Router) PreCreate(i interface{}) (interface{}, error)
  *
  */
-func (_ *BaseModel) PreCreate(i interface{}) (interface{}, error) {
-	act := i.(Action)
+func (rtr *Router) PreCreate(i interface{}) (interface{}, error) {
 	c := i.(Model).GetCtx()
 	var m Model
-	if mi, err := act.Valid(i); err != nil {
+	if mi, err := rtr.Valid(i); err != nil {
 		return nil, err
 	} else {
 		m = mi.(Model)
@@ -316,10 +315,10 @@ func (_ *BaseModel) PreCreate(i interface{}) (interface{}, error) {
 }
 
 /* }}} */
-/* {{{ func (_ *BaseModel) OnCreate(i interface{}) (interface{}, error)
+/* {{{ func (_ *Router) OnCreate(i interface{}) (interface{}, error)
  *
  */
-func (_ *BaseModel) OnCreate(i interface{}) (interface{}, error) {
+func (_ *Router) OnCreate(i interface{}) (interface{}, error) {
 	m := i.(Model)
 	if r, err := m.CreateRow(m); err != nil {
 		return nil, err
@@ -329,24 +328,22 @@ func (_ *BaseModel) OnCreate(i interface{}) (interface{}, error) {
 }
 
 /* }}} */
-/* {{{ func (_ *BaseModel) PostCreate(i interface{}) (interface{}, error)
+/* {{{ func (_ *Router) PostCreate(i interface{}) (interface{}, error)
  *
  */
-func (_ *BaseModel) PostCreate(i interface{}) (interface{}, error) {
-	act := i.(Action)
-	return act.Filter(i)
+func (rtr *Router) PostCreate(i interface{}) (interface{}, error) {
+	return rtr.Filter(i)
 }
 
 /* }}} */
 
-/* {{{ func (_ *BaseModel) PreUpdate(i interface{}) (interface{}, error)
+/* {{{ func (_ *Router) PreUpdate(i interface{}) (interface{}, error)
  *
  */
-func (_ *BaseModel) PreUpdate(i interface{}) (interface{}, error) {
-	act := i.(Action)
+func (rtr *Router) PreUpdate(i interface{}) (interface{}, error) {
 	c := i.(Model).GetCtx()
 	var m Model
-	if mi, err := act.Valid(i); err != nil {
+	if mi, err := rtr.Valid(i); err != nil {
 		return nil, err
 	} else {
 		m = mi.(Model)
@@ -421,10 +418,10 @@ func (_ *BaseModel) PreUpdate(i interface{}) (interface{}, error) {
 }
 
 /* }}} */
-/* {{{ func (_ *BaseModel) OnUpdate(i interface{}) (interface{}, error)
+/* {{{ func (_ *Router) OnUpdate(i interface{}) (interface{}, error)
  *
  */
-func (_ *BaseModel) OnUpdate(i interface{}) (interface{}, error) {
+func (_ *Router) OnUpdate(i interface{}) (interface{}, error) {
 	m := i.(Model)
 	c := m.GetCtx()
 	rk := c.URLParams[RowkeyKey]
@@ -439,28 +436,27 @@ func (_ *BaseModel) OnUpdate(i interface{}) (interface{}, error) {
 }
 
 /* }}} */
-/* {{{ func (_ *BaseModel) PostUpdate(i interface{}) (interface{}, error)
+/* {{{ func (_ *Router) PostUpdate(i interface{}) (interface{}, error)
  *
  */
-func (_ *BaseModel) PostUpdate(i interface{}) (interface{}, error) {
-	act := i.(Action)
-	return act.Filter(i)
+func (rtr *Router) PostUpdate(i interface{}) (interface{}, error) {
+	return rtr.Filter(i)
 }
 
 /* }}} */
 
-/* {{{ func (_ *BaseModel) PreDelete(i interface{}) (interface{}, error)
+/* {{{ func (_ *Router) PreDelete(i interface{}) (interface{}, error)
  *
  */
-func (_ *BaseModel) PreDelete(i interface{}) (interface{}, error) {
+func (_ *Router) PreDelete(i interface{}) (interface{}, error) {
 	return i, nil
 }
 
 /* }}} */
-/* {{{ func (_ *BaseModel) OnDelete(i interface{}) (interface{}, error)
+/* {{{ func (_ *Router) OnDelete(i interface{}) (interface{}, error)
  *
  */
-func (_ *BaseModel) OnDelete(i interface{}) (interface{}, error) {
+func (_ *Router) OnDelete(i interface{}) (interface{}, error) {
 	m := i.(Model)
 	c := m.GetCtx()
 	rk := c.URLParams[RowkeyKey]
@@ -475,19 +471,19 @@ func (_ *BaseModel) OnDelete(i interface{}) (interface{}, error) {
 }
 
 /* }}} */
-/* {{{ func (_ *BaseModel) PostDelete(i interface{}) (interface{}, error)
+/* {{{ func (_ *Router) PostDelete(i interface{}) (interface{}, error)
  *
  */
-func (_ *BaseModel) PostDelete(i interface{}) (interface{}, error) {
+func (_ *Router) PostDelete(i interface{}) (interface{}, error) {
 	return i, nil
 }
 
 /* }}} */
 
-/* {{{ func (_ *BaseModel) PreCheck(i interface{}) (interface{}, error)
+/* {{{ func (_ *Router) PreCheck(i interface{}) (interface{}, error)
  *
  */
-func (_ *BaseModel) PreCheck(i interface{}) (interface{}, error) {
+func (_ *Router) PreCheck(i interface{}) (interface{}, error) {
 	c := i.(Model).GetCtx()
 	m := i.(Model)
 	// 从restcontext里获取条件
@@ -501,34 +497,34 @@ func (_ *BaseModel) PreCheck(i interface{}) (interface{}, error) {
 }
 
 /* }}} */
-/* {{{ func (_ *BaseModel) OnCheck(i interface{}) (interface{}, error)
+/* {{{ func (_ *Router) OnCheck(i interface{}) (interface{}, error)
  *
  */
-func (_ *BaseModel) OnCheck(i interface{}) (interface{}, error) {
+func (_ *Router) OnCheck(i interface{}) (interface{}, error) {
 	m := i.(Model)
 	return m.GetCount(m)
 }
 
 /* }}} */
-/* {{{ func (_ *BaseModel) PostCheck(i interface{}) (interface{}, error)
+/* {{{ func (_ *Router) PostCheck(i interface{}) (interface{}, error)
  *
  */
-func (_ *BaseModel) PostCheck(i interface{}) (interface{}, error) {
+func (_ *Router) PostCheck(i interface{}) (interface{}, error) {
 	return i, nil
 }
 
 /* }}} */
 
-/* {{{ func (_ *BaseModel) CRUD(m Model, flag int) Handler
+/* {{{ func (_ *Router) CRUD(m Model, flag int) Handler
  * 通用的操作方法, 根据flag返回
  * 必须符合通用的restful风格
  */
-func (_ *BaseModel) CRUD(i interface{}, flag int) Handler {
-	act := i.(Action)
+func (rtr *Router) CRUD(i interface{}, flag int) Handler {
+	//rtr := i.(Action)
 	get := func(c *RESTContext) {
 		m := i.(Model).New(i.(Model), c) // New会把c藏到m里面
 
-		if _, err := act.PreGet(m); err != nil {
+		if _, err := rtr.PreGet(m); err != nil {
 			c.Warn("PreGet error: %s", err)
 			c.RESTBadRequest(err)
 			return
@@ -536,7 +532,7 @@ func (_ *BaseModel) CRUD(i interface{}, flag int) Handler {
 
 		var r interface{}
 		var err error
-		if r, err = act.OnGet(m); err != nil {
+		if r, err = rtr.OnGet(m); err != nil {
 			c.Warn("OnGet error: %s", err)
 			if err == ErrNoRecord {
 				c.RESTNotFound(err)
@@ -546,7 +542,7 @@ func (_ *BaseModel) CRUD(i interface{}, flag int) Handler {
 			return
 		}
 
-		if r, err = act.PostGet(r); err != nil {
+		if r, err = rtr.PostGet(r); err != nil {
 			c.Warn("PostGet error: %s", err)
 			c.RESTNotOK(err)
 		} else {
@@ -558,13 +554,13 @@ func (_ *BaseModel) CRUD(i interface{}, flag int) Handler {
 	search := func(c *RESTContext) {
 		m := i.(Model).New(i.(Model), c) // New会把c藏到m里面
 
-		if _, err := act.PreSearch(m); err != nil { // presearch准备条件等
+		if _, err := rtr.PreSearch(m); err != nil { // presearch准备条件等
 			c.Warn("PreSearch error: %s", err)
 			c.RESTBadRequest(err)
 			return
 		}
 
-		if l, err := act.OnSearch(m); err != nil {
+		if l, err := rtr.OnSearch(m); err != nil {
 			c.Warn("OnSearch error: %s", err)
 			if err == ErrNoRecord {
 				c.RESTNotFound(err)
@@ -572,7 +568,7 @@ func (_ *BaseModel) CRUD(i interface{}, flag int) Handler {
 				c.RESTPanic(err)
 			}
 		} else {
-			if rl, err := act.PostSearch(l); err != nil {
+			if rl, err := rtr.PostSearch(l); err != nil {
 				c.Warn("PostSearch error: %s", err)
 				c.RESTNotOK(err)
 			} else {
@@ -588,14 +584,14 @@ func (_ *BaseModel) CRUD(i interface{}, flag int) Handler {
 		m := i.(Model).New(i.(Model), c) // New会把c藏到m里面
 		var err error
 
-		if _, err = act.PreCreate(m); err != nil { // presearch准备条件等
+		if _, err = rtr.PreCreate(m); err != nil { // presearch准备条件等
 			c.Warn("PreCreate error: %s", err)
 			c.RESTBadRequest(err)
 			return
 		}
 
 		var r interface{}
-		if r, err = act.OnCreate(m); err != nil {
+		if r, err = rtr.OnCreate(m); err != nil {
 			c.Warn("OnCreate error: %s", err)
 			c.RESTNotOK(err)
 			return
@@ -603,13 +599,13 @@ func (_ *BaseModel) CRUD(i interface{}, flag int) Handler {
 		m = r.(Model)
 
 		// 触发器
-		r, err = act.Trigger(m)
+		r, err = rtr.Trigger(m)
 		if err != nil {
 			c.Warn("Trigger error: %s", err)
 		}
 
 		// create ok, return
-		if r, err = act.PostCreate(r); err != nil {
+		if r, err = rtr.PostCreate(r); err != nil {
 			c.Warn("postCreate error: %s", err)
 		}
 		c.RESTOK(r)
@@ -620,13 +616,13 @@ func (_ *BaseModel) CRUD(i interface{}, flag int) Handler {
 		m := i.(Model).New(i.(Model), c) // New会把c藏到m里面
 		var err error
 
-		if _, err = act.PreDelete(m); err != nil { // presearch准备条件等
+		if _, err = rtr.PreDelete(m); err != nil { // presearch准备条件等
 			c.Warn("PreUpdat error: %s", err)
 			c.RESTBadRequest(err)
 			return
 		}
 
-		if _, err = act.OnDelete(m); err != nil {
+		if _, err = rtr.OnDelete(m); err != nil {
 			c.Warn("OnUpdat error: %s", err)
 			c.RESTNotOK(err)
 			return
@@ -634,12 +630,12 @@ func (_ *BaseModel) CRUD(i interface{}, flag int) Handler {
 
 		// update ok
 		var r interface{}
-		if r, err = act.PostDelete(m); err != nil {
+		if r, err = rtr.PostDelete(m); err != nil {
 			c.Warn("postCreate error: %s", err)
 		}
 
 		// 触发器
-		_, err = act.Trigger(m)
+		_, err = rtr.Trigger(m)
 		if err != nil {
 			c.Warn("Trigger error: %s", err)
 		}
@@ -651,27 +647,27 @@ func (_ *BaseModel) CRUD(i interface{}, flag int) Handler {
 		m := i.(Model).New(i.(Model), c) // New会把c藏到m里面
 		var err error
 
-		if _, err = act.PreUpdate(m); err != nil { // presearch准备条件等
+		if _, err = rtr.PreUpdate(m); err != nil { // presearch准备条件等
 			c.Warn("PreUpdate error: %s", err)
 			c.RESTBadRequest(err)
 			return
 		}
 
-		if _, err = act.OnUpdate(m); err != nil {
+		if _, err = rtr.OnUpdate(m); err != nil {
 			c.Warn("OnUpdat error: %s", err)
 			c.RESTNotOK(err)
 			return
 		}
 
 		// 触发器
-		_, err = act.Trigger(m)
+		_, err = rtr.Trigger(m)
 		if err != nil {
 			c.Warn("Trigger error: %s", err)
 		}
 
 		// update ok
 		var r interface{}
-		if r, err = act.PostUpdate(m); err != nil {
+		if r, err = rtr.PostUpdate(m); err != nil {
 			c.Warn("postCreate error: %s", err)
 		}
 
@@ -683,13 +679,13 @@ func (_ *BaseModel) CRUD(i interface{}, flag int) Handler {
 	head := func(c *RESTContext) { //检查字段
 		m := i.(Model).New(i.(Model), c) // New会把c藏到m里面
 
-		if _, err := act.PreCheck(m); err != nil { // presearch准备条件等
+		if _, err := rtr.PreCheck(m); err != nil { // presearch准备条件等
 			c.Warn("PreCheck error: %s", err)
 			c.RESTBadRequest(err)
 			return
 		}
 
-		if cnt, err := act.OnCheck(m); err != nil {
+		if cnt, err := rtr.OnCheck(m); err != nil {
 			c.Warn("OnCheck error: %s", err)
 			if err == ErrNoRecord {
 				c.RESTNotFound(err)
@@ -697,7 +693,7 @@ func (_ *BaseModel) CRUD(i interface{}, flag int) Handler {
 				c.RESTPanic(err)
 			}
 		} else {
-			if cnt, _ := act.PostCheck(cnt); cnt.(int64) > 0 {
+			if cnt, _ := rtr.PostCheck(cnt); cnt.(int64) > 0 {
 				c.Warn("PostCheck error: %s", err)
 				c.RESTNotOK(nil)
 			} else {
