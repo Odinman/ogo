@@ -345,7 +345,7 @@ func (_ *BaseModel) GetRow(m Model, ext ...interface{}) (Model, error) {
 	//} else {
 	//	return obj.(Model), nil
 	//}
-	c := m.GetCtx()
+	//c := m.GetCtx()
 	if len(ext) > 0 {
 		if id, ok := ext[0].(string); ok {
 			m.SetConditions(m, NewCondition(CTYPE_IS, m.PKey(m), id))
@@ -365,7 +365,7 @@ func (_ *BaseModel) GetRow(m Model, ext ...interface{}) (Model, error) {
 
 	resultsValue := reflect.Indirect(reflect.ValueOf(ms))
 	if resultsValue.Len() <= 0 {
-		c.Debug("len: %d, no record", resultsValue.Len())
+		//c.Debug("len: %d, no record", resultsValue.Len())
 		return nil, ErrNoRecord
 	}
 	return resultsValue.Index(0).Interface().(Model), nil
@@ -505,23 +505,23 @@ func (_ *BaseModel) ReadPrepare(m Model) (b *gorp.Builder, err error) {
 	tb := m.TableName(m)
 	b = gorp.NewBuilder(db).Table(tb)
 	cons := m.GetConditions()
-	//range condition,先搞范围查询
-	for _, v := range cons {
-		if v.Range != nil {
-			Debug("[perpare]timerange")
-			switch vt := v.Range.(type) {
-			case *TimeRange: //只支持timerange
-				b.Where(fmt.Sprintf("T.`%s` BETWEEN ? AND ?", v.Field), vt.Start, vt.End)
-			case TimeRange: //只支持timerange
-				b.Where(fmt.Sprintf("T.`%s` BETWEEN ? AND ?", v.Field), vt.Start, vt.End)
-			default:
-				//nothing
-			}
-		}
-	}
 
 	// condition
 	if len(cons) > 0 {
+		//range condition,先搞范围查询
+		for _, v := range cons {
+			if v.Range != nil {
+				Debug("[perpare]timerange")
+				switch vt := v.Range.(type) {
+				case *TimeRange: //只支持timerange
+					b.Where(fmt.Sprintf("T.`%s` BETWEEN ? AND ?", v.Field), vt.Start, vt.End)
+				case TimeRange: //只支持timerange
+					b.Where(fmt.Sprintf("T.`%s` BETWEEN ? AND ?", v.Field), vt.Start, vt.End)
+				default:
+					//nothing
+				}
+			}
+		}
 		jc := 0
 		for _, v := range cons {
 			if v.Is != nil {
@@ -628,7 +628,7 @@ func (_ *BaseModel) ReadPrepare(m Model) (b *gorp.Builder, err error) {
 				fv := utils.FieldByIndex(v, col.Index)
 				if (col.TagOptions.Contains(DBTAG_PK) || col.ExtOptions.Contains(TAG_CONDITION)) && fv.IsValid() && !utils.IsEmptyValue(fv) { //有值
 					if fs := utils.GetRealString(fv); fs != "" {
-						b.Where(fmt.Sprintf("T.`%s` = ?", col.Tag), fs)
+						b.Or(fmt.Sprintf("T.`%s` = ?", col.Tag), fs)
 					}
 				}
 			}

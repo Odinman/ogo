@@ -105,11 +105,11 @@ func OmqTask(msg ...string) error {
  *
  */
 func OmqPop(msg ...string) ([]string, error) {
-	if requester, e := OmqPool().Get(); e == nil && len(msg) > 1 {
+	if requester, e := OmqPool().Get(); e == nil && len(msg) > 0 {
 		defer requester.Close()
 		key := msg[0]
-		values := msg[1:]
-		if reply, e := requester.Do(10000*time.Millisecond, "POP", key, values); e == nil {
+		//values := msg[1:]
+		if reply, e := requester.Do(10000*time.Millisecond, "POP", key); e == nil {
 			Debug("Received: %s", reply[0])
 			if reply[0] == "OK" {
 				return reply[1:], e
