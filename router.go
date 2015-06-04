@@ -426,14 +426,14 @@ func (rtr *Router) GenericRoute(i interface{}, flag int) {
 
 /* }}} */
 
-/* {{{ func (_ *Router) CRUD(m Model, flag int) Handler
+/* {{{ func (rtr *Router) CRUD(i interface{}, flag int) Handler
  * 通用的操作方法, 根据flag返回
  * 必须符合通用的restful风格
  */
 func (rtr *Router) CRUD(i interface{}, flag int) Handler {
 	act := rtr.Controller.(ActionInterface)
 	get := func(c *RESTContext) {
-		m := i.(Model).New(i.(Model), c) // New会把c藏到m里面
+		m := NewModel(i.(Model), c)
 
 		if _, err := act.PreGet(m); err != nil {
 			c.Warn("PreGet error: %s", err)
@@ -463,7 +463,7 @@ func (rtr *Router) CRUD(i interface{}, flag int) Handler {
 		return
 	}
 	search := func(c *RESTContext) {
-		m := i.(Model).New(i.(Model), c) // New会把c藏到m里面
+		m := NewModel(i.(Model), c)
 
 		if _, err := act.PreSearch(m); err != nil { // presearch准备条件等
 			c.Warn("PreSearch error: %s", err)
@@ -492,7 +492,7 @@ func (rtr *Router) CRUD(i interface{}, flag int) Handler {
 	}
 
 	post := func(c *RESTContext) {
-		m := i.(Model).New(i.(Model), c) // New会把c藏到m里面
+		m := NewModel(i.(Model), c)
 		var err error
 
 		if _, err = act.PreCreate(m); err != nil { // presearch准备条件等
@@ -524,7 +524,7 @@ func (rtr *Router) CRUD(i interface{}, flag int) Handler {
 	}
 
 	delete := func(c *RESTContext) {
-		m := i.(Model).New(i.(Model), c) // New会把c藏到m里面
+		m := NewModel(i.(Model), c)
 		var err error
 
 		if _, err = act.PreDelete(m); err != nil { // presearch准备条件等
@@ -555,7 +555,7 @@ func (rtr *Router) CRUD(i interface{}, flag int) Handler {
 	}
 
 	patch := func(c *RESTContext) { //修改
-		m := i.(Model).New(i.(Model), c) // New会把c藏到m里面
+		m := NewModel(i.(Model), c)
 		var err error
 
 		if _, err = act.PreUpdate(m); err != nil { // presearch准备条件等
@@ -588,7 +588,7 @@ func (rtr *Router) CRUD(i interface{}, flag int) Handler {
 	//put := func(c *RESTContext) { //重置
 	//}
 	head := func(c *RESTContext) { //检查字段
-		m := i.(Model).New(i.(Model), c) // New会把c藏到m里面
+		m := NewModel(i.(Model), c)
 
 		if _, err := act.PreCheck(m); err != nil { // presearch准备条件等
 			c.Warn("PreCheck error: %s", err)

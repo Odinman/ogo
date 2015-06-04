@@ -110,6 +110,7 @@ func NewCondition(typ int, field string, cs ...interface{}) *Condition {
 
 type Model interface {
 	SetModel(m Model)
+	GetModel() Model
 	SetCtx(c *RESTContext)
 	GetCtx() *RESTContext
 	SetConditions(cs ...*Condition) ([]*Condition, error)
@@ -148,15 +149,17 @@ type BaseModel struct {
 	pagination *Pagination  `json:"-" db:"-"`
 }
 
-/* {{{ func NewModel(m interface{},c ...interface{}) Model {
- * 第一个参数,model; 第二个参数, *RESTContext
+/* {{{ func NewModel(m Model,c ...interface{}) Model {
+ * 第一个参数,model,必须是指针; 第二个参数, *RESTContext
  */
-func NewModel(m interface{}, c ...interface{}) Model {
-	ni := reflect.New(reflect.Indirect(reflect.ValueOf(m)).Type()).Interface()
+func NewModel(m Model, c ...interface{}) Model {
+	//新建一个指针
+	nmi := reflect.New(reflect.Indirect(reflect.ValueOf(m)).Type()).Interface().(Model)
+	nmi.SetModel(nmi)
 	if len(c) > 0 {
-		ni.(Model).SetCtx(c[0].(*RESTContext))
+		nmi.SetCtx(c[0].(*RESTContext))
 	}
-	return ni.(Model)
+	return nmi
 }
 
 /* }}} */
@@ -185,6 +188,15 @@ func GetCondition(cs []*Condition, k string) (con *Condition, err error) {
  */
 func (bm *BaseModel) SetModel(m Model) {
 	bm.Model = m
+}
+
+/* }}} */
+
+/* {{{ func (bm *BaseModel) GetModel() Model
+ *
+ */
+func (bm *BaseModel) GetModel() Model {
+	return bm.Model
 }
 
 /* }}} */
