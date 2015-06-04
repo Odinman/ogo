@@ -108,6 +108,62 @@ func NewCondition(typ int, field string, cs ...interface{}) *Condition {
 	return con
 }
 
+type Model interface {
+	SetModel(m Model)
+	SetCtx(c *RESTContext)
+	GetCtx() *RESTContext
+	SetConditions(cs ...*Condition) ([]*Condition, error)
+	GetConditions() []*Condition
+	SetPagination(p *Pagination)
+	GetPagination() *Pagination
+
+	New(c ...interface{}) Model
+	NewList() interface{} // 返回一个空结构列表
+
+	// db
+	AddTable(tags ...string)
+	DBConn(tag string) *gorp.DbMap // 数据库连接
+	TableName() string             // 返回表名称, 默认结构type名字(小写), 有特别的表名称,则自己implement 这个方法
+	PKey() string                  // key字段
+	ReadPrepare() (*gorp.Builder, error)
+
+	// data accessor
+	GetRow(ext ...interface{}) (Model, error)   //获取单条记录
+	GetRows() (*List, error)                    //获取多条记录
+	GetCount() (int64, error)                   //获取多条记录
+	CreateRow() (Model, error)                  //创建单条记录
+	UpdateRow(id string) (int64, error)         //更新记录
+	DeleteRow(id string) (int64, error)         //更新记录
+	Existense() func(tag string) (Model, error) //检查存在性
+	Valid() (Model, error)                      //数据验证
+	Filter() (Model, error)                     //数据过滤
+}
+
+//基础model,在这里可以实现Model接口, 其余的只需要嵌入这个struct,就可以继承这些方法
+type BaseModel struct {
+	Error      error        `json:"-" db:"-"`
+	Model      Model        `json:"-" db:"-"`
+	ctx        *RESTContext `json:"-" db:"-"`
+	conditions []*Condition `json:"-" db:"-"`
+	pagination *Pagination  `json:"-" db:"-"`
+}
+
+/* {{{ func NewModel(m interface{},c ...interface{}) Model {
+ * 第一个参数,model; 第二个参数, *RESTContext
+ */
+func NewModel(m interface{}, c ...interface{}) Model {
+	ni := reflect.New(reflect.Indirect(reflect.ValueOf(m)).Type()).Interface()
+	if len(c) > 0 {
+		ni.(Model).SetCtx(c[0].(*RESTContext))
+	}
+	return ni.(Model)
+}
+
+/* }}} */
+
+/* {{{ func GetCondition(cs []*Condition, k string) (con *Condition, err error)
+ *
+ */
 func GetCondition(cs []*Condition, k string) (con *Condition, err error) {
 	if cs == nil {
 		err = fmt.Errorf("conditions empty")
@@ -122,45 +178,18 @@ func GetCondition(cs []*Condition, k string) (con *Condition, err error) {
 	return nil, fmt.Errorf("cannot found condition: %s", k)
 }
 
-type Model interface {
-	SetCtx(c *RESTContext)
-	GetCtx() *RESTContext
-	SetConditions(m Model, cs ...*Condition) ([]*Condition, error)
-	GetConditions() []*Condition
-	SetPagination(p *Pagination)
-	GetPagination() *Pagination
+/* }}} */
 
-	New(m Model, c ...interface{}) Model
-	NewList(m Model) interface{} // 返回一个空结构列表
-
-	// db
-	AddTable(m Model, tags ...string)
-	DBConn(m Model, tag string) *gorp.DbMap // 数据库连接
-	TableName(m Model) string               // 返回表名称, 默认结构type名字(小写), 有特别的表名称,则自己implement 这个方法
-	PKey(m Model) string                    // key字段
-	ReadPrepare(m Model) (*gorp.Builder, error)
-
-	// data accessor
-	GetRow(m Model, ext ...interface{}) (Model, error) //获取单条记录
-	GetRows(m Model) (*List, error)                    //获取多条记录
-	GetCount(m Model) (int64, error)                   //获取多条记录
-	CreateRow(m Model) (Model, error)                  //创建单条记录
-	UpdateRow(m Model, id string) (int64, error)       //更新记录
-	DeleteRow(m Model, id string) (int64, error)       //更新记录
-	Existense(m Model) func(tag string) (Model, error) //检查存在性
-	Valid(m Model) (Model, error)                      //数据验证
-	Filter(m Model) (Model, error)                     //数据过滤
+/* {{{ func (bm *BaseModel) SetModel(m Model)
+ *
+ */
+func (bm *BaseModel) SetModel(m Model) {
+	bm.Model = m
 }
 
-//基础model,在这里可以实现Model接口, 其余的只需要嵌入这个struct,就可以继承这些方法
-type BaseModel struct {
-	Error      error        `json:"-" db:"-"`
-	ctx        *RESTContext `json:"-" db:"-"`
-	conditions []*Condition `json:"-" db:"-"`
-	pagination *Pagination  `json:"-" db:"-"`
-}
+/* }}} */
 
-/* {{{ func (bm *BaseModel) SetCtx(c *RESTContext) Model
+/* {{{ func (bm *BaseModel) SetCtx(c *RESTContext)
  *
  */
 func (bm *BaseModel) SetCtx(c *RESTContext) {
@@ -178,10 +207,11 @@ func (bm *BaseModel) GetCtx() *RESTContext {
 
 /* }}} */
 
-/* {{{ func (bm *BaseModel) SetConditions(m Model, cs ...*Condition) (cons []*Condition, err error)
+/* {{{ func (bm *BaseModel) SetConditions(cs ...*Condition) (cons []*Condition, err error)
  * 生成条件
  */
-func (bm *BaseModel) SetConditions(m Model, cs ...*Condition) (cons []*Condition, err error) {
+func (bm *BaseModel) SetConditions(cs ...*Condition) (cons []*Condition, err error) {
+	m := bm.Model
 	if bm.conditions == nil {
 		bm.conditions = make([]*Condition, 0)
 	}
@@ -256,36 +286,32 @@ func (bm *BaseModel) GetConditions() []*Condition {
 
 /* }}} */
 
-/* {{{ func (_ *BaseModel) New(m Model, c ...interface{}) Model
+/* {{{ func (bm *BaseModel) New(c ...interface{}) Model
  * 初始化model, 后面的c选填
  */
-func (_ *BaseModel) New(m Model, c ...interface{}) Model {
-	//nm := reflect.ValueOf(m).Interface().(Model)
-	nm := reflect.New(reflect.Indirect(reflect.ValueOf(m)).Type()).Interface()
-	if len(c) > 0 {
-		nm.(Model).SetCtx(c[0].(*RESTContext))
-	}
-	return nm.(Model)
+func (bm *BaseModel) New(c ...interface{}) Model {
+	m := bm.Model
+	return NewModel(m, c...)
 }
 
 /* }}} */
 
-/* {{{ func (m *BaseModel) NewList(m Model) *[]Model
+/* {{{ func (bm *BaseModel) NewList() *[]Model
  *
  */
-func (_ *BaseModel) NewList(m Model) interface{} {
-	//ms := reflect.New(reflect.SliceOf(reflect.TypeOf(m))).Interface().(*[]Model)
+func (bm *BaseModel) NewList() interface{} {
+	m := bm.Model
 	ms := reflect.New(reflect.SliceOf(reflect.TypeOf(m))).Interface()
 	return ms
 }
 
 /* }}} */
 
-/* {{{ func (m *BaseModel) DBConn(m Model,tag string) *gorp.DbMap
+/* {{{ func (bm *BaseModel) DBConn(tag string) *gorp.DbMap
  * 默认数据库连接为admin
  */
-func (_ *BaseModel) DBConn(m Model, tag string) *gorp.DbMap {
-	tb := m.TableName(m)
+func (bm *BaseModel) DBConn(tag string) *gorp.DbMap {
+	tb := bm.TableName()
 	if dt, ok := DataAccessor[tb+"::"+tag]; ok && dt != "" {
 		return gorp.Using(dt)
 	}
@@ -294,11 +320,12 @@ func (_ *BaseModel) DBConn(m Model, tag string) *gorp.DbMap {
 
 /* }}} */
 
-/* {{{ func (m *BaseModel) TableName(m Model) (n string)
+/* {{{ func (bm *BaseModel) TableName() (n string)
  * 获取表名称, 默认为结构名
  */
-func (_ *BaseModel) TableName(m Model) (n string) {
+func (bm *BaseModel) TableName() (n string) {
 	//默认, struct的名字就是表名, 如果不是请在各自的model里定义
+	m := bm.Model
 	reflectVal := reflect.ValueOf(m)
 	mt := reflect.Indirect(reflectVal).Type()
 	n = underscore(strings.TrimSuffix(mt.Name(), "Table"))
@@ -307,10 +334,11 @@ func (_ *BaseModel) TableName(m Model) (n string) {
 
 /* }}} */
 
-/* {{{ func (_ *BaseModel) PKey(m Model) string
+/* {{{ func (bm *BaseModel) PKey() string
  *  通过配置找到pk
  */
-func (_ *BaseModel) PKey(m Model) string {
+func (bm *BaseModel) PKey() string {
+	m := bm.Model
 	if cols := utils.ReadStructColumns(m, true); cols != nil {
 		for _, col := range cols {
 			// check required field
@@ -324,10 +352,10 @@ func (_ *BaseModel) PKey(m Model) string {
 
 /* }}} */
 
-/* {{{ func (_ *BaseModel) Existense(m Model) func(tag string) (Model, error)
+/* {{{ func (bm *BaseModel) Existense() func(tag string) (Model, error)
  *
  */
-func (_ *BaseModel) Existense(m Model) func(tag string) (Model, error) {
+func (bm *BaseModel) Existense() func(tag string) (Model, error) {
 	return func(tag string) (Model, error) {
 		return nil, fmt.Errorf("can't check")
 	}
@@ -335,11 +363,12 @@ func (_ *BaseModel) Existense(m Model) func(tag string) (Model, error) {
 
 /* }}} */
 
-/* {{{ func (_ *BaseModel) Filter(m Model) (Model, error)
+/* {{{ func (bm *BaseModel) Filter() (Model, error)
  * 数据过滤
  */
-func (_ *BaseModel) Filter(m Model) (Model, error) {
-	r := m.New(m)
+func (bm *BaseModel) Filter() (Model, error) {
+	m := bm.Model
+	r := m.New()
 	rv := reflect.ValueOf(r)
 	v := reflect.ValueOf(m)
 	if cols := utils.ReadStructColumns(m, true); cols != nil {
@@ -358,10 +387,11 @@ func (_ *BaseModel) Filter(m Model) (Model, error) {
 
 /* }}} */
 
-/* {{{ func (_ *BaseModel) Valid(m Model) (Model, error)
+/* {{{ func (bm *BaseModel) Valid() (Model, error)
  * 根据条件获取一条记录, model为表结构
  */
-func (_ *BaseModel) Valid(m Model) (Model, error) {
+func (bm *BaseModel) Valid() (Model, error) {
+	m := bm.Model
 	c := m.GetCtx()
 	if err := json.Unmarshal(c.RequestBody, m); err != nil {
 		return nil, err
@@ -409,29 +439,18 @@ func (_ *BaseModel) Valid(m Model) (Model, error) {
 
 /* }}} */
 
-/* {{{ func (_ *BaseModel) GetRow(m Model, ext ...interface{}) (Model, error)
+/* {{{ func (bm *BaseModel) GetRow(ext ...interface{}) (Model, error)
  * 根据条件获取一条记录, model为表结构
  */
-func (_ *BaseModel) GetRow(m Model, ext ...interface{}) (Model, error) {
-	//db := m.DBConn(m, READTAG)
-	//if obj, err := db.Get(m, id); err != nil {
-	//	//Debug("get error: %s, %v", err, obj)
-	//	if err == sql.ErrNoRows {
-	//		return nil, ErrNoRecord
-	//	} else {
-	//		return nil, err
-	//	}
-	//} else {
-	//	return obj.(Model), nil
-	//}
-	//c := m.GetCtx()
+func (bm *BaseModel) GetRow(ext ...interface{}) (Model, error) {
+	m := bm.Model
 	if len(ext) > 0 {
 		if id, ok := ext[0].(string); ok {
-			m.SetConditions(m, NewCondition(CTYPE_IS, m.PKey(m), id))
+			m.SetConditions(NewCondition(CTYPE_IS, m.PKey(), id))
 		}
 	}
-	builder, _ := m.ReadPrepare(m)
-	ms := m.NewList(m)
+	builder, _ := m.ReadPrepare()
+	ms := m.NewList()
 	var err error
 	err = builder.Select(GetDbFields(m)).Limit("1").Find(ms)
 	if err != nil && err != sql.ErrNoRows {
@@ -452,11 +471,12 @@ func (_ *BaseModel) GetRow(m Model, ext ...interface{}) (Model, error) {
 
 /* }}} */
 
-/* {{{ func (_ *BaseModel) CreateRow(m Model) (Model, error)
+/* {{{ func (bm *BaseModel) CreateRow() (Model, error)
  * 根据条件获取一条记录, model为表结构
  */
-func (_ *BaseModel) CreateRow(m Model) (Model, error) {
-	db := m.DBConn(m, WRITETAG)
+func (bm *BaseModel) CreateRow() (Model, error) {
+	m := bm.Model
+	db := m.DBConn(WRITETAG)
 	if err := db.Insert(m); err != nil {
 		return nil, err
 	} else {
@@ -466,11 +486,12 @@ func (_ *BaseModel) CreateRow(m Model) (Model, error) {
 
 /* }}} */
 
-/* {{{ func (_ *BaseModel) UpdateRow(m Model, id string) (affected int64, err error)
+/* {{{ func (bm *BaseModel) UpdateRow(id string) (affected int64, err error)
  * 根据条件获取一条记录, model为表结构
  */
-func (_ *BaseModel) UpdateRow(m Model, id string) (affected int64, err error) {
-	db := m.DBConn(m, WRITETAG)
+func (bm *BaseModel) UpdateRow(id string) (affected int64, err error) {
+	m := bm.Model
+	db := m.DBConn(WRITETAG)
 	if id != "" {
 		if err = utils.ImportValue(m, map[string]string{DBTAG_PK: id}); err != nil {
 			return
@@ -481,11 +502,12 @@ func (_ *BaseModel) UpdateRow(m Model, id string) (affected int64, err error) {
 
 /* }}} */
 
-/* {{{ func (_ *BaseModel) DeleteRow(m Model, id string) (affected int64, err error)
+/* {{{ func (bm *BaseModel) DeleteRow(id string) (affected int64, err error)
  * 删除记录(逻辑删除)
  */
-func (_ *BaseModel) DeleteRow(m Model, id string) (affected int64, err error) {
-	db := m.DBConn(m, WRITETAG)
+func (bm *BaseModel) DeleteRow(id string) (affected int64, err error) {
+	m := bm.Model
+	db := m.DBConn(WRITETAG)
 	if err = utils.ImportValue(m, map[string]string{DBTAG_PK: id, DBTAG_LOGIC: "-1"}); err != nil {
 		return
 	}
@@ -494,14 +516,15 @@ func (_ *BaseModel) DeleteRow(m Model, id string) (affected int64, err error) {
 
 /* }}} */
 
-/* {{{ func (_ *BaseModel) GetRows(m Model) (l *List, err error)
+/* {{{ func (bm *BaseModel) GetRows() (l *List, err error)
  * 获取list, 通用函数
  */
-func (_ *BaseModel) GetRows(m Model) (l *List, err error) {
+func (bm *BaseModel) GetRows() (l *List, err error) {
 	//c := m.GetCtx()
-	builder, _ := m.ReadPrepare(m)
+	m := bm.Model
+	builder, _ := m.ReadPrepare()
 	count, _ := builder.Count() //结果数
-	ms := m.NewList(m)
+	ms := m.NewList()
 	//p := c.GetEnv(PaginationKey).(*Pagination)
 	if p := m.GetPagination(); p != nil {
 		err = builder.Select(GetDbFields(m)).Offset(p.Offset).Limit(p.PerPage).Find(ms)
@@ -526,26 +549,27 @@ func (_ *BaseModel) GetRows(m Model) (l *List, err error) {
 
 /* }}} */
 
-/* {{{ func (_ *BaseModel) GetCount(m Model) (cnt int64, err error)
+/* {{{ func (bm *BaseModel) GetCount() (cnt int64, err error)
  * 获取list, 通用函数
  */
-func (_ *BaseModel) GetCount(m Model) (cnt int64, err error) {
-	builder, _ := m.ReadPrepare(m)
+func (bm *BaseModel) GetCount() (cnt int64, err error) {
+	builder, _ := bm.ReadPrepare()
 	return builder.Count()
 
 }
 
 /* }}} */
 
-/* {{{ func (_ *BaseModel) AddTable(m Model, tags ...string)
+/* {{{ func (bm *BaseModel) AddTable(tags ...string)
  * 注册表结构
  */
-func (_ *BaseModel) AddTable(m Model, tags ...string) {
+func (bm *BaseModel) AddTable(tags ...string) {
+	m := bm.Model
 	reflectVal := reflect.ValueOf(m)
 	mv := reflect.Indirect(reflectVal).Interface()
-	Debug("table name: %s", m.TableName(m))
-	tb := m.TableName(m)
-	gorp.AddTableWithName(mv, tb).SetKeys(true, m.PKey(m))
+	Debug("table name: %s", m.TableName())
+	tb := m.TableName()
+	gorp.AddTableWithName(mv, tb).SetKeys(true, m.PKey())
 
 	//data accessor, 默认都是DBTAG
 	DataAccessor[tb+"::"+WRITETAG] = DBTAG
@@ -576,12 +600,13 @@ func (_ *BaseModel) AddTable(m Model, tags ...string) {
 
 /* }}} */
 
-/* {{{ func (_ *BaseModel) ReadPrepare(m Model) (b *gorp.Builder, err error)
+/* {{{ func (bm *BaseModel) ReadPrepare() (b *gorp.Builder, err error)
  * 查询准备
  */
-func (_ *BaseModel) ReadPrepare(m Model) (b *gorp.Builder, err error) {
-	db := m.DBConn(m, READTAG)
-	tb := m.TableName(m)
+func (bm *BaseModel) ReadPrepare() (b *gorp.Builder, err error) {
+	m := bm.Model
+	db := m.DBConn(READTAG)
+	tb := m.TableName()
 	b = gorp.NewBuilder(db).Table(tb)
 	cons := m.GetConditions()
 
