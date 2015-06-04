@@ -5,6 +5,7 @@ package ogo
 import (
 	"bytes"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"reflect"
@@ -132,12 +133,14 @@ type Model interface {
 	New(m Model, c ...interface{}) Model
 	NewList(m Model) interface{} // 返回一个空结构列表
 
+	// db
 	AddTable(m Model, tags ...string)
 	DBConn(m Model, tag string) *gorp.DbMap // 数据库连接
 	TableName(m Model) string               // 返回表名称, 默认结构type名字(小写), 有特别的表名称,则自己implement 这个方法
 	PKey(m Model) string                    // key字段
 	ReadPrepare(m Model) (*gorp.Builder, error)
 
+	// data accessor
 	GetRow(m Model, ext ...interface{}) (Model, error) //获取单条记录
 	GetRows(m Model) (*List, error)                    //获取多条记录
 	GetCount(m Model) (int64, error)                   //获取多条记录
@@ -145,6 +148,8 @@ type Model interface {
 	UpdateRow(m Model, id string) (int64, error)       //更新记录
 	DeleteRow(m Model, id string) (int64, error)       //更新记录
 	Existense(m Model) func(tag string) (Model, error) //检查存在性
+	Valid(m Model) (Model, error)                      //数据验证
+	Filter(m Model) (Model, error)                     //数据过滤
 }
 
 //基础model,在这里可以实现Model接口, 其余的只需要嵌入这个struct,就可以继承这些方法
@@ -326,6 +331,80 @@ func (_ *BaseModel) Existense(m Model) func(tag string) (Model, error) {
 	return func(tag string) (Model, error) {
 		return nil, fmt.Errorf("can't check")
 	}
+}
+
+/* }}} */
+
+/* {{{ func (_ *BaseModel) Filter(m Model) (Model, error)
+ * 数据过滤
+ */
+func (_ *BaseModel) Filter(m Model) (Model, error) {
+	r := m.New(m)
+	rv := reflect.ValueOf(r)
+	v := reflect.ValueOf(m)
+	if cols := utils.ReadStructColumns(m, true); cols != nil {
+		for _, col := range cols {
+			fv := utils.FieldByIndex(v, col.Index)
+			mv := utils.FieldByIndex(rv, col.Index)
+			//c.Trace("field:%s; name: %s, kind:%v; type:%s", col.Tag, col.Name, fv.Kind(), fv.Type().String())
+			if col.TagOptions.Contains(DBTAG_PK) || col.ExtOptions.Contains(TAG_RETURN) {
+				//pk以及定义了返回tag的赋值
+				mv.Set(fv)
+			}
+		}
+	}
+	return r.(Model), nil
+}
+
+/* }}} */
+
+/* {{{ func (_ *BaseModel) Valid(m Model) (Model, error)
+ * 根据条件获取一条记录, model为表结构
+ */
+func (_ *BaseModel) Valid(m Model) (Model, error) {
+	c := m.GetCtx()
+	if err := json.Unmarshal(c.RequestBody, m); err != nil {
+		return nil, err
+	}
+	v := reflect.ValueOf(m)
+	if cols := utils.ReadStructColumns(m, true); cols != nil {
+		for _, col := range cols {
+			fv := utils.FieldByIndex(v, col.Index)
+			// server generate,忽略传入的信息
+			if col.ExtOptions.Contains(TAG_GENERATE) && fv.IsValid() && !utils.IsEmptyValue(fv) { // 服务器生成
+				fv.Set(reflect.Zero(fv.Type()))
+			}
+			switch col.ExtTag { //根据tag, 会对数据进行预处理
+			case "sha1":
+				if fv.IsValid() && !utils.IsEmptyValue(fv) { //不能为空
+					switch fv.Type().String() {
+					case "*string":
+						sv := fv.Elem().String()
+						h := utils.HashSha1(sv)
+						fv.Set(reflect.ValueOf(&h))
+						c.Debug("password: %s, encoded: %s", sv, h)
+					case "string":
+						sv := fv.String()
+						h := utils.HashSha1(sv)
+						fv.Set(reflect.ValueOf(h))
+						c.Debug("password: %s, encoded: %s", sv, h)
+					default:
+						return nil, fmt.Errorf("field(%s) must be string, not %s", col.Tag, fv.Kind().String())
+					}
+				}
+			default:
+				//可自定义,初始化时放到tagHooks里面
+				if col.ExtTag != "" && fv.IsValid() && !utils.IsEmptyValue(fv) { //还必须有值
+					if hk, ok := DMux.TagHooks[col.ExtTag]; ok {
+						fv.Set(hk(fv))
+					} else {
+						c.Info("cannot find hook for tag: %s", col.ExtTag)
+					}
+				}
+			}
+		}
+	}
+	return m, nil
 }
 
 /* }}} */

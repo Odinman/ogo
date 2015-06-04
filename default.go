@@ -37,10 +37,10 @@ func Run() {
 
 /* }}} */
 
-/* {{{ func NewRouter(c RouterInterface, endpoint string) RouterInterface
+/* {{{ func NewRouter(c interface{}, endpoint string) RouterInterface
  * 默认用DMux设置给router
  */
-func NewRouter(c RouterInterface, endpoint string) RouterInterface {
+func NewRouter(c interface{}, endpoint string) RouterInterface {
 	return DMux.NewRouter(c, endpoint)
 }
 

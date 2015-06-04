@@ -3,9 +3,7 @@
 package ogo
 
 import (
-	"encoding/json"
 	"fmt"
-	"net/http"
 	"reflect"
 
 	"github.com/Odinman/ogo/utils"
@@ -27,13 +25,7 @@ const (
 	KEY_SKIPPERM  = "skipperm"
 )
 
-type Action interface {
-	CRUD(i interface{}, flag int) Handler
-
-	Valid(i interface{}) (interface{}, error)   //数据验证
-	Filter(i interface{}) (interface{}, error)  //数据过滤
-	Trigger(i interface{}) (interface{}, error) //触发器
-
+type ActionInterface interface {
 	PreGet(i interface{}) (interface{}, error)  //获取前
 	OnGet(i interface{}) (interface{}, error)   //获取中
 	PostGet(i interface{}) (interface{}, error) //获取后
@@ -57,86 +49,15 @@ type Action interface {
 	PreCheck(i interface{}) (interface{}, error)  // 搜索前的检查
 	OnCheck(i interface{}) (interface{}, error)   // 搜索前的检查
 	PostCheck(i interface{}) (interface{}, error) // 搜索后的检查
+
+	Trigger(i interface{}) (interface{}, error) //触发器
 }
 
-/* {{{ func (_ *Router) Valid(i interface{}) (interface{}, error)
- *
- */
-func (_ *Router) Valid(i interface{}) (interface{}, error) {
-	m := i.(Model)
-	c := m.GetCtx()
-	if err := json.Unmarshal(c.RequestBody, m); err != nil {
-		return nil, err
-	}
-	v := reflect.ValueOf(m)
-	if cols := utils.ReadStructColumns(m, true); cols != nil {
-		for _, col := range cols {
-			fv := utils.FieldByIndex(v, col.Index)
-			// server generate,忽略传入的信息
-			if col.ExtOptions.Contains(TAG_GENERATE) && fv.IsValid() && !utils.IsEmptyValue(fv) { // 服务器生成
-				fv.Set(reflect.Zero(fv.Type()))
-			}
-			switch col.ExtTag { //根据tag, 会对数据进行预处理
-			case "sha1":
-				if fv.IsValid() && !utils.IsEmptyValue(fv) { //不能为空
-					switch fv.Type().String() {
-					case "*string":
-						sv := fv.Elem().String()
-						h := utils.HashSha1(sv)
-						fv.Set(reflect.ValueOf(&h))
-						c.Debug("password: %s, encoded: %s", sv, h)
-					case "string":
-						sv := fv.String()
-						h := utils.HashSha1(sv)
-						fv.Set(reflect.ValueOf(h))
-						c.Debug("password: %s, encoded: %s", sv, h)
-					default:
-						return nil, fmt.Errorf("field(%s) must be string, not %s", col.Tag, fv.Kind().String())
-					}
-				}
-			default:
-				//可自定义,初始化时放到tagHooks里面
-				if col.ExtTag != "" && fv.IsValid() && !utils.IsEmptyValue(fv) { //还必须有值
-					if hk, ok := DMux.TagHooks[col.ExtTag]; ok {
-						fv.Set(hk(fv))
-					} else {
-						c.Info("cannot find hook for tag: %s", col.ExtTag)
-					}
-				}
-			}
-		}
-	}
-	return i, nil
-}
-
-/* }}} */
-/* {{{ func (_ *Router) Filter(i interface{}) (interface{}, error)
- * 处理后过滤
- */
-func (_ *Router) Filter(i interface{}) (interface{}, error) {
-	//c := i.(Model).GetCtx()
-	r := i.(Model).New(i.(Model))
-	m := reflect.ValueOf(r)
-	v := reflect.ValueOf(i)
-	if cols := utils.ReadStructColumns(i, true); cols != nil {
-		for _, col := range cols {
-			fv := utils.FieldByIndex(v, col.Index)
-			mv := utils.FieldByIndex(m, col.Index)
-			//c.Trace("field:%s; name: %s, kind:%v; type:%s", col.Tag, col.Name, fv.Kind(), fv.Type().String())
-			if col.TagOptions.Contains(DBTAG_PK) || col.ExtOptions.Contains(TAG_RETURN) {
-				//pk以及定义了返回tag的赋值
-				mv.Set(fv)
-			}
-		}
-	}
-	return r.(Model), nil
-}
-
-/* }}} */
 /* {{{ func (_ *Router) Trigger(i interface{}) (interface{}, error)
  *
  */
 func (_ *Router) Trigger(i interface{}) (interface{}, error) {
+	Debug("ogo trigger")
 	return i, nil
 }
 
@@ -240,13 +161,12 @@ func (_ *Router) PostSearch(i interface{}) (interface{}, error) {
 /* {{{ func (_ *Router) PreCreate(i interface{}) (interface{}, error)
  *
  */
-func (rtr *Router) PreCreate(i interface{}) (interface{}, error) {
-	c := i.(Model).GetCtx()
-	var m Model
-	if mi, err := rtr.Valid(i); err != nil {
+func (_ *Router) PreCreate(i interface{}) (interface{}, error) {
+	m := i.(Model)
+	c := m.GetCtx()
+	var err error
+	if m, err = m.Valid(m); err != nil {
 		return nil, err
-	} else {
-		m = mi.(Model)
 	}
 	v := reflect.ValueOf(m)
 	// existense checker
@@ -332,7 +252,8 @@ func (_ *Router) OnCreate(i interface{}) (interface{}, error) {
  *
  */
 func (rtr *Router) PostCreate(i interface{}) (interface{}, error) {
-	return rtr.Filter(i)
+	m := i.(Model)
+	return m.Filter(m)
 }
 
 /* }}} */
@@ -341,12 +262,11 @@ func (rtr *Router) PostCreate(i interface{}) (interface{}, error) {
  *
  */
 func (rtr *Router) PreUpdate(i interface{}) (interface{}, error) {
-	c := i.(Model).GetCtx()
-	var m Model
-	if mi, err := rtr.Valid(i); err != nil {
+	m := i.(Model)
+	c := m.GetCtx()
+	var err error
+	if m, err = m.Valid(m); err != nil {
 		return nil, err
-	} else {
-		m = mi.(Model)
 	}
 
 	//var rk string
@@ -356,7 +276,6 @@ func (rtr *Router) PreUpdate(i interface{}) (interface{}, error) {
 	//}
 	// old
 	var older Model
-	var err error
 	if older, err = m.GetRow(m.New(m)); err != nil {
 		return nil, err
 	}
@@ -440,7 +359,8 @@ func (_ *Router) OnUpdate(i interface{}) (interface{}, error) {
  *
  */
 func (rtr *Router) PostUpdate(i interface{}) (interface{}, error) {
-	return rtr.Filter(i)
+	m := i.(Model)
+	return m.Filter(m)
 }
 
 /* }}} */
@@ -511,220 +431,6 @@ func (_ *Router) OnCheck(i interface{}) (interface{}, error) {
  */
 func (_ *Router) PostCheck(i interface{}) (interface{}, error) {
 	return i, nil
-}
-
-/* }}} */
-
-/* {{{ func (_ *Router) CRUD(m Model, flag int) Handler
- * 通用的操作方法, 根据flag返回
- * 必须符合通用的restful风格
- */
-func (rtr *Router) CRUD(i interface{}, flag int) Handler {
-	//rtr := i.(Action)
-	get := func(c *RESTContext) {
-		m := i.(Model).New(i.(Model), c) // New会把c藏到m里面
-
-		if _, err := rtr.PreGet(m); err != nil {
-			c.Warn("PreGet error: %s", err)
-			c.RESTBadRequest(err)
-			return
-		}
-
-		var r interface{}
-		var err error
-		if r, err = rtr.OnGet(m); err != nil {
-			c.Warn("OnGet error: %s", err)
-			if err == ErrNoRecord {
-				c.RESTNotFound(err)
-			} else {
-				c.RESTPanic(err)
-			}
-			return
-		}
-
-		if r, err = rtr.PostGet(r); err != nil {
-			c.Warn("PostGet error: %s", err)
-			c.RESTNotOK(err)
-		} else {
-			c.RESTOK(r)
-		}
-
-		return
-	}
-	search := func(c *RESTContext) {
-		m := i.(Model).New(i.(Model), c) // New会把c藏到m里面
-
-		if _, err := rtr.PreSearch(m); err != nil { // presearch准备条件等
-			c.Warn("PreSearch error: %s", err)
-			c.RESTBadRequest(err)
-			return
-		}
-
-		if l, err := rtr.OnSearch(m); err != nil {
-			c.Warn("OnSearch error: %s", err)
-			if err == ErrNoRecord {
-				c.RESTNotFound(err)
-			} else {
-				c.RESTPanic(err)
-			}
-		} else {
-			if rl, err := rtr.PostSearch(l); err != nil {
-				c.Warn("PostSearch error: %s", err)
-				c.RESTNotOK(err)
-			} else {
-				c.RESTOK(rl)
-			}
-		}
-
-		return
-
-	}
-
-	post := func(c *RESTContext) {
-		m := i.(Model).New(i.(Model), c) // New会把c藏到m里面
-		var err error
-
-		if _, err = rtr.PreCreate(m); err != nil { // presearch准备条件等
-			c.Warn("PreCreate error: %s", err)
-			c.RESTBadRequest(err)
-			return
-		}
-
-		var r interface{}
-		if r, err = rtr.OnCreate(m); err != nil {
-			c.Warn("OnCreate error: %s", err)
-			c.RESTNotOK(err)
-			return
-		}
-		m = r.(Model)
-
-		// 触发器
-		r, err = rtr.Trigger(m)
-		if err != nil {
-			c.Warn("Trigger error: %s", err)
-		}
-
-		// create ok, return
-		if r, err = rtr.PostCreate(r); err != nil {
-			c.Warn("postCreate error: %s", err)
-		}
-		c.RESTOK(r)
-		return
-	}
-
-	delete := func(c *RESTContext) {
-		m := i.(Model).New(i.(Model), c) // New会把c藏到m里面
-		var err error
-
-		if _, err = rtr.PreDelete(m); err != nil { // presearch准备条件等
-			c.Warn("PreUpdat error: %s", err)
-			c.RESTBadRequest(err)
-			return
-		}
-
-		if _, err = rtr.OnDelete(m); err != nil {
-			c.Warn("OnUpdat error: %s", err)
-			c.RESTNotOK(err)
-			return
-		}
-
-		// update ok
-		var r interface{}
-		if r, err = rtr.PostDelete(m); err != nil {
-			c.Warn("postCreate error: %s", err)
-		}
-
-		// 触发器
-		_, err = rtr.Trigger(m)
-		if err != nil {
-			c.Warn("Trigger error: %s", err)
-		}
-		c.RESTOK(r)
-		return
-	}
-
-	patch := func(c *RESTContext) { //修改
-		m := i.(Model).New(i.(Model), c) // New会把c藏到m里面
-		var err error
-
-		if _, err = rtr.PreUpdate(m); err != nil { // presearch准备条件等
-			c.Warn("PreUpdate error: %s", err)
-			c.RESTBadRequest(err)
-			return
-		}
-
-		if _, err = rtr.OnUpdate(m); err != nil {
-			c.Warn("OnUpdat error: %s", err)
-			c.RESTNotOK(err)
-			return
-		}
-
-		// 触发器
-		_, err = rtr.Trigger(m)
-		if err != nil {
-			c.Warn("Trigger error: %s", err)
-		}
-
-		// update ok
-		var r interface{}
-		if r, err = rtr.PostUpdate(m); err != nil {
-			c.Warn("postCreate error: %s", err)
-		}
-
-		c.RESTOK(r)
-		return
-	}
-	//put := func(c *RESTContext) { //重置
-	//}
-	head := func(c *RESTContext) { //检查字段
-		m := i.(Model).New(i.(Model), c) // New会把c藏到m里面
-
-		if _, err := rtr.PreCheck(m); err != nil { // presearch准备条件等
-			c.Warn("PreCheck error: %s", err)
-			c.RESTBadRequest(err)
-			return
-		}
-
-		if cnt, err := rtr.OnCheck(m); err != nil {
-			c.Warn("OnCheck error: %s", err)
-			if err == ErrNoRecord {
-				c.RESTNotFound(err)
-			} else {
-				c.RESTPanic(err)
-			}
-		} else {
-			if cnt, _ := rtr.PostCheck(cnt); cnt.(int64) > 0 {
-				c.Warn("PostCheck error: %s", err)
-				c.RESTNotOK(nil)
-			} else {
-				c.RESTOK(nil)
-			}
-		}
-
-		return
-	}
-	deny := func(c *RESTContext) {
-		c.HTTPError(http.StatusMethodNotAllowed)
-	}
-
-	switch flag {
-	case GA_GET:
-		return get
-	case GA_SEARCH:
-		return search
-	case GA_POST:
-		return post
-	case GA_DELETE:
-		return delete
-	case GA_PATCH:
-		return patch
-	//case GA_PUT:
-	//	return put
-	case GA_HEAD:
-		return head
-	default:
-		return deny
-	}
 }
 
 /* }}} */

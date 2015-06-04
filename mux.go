@@ -103,12 +103,13 @@ func (mux *Mux) AddTagHook(tag string, hook TagHook) {
 
 /* }}} */
 
-/* {{{ func (mux *Mux) NewRouter(c RouterInterface, endpoint string) RouterInterface
+/* {{{ func (mux *Mux) NewRouter(c interface{}, endpoint string) RouterInterface
  * 这样做的目的是给rounter设置mux(mux可多个) -- mux=multiplexer,复用器
  */
-func (mux *Mux) NewRouter(c RouterInterface, endpoint string) RouterInterface {
-	c.New(mux, endpoint)
-	return c
+func (mux *Mux) NewRouter(c interface{}, endpoint string) RouterInterface {
+	rtr := c.(RouterInterface)
+	rtr.New(c, mux, endpoint)
+	return rtr
 }
 
 /* }}} */
