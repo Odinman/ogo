@@ -252,15 +252,16 @@ func (bm *BaseModel) SetConditions(cs ...*Condition) (cons []*Condition, err err
 			if col.TagOptions.Contains(DBTAG_PK) || col.ExtOptions.Contains(TAG_CONDITION) { //primary key or conditional
 				if condition, e := GetCondition(cs, col.Tag); e == nil && (condition.Is != nil || condition.Not != nil || condition.Like != nil || condition.Join != nil) {
 					bm.conditions = append(bm.conditions, condition)
-				} else { //如果m有值也可以
-					v := reflect.ValueOf(m)
-					fv := utils.FieldByIndex(v, col.Index)
-					if fv.IsValid() && !utils.IsEmptyValue(fv) { //有值
-						if fs := utils.GetRealString(fv); fs != "" {
-							bm.conditions = append(bm.conditions, NewCondition(CTYPE_IS, col.Tag, fs))
-						}
-					}
 				}
+				//} else { //如果m有值也可以
+				//	v := reflect.ValueOf(m)
+				//	fv := utils.FieldByIndex(v, col.Index)
+				//	if fv.IsValid() && !utils.IsEmptyValue(fv) { //有值
+				//		if fs := utils.GetRealString(fv); fs != "" {
+				//			bm.conditions = append(bm.conditions, NewCondition(CTYPE_IS, col.Tag, fs))
+				//		}
+				//	}
+				//}
 			}
 		}
 	}
@@ -303,8 +304,12 @@ func (bm *BaseModel) GetConditions() []*Condition {
  * 初始化model, 后面的c选填
  */
 func (bm *BaseModel) New(c ...interface{}) Model {
-	m := bm.GetModel()
-	return NewModel(m, c...)
+	if m := bm.GetModel(); m != nil {
+		return NewModel(m, c...)
+	} else {
+		Info("New:not found model")
+		return nil
+	}
 }
 
 /* }}} */
@@ -380,22 +385,28 @@ func (bm *BaseModel) Existense() func(tag string) (Model, error) {
  * 数据过滤
  */
 func (bm *BaseModel) Filter() (Model, error) {
-	m := bm.GetModel()
-	r := m.New()
-	rv := reflect.ValueOf(r)
-	v := reflect.ValueOf(m)
-	if cols := utils.ReadStructColumns(m, true); cols != nil {
-		for _, col := range cols {
-			fv := utils.FieldByIndex(v, col.Index)
-			mv := utils.FieldByIndex(rv, col.Index)
-			//c.Trace("field:%s; name: %s, kind:%v; type:%s", col.Tag, col.Name, fv.Kind(), fv.Type().String())
-			if col.TagOptions.Contains(DBTAG_PK) || col.ExtOptions.Contains(TAG_RETURN) {
-				//pk以及定义了返回tag的赋值
-				mv.Set(fv)
+	if m := bm.GetModel(); m != nil {
+		//r := m.New()
+		r := NewModel(m)
+		rv := reflect.ValueOf(r)
+		v := reflect.ValueOf(m)
+		if cols := utils.ReadStructColumns(m, true); cols != nil {
+			for _, col := range cols {
+				fv := utils.FieldByIndex(v, col.Index)
+				mv := utils.FieldByIndex(rv, col.Index)
+				//c.Trace("field:%s; name: %s, kind:%v; type:%s", col.Tag, col.Name, fv.Kind(), fv.Type().String())
+				if col.TagOptions.Contains(DBTAG_PK) || col.ExtOptions.Contains(TAG_RETURN) {
+					//pk以及定义了返回tag的赋值
+					mv.Set(fv)
+				}
 			}
 		}
+		return r.(Model), nil
+	} else {
+		err := fmt.Errorf("not found model")
+		Info("error: %s", err)
+		return nil, err
 	}
-	return r.(Model), nil
 }
 
 /* }}} */
@@ -479,7 +490,7 @@ func (bm *BaseModel) GetRow(ext ...interface{}) (Model, error) {
 		//c.Debug("len: %d, no record", resultsValue.Len())
 		return nil, ErrNoRecord
 	}
-	return m.SetModel(resultsValue.Index(0).Interface().(Model)), nil
+	return NewModel(m).SetModel(resultsValue.Index(0).Interface().(Model)), nil //如果不是new，会把m破坏
 }
 
 /* }}} */
@@ -631,6 +642,7 @@ func (bm *BaseModel) ReadPrepare() (b *gorp.Builder, err error) {
 
 	// condition
 	if len(cons) > 0 {
+		Debug("conditions")
 		//range condition,先搞范围查询
 		for _, v := range cons {
 			if v.Range != nil {
@@ -745,6 +757,7 @@ func (bm *BaseModel) ReadPrepare() (b *gorp.Builder, err error) {
 			}
 		}
 	} else { //没有条件从自身找
+		Debug("find condition from struct")
 		if cols := utils.ReadStructColumns(m, true); cols != nil {
 			v := reflect.ValueOf(m)
 			for _, col := range cols {

@@ -268,14 +268,14 @@ func (_ *Router) PreUpdate(i interface{}) (interface{}, error) {
 		return nil, err
 	}
 
-	//var rk string
-	//var ok bool
-	//if rk, ok = c.URLParams[RowkeyKey]; !ok {
-	//	return nil, fmt.Errorf("rowkey empty")
-	//}
+	var rk string
+	var ok bool
+	if rk, ok = c.URLParams[RowkeyKey]; !ok {
+		return nil, fmt.Errorf("rowkey empty")
+	}
 	// old
 	var older Model
-	if older, err = m.GetRow(m.New(m)); err != nil {
+	if older, err = m.GetRow(rk); err != nil {
 		return nil, err
 	}
 	v := reflect.ValueOf(m)
