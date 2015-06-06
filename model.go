@@ -224,7 +224,12 @@ func (bm *BaseModel) GetCtx() *RESTContext {
  * 生成条件
  */
 func (bm *BaseModel) SetConditions(cs ...*Condition) (cons []*Condition, err error) {
-	m := bm.GetModel()
+	var m Model
+	if m = bm.GetModel(); m == nil {
+		err := fmt.Errorf("not found model")
+		Info("error: %s", err)
+		return nil, err
+	}
 	if bm.conditions == nil {
 		bm.conditions = make([]*Condition, 0)
 	}
@@ -318,7 +323,12 @@ func (bm *BaseModel) New(c ...interface{}) Model {
  *
  */
 func (bm *BaseModel) NewList() interface{} {
-	m := bm.GetModel()
+	var m Model
+	if m = bm.GetModel(); m == nil {
+		err := fmt.Errorf("not found model")
+		Info("error: %s", err)
+		return nil
+	}
 	ms := reflect.New(reflect.SliceOf(reflect.TypeOf(m))).Interface()
 	return ms
 }
@@ -343,7 +353,12 @@ func (bm *BaseModel) DBConn(tag string) *gorp.DbMap {
  */
 func (bm *BaseModel) TableName() (n string) {
 	//默认, struct的名字就是表名, 如果不是请在各自的model里定义
-	m := bm.GetModel()
+	var m Model
+	if m = bm.GetModel(); m == nil {
+		err := fmt.Errorf("not found model")
+		Info("error: %s", err)
+		return ""
+	}
 	reflectVal := reflect.ValueOf(m)
 	mt := reflect.Indirect(reflectVal).Type()
 	n = underscore(strings.TrimSuffix(mt.Name(), "Table"))
@@ -356,7 +371,12 @@ func (bm *BaseModel) TableName() (n string) {
  *  通过配置找到pk
  */
 func (bm *BaseModel) PKey() string {
-	m := bm.GetModel()
+	var m Model
+	if m = bm.GetModel(); m == nil {
+		err := fmt.Errorf("not found model")
+		Info("error: %s", err)
+		return ""
+	}
 	if cols := utils.ReadStructColumns(m, true); cols != nil {
 		for _, col := range cols {
 			// check required field
@@ -415,7 +435,12 @@ func (bm *BaseModel) Filter() (Model, error) {
  * 根据条件获取一条记录, model为表结构
  */
 func (bm *BaseModel) Valid() (Model, error) {
-	m := bm.GetModel()
+	var m Model
+	if m = bm.GetModel(); m == nil {
+		err := fmt.Errorf("not found model")
+		Info("error: %s", err)
+		return nil, err
+	}
 	c := m.GetCtx()
 	if err := json.Unmarshal(c.RequestBody, m); err != nil {
 		return nil, err
@@ -467,7 +492,12 @@ func (bm *BaseModel) Valid() (Model, error) {
  * 根据条件获取一条记录, model为表结构
  */
 func (bm *BaseModel) GetRow(ext ...interface{}) (Model, error) {
-	m := bm.GetModel()
+	var m Model
+	if m = bm.GetModel(); m == nil {
+		err := fmt.Errorf("not found model")
+		Info("error: %s", err)
+		return nil, err
+	}
 	if len(ext) > 0 {
 		if id, ok := ext[0].(string); ok {
 			m.SetConditions(NewCondition(CTYPE_IS, m.PKey(), id))
@@ -504,7 +534,6 @@ func (bm *BaseModel) CreateRow() (Model, error) {
 		if err := db.Insert(m); err != nil { //Insert会把m换成新的
 			return nil, err
 		} else {
-			//return m.SetModel(m).GetModel(), nil
 			return m.SetModel(m), nil
 		}
 	} else {
@@ -520,14 +549,19 @@ func (bm *BaseModel) CreateRow() (Model, error) {
  * 根据条件获取一条记录, model为表结构
  */
 func (bm *BaseModel) UpdateRow(id string) (affected int64, err error) {
-	m := bm.GetModel()
-	db := bm.DBConn(WRITETAG)
-	if id != "" {
-		if err = utils.ImportValue(m, map[string]string{DBTAG_PK: id}); err != nil {
-			return
+	if m := bm.GetModel(); m != nil {
+		db := bm.DBConn(WRITETAG)
+		if id != "" {
+			if err = utils.ImportValue(m, map[string]string{DBTAG_PK: id}); err != nil {
+				return
+			}
 		}
+		return db.Update(m)
+	} else {
+		err := fmt.Errorf("not found model")
+		Info("error: %s", err)
+		return 0, err
 	}
-	return db.Update(m)
 }
 
 /* }}} */
@@ -536,12 +570,17 @@ func (bm *BaseModel) UpdateRow(id string) (affected int64, err error) {
  * 删除记录(逻辑删除)
  */
 func (bm *BaseModel) DeleteRow(id string) (affected int64, err error) {
-	m := bm.GetModel()
-	db := bm.DBConn(WRITETAG)
-	if err = utils.ImportValue(m, map[string]string{DBTAG_PK: id, DBTAG_LOGIC: "-1"}); err != nil {
-		return
+	if m := bm.GetModel(); m != nil {
+		db := bm.DBConn(WRITETAG)
+		if err = utils.ImportValue(m, map[string]string{DBTAG_PK: id, DBTAG_LOGIC: "-1"}); err != nil {
+			return
+		}
+		return db.Update(m)
+	} else {
+		err := fmt.Errorf("not found model")
+		Info("error: %s", err)
+		return 0, err
 	}
-	return db.Update(m)
 }
 
 /* }}} */
@@ -551,30 +590,35 @@ func (bm *BaseModel) DeleteRow(id string) (affected int64, err error) {
  */
 func (bm *BaseModel) GetRows() (l *List, err error) {
 	//c := m.GetCtx()
-	m := bm.GetModel()
-	builder, _ := bm.ReadPrepare()
-	count, _ := builder.Count() //结果数
-	ms := bm.NewList()
-	//p := c.GetEnv(PaginationKey).(*Pagination)
-	if p := bm.GetPagination(); p != nil {
-		err = builder.Select(GetDbFields(m)).Offset(p.Offset).Limit(p.PerPage).Find(ms)
+	if m := bm.GetModel(); m != nil {
+		builder, _ := bm.ReadPrepare()
+		count, _ := builder.Count() //结果数
+		ms := bm.NewList()
+		//p := c.GetEnv(PaginationKey).(*Pagination)
+		if p := bm.GetPagination(); p != nil {
+			err = builder.Select(GetDbFields(m)).Offset(p.Offset).Limit(p.PerPage).Find(ms)
+		} else {
+			err = builder.Select(GetDbFields(m)).Find(ms)
+		}
+		if err != nil && err != sql.ErrNoRows {
+			//支持出错
+			return l, err
+		} else if ms == nil {
+			//没找到记录
+			return l, ErrNoRecord
+		}
+
+		l = &List{
+			Total: count,
+			List:  ms,
+		}
+
+		return l, nil
 	} else {
-		err = builder.Select(GetDbFields(m)).Find(ms)
+		err := fmt.Errorf("not found model")
+		Info("error: %s", err)
+		return nil, err
 	}
-	if err != nil && err != sql.ErrNoRows {
-		//支持出错
-		return l, err
-	} else if ms == nil {
-		//没找到记录
-		return l, ErrNoRecord
-	}
-
-	l = &List{
-		Total: count,
-		List:  ms,
-	}
-
-	return l, nil
 }
 
 /* }}} */
@@ -594,37 +638,41 @@ func (bm *BaseModel) GetCount() (cnt int64, err error) {
  * 注册表结构
  */
 func (bm *BaseModel) AddTable(tags ...string) {
-	m := bm.GetModel()
-	reflectVal := reflect.ValueOf(m)
-	mv := reflect.Indirect(reflectVal).Interface()
-	Debug("table name: %s", bm.TableName())
-	tb := bm.TableName()
-	gorp.AddTableWithName(mv, tb).SetKeys(true, bm.PKey())
+	if m := bm.GetModel(); m != nil {
+		reflectVal := reflect.ValueOf(m)
+		mv := reflect.Indirect(reflectVal).Interface()
+		Debug("table name: %s", bm.TableName())
+		tb := bm.TableName()
+		gorp.AddTableWithName(mv, tb).SetKeys(true, bm.PKey())
 
-	//data accessor, 默认都是DBTAG
-	DataAccessor[tb+"::"+WRITETAG] = DBTAG
-	DataAccessor[tb+"::"+READTAG] = DBTAG
-	if len(tags) > 0 {
-		writeTag := tags[0]
-		if dns := Config().String("data::" + writeTag); dns != "" {
-			Info("%s's writer: %s", tb, dns)
-			if err := OpenDB(writeTag, dns); err != nil {
-				Warn("open db(%s) error: %s", writeTag, err)
-			} else {
-				DataAccessor[tb+"::"+WRITETAG] = writeTag
+		//data accessor, 默认都是DBTAG
+		DataAccessor[tb+"::"+WRITETAG] = DBTAG
+		DataAccessor[tb+"::"+READTAG] = DBTAG
+		if len(tags) > 0 {
+			writeTag := tags[0]
+			if dns := Config().String("data::" + writeTag); dns != "" {
+				Info("%s's writer: %s", tb, dns)
+				if err := OpenDB(writeTag, dns); err != nil {
+					Warn("open db(%s) error: %s", writeTag, err)
+				} else {
+					DataAccessor[tb+"::"+WRITETAG] = writeTag
+				}
 			}
 		}
-	}
-	if len(tags) > 1 {
-		readTag := tags[1]
-		if dns := Config().String("data::" + readTag); dns != "" {
-			Info("%s's reader: %s", tb, dns)
-			if err := OpenDB(readTag, dns); err != nil {
-				Warn("open db(%s) error: %s", readTag, err)
-			} else {
-				DataAccessor[tb+"::"+READTAG] = readTag
+		if len(tags) > 1 {
+			readTag := tags[1]
+			if dns := Config().String("data::" + readTag); dns != "" {
+				Info("%s's reader: %s", tb, dns)
+				if err := OpenDB(readTag, dns); err != nil {
+					Warn("open db(%s) error: %s", readTag, err)
+				} else {
+					DataAccessor[tb+"::"+READTAG] = readTag
+				}
 			}
 		}
+	} else {
+		err := fmt.Errorf("not found model")
+		Info("error: %s", err)
 	}
 }
 
@@ -634,7 +682,12 @@ func (bm *BaseModel) AddTable(tags ...string) {
  * 查询准备
  */
 func (bm *BaseModel) ReadPrepare() (b *gorp.Builder, err error) {
-	m := bm.GetModel()
+	var m Model
+	if m = bm.GetModel(); m == nil {
+		err := fmt.Errorf("not found model")
+		Info("error: %s", err)
+		return nil, err
+	}
 	db := bm.DBConn(READTAG)
 	tb := bm.TableName()
 	b = gorp.NewBuilder(db).Table(tb)
