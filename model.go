@@ -164,6 +164,20 @@ func NewModel(m Model, c ...interface{}) Model {
 
 /* }}} */
 
+/* {{{ func BuildModel(m Model,c ...interface{}) Model {
+ * 第一个参数,model,必须是指针; 第二个参数, *RESTContext
+ */
+func BuildModel(m Model, c ...interface{}) Model {
+	//新建一个指针
+	m.SetModel(m)
+	if len(c) > 0 {
+		m.SetCtx(c[0].(*RESTContext))
+	}
+	return m
+}
+
+/* }}} */
+
 /* {{{ func GetCondition(cs []*Condition, k string) (con *Condition, err error)
  *
  */
