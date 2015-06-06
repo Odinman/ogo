@@ -490,7 +490,7 @@ func (bm *BaseModel) GetRow(ext ...interface{}) (Model, error) {
 		//c.Debug("len: %d, no record", resultsValue.Len())
 		return nil, ErrNoRecord
 	}
-	return NewModel(m).SetModel(resultsValue.Index(0).Interface().(Model)), nil //如果不是new，会把m破坏
+	return resultsValue.Index(0).Interface().(Model), nil
 }
 
 /* }}} */

@@ -88,12 +88,10 @@ func (_ *Router) PreGet(i interface{}) (interface{}, error) {
  *
  */
 func (_ *Router) OnGet(i interface{}) (interface{}, error) {
-	var err error
 	m := i.(Model)
 	//c := m.GetCtx()
 	//id := c.URLParams[RowkeyKey]
-	m, err = m.GetRow(m)
-	return m, err
+	return m.GetRow(m)
 }
 
 /* }}} */
