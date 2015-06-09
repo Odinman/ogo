@@ -42,9 +42,9 @@ const (
 )
 
 type List struct {
+	Info  ListInfo    `json:"info,omitempty"`
 	Total int64       `json:"total"`
 	List  interface{} `json:"list"`
-	Info  ListInfo    `json:"info"`
 }
 
 type ListInfo struct {
@@ -667,6 +667,7 @@ func (bm *BaseModel) GetSum(d []string) (l *List, err error) {
 		if len(d) > 0 {
 			group = append(group, d...)
 		}
+		builder.Group(group)
 		count, _ := builder.Count() //结果数
 		ms = bm.NewList()
 		if p := bm.GetPagination(); p != nil {
