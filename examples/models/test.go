@@ -16,13 +16,14 @@ type Test struct {
 	Creator  *string    `json:"creator,omitempty" filter:"userid,G,D"`
 	Remark   *string    `json:"remark,omitempty" filter:"test"`
 	User     *string    `json:"user,omitempty" filter:",G,D,C,PSU"`
-	Created  *time.Time `json:"created,omitempty" db:",add_now" filter:",G,F"`
+	Items    []string   `json:"items,omitempty"`
+	Created  *time.Time `json:"created,omitempty" db:",add_now" filter:",G,F,C,TR"`
 	Modified *time.Time `json:"modified,omitempty" filter:",G"`
 	ogo.BaseModel
 }
 
 func init() {
-	new(Test).AddTable(new(Test))
+	ogo.NewModel(new(Test)).AddTable("adminwrite")
 	ogo.AddTagHook("test", new(Test).Test)
 }
 

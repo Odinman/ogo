@@ -18,7 +18,7 @@ func init() {
 	r.AddRoute("DELETE", "/", r.Delete, ogo.RouteOption{ogo.KEY_SKIPLOGIN: true, ogo.KEY_SKIPAUTH: true})
 	r.AddRoute("PATCH", "/", r.Patch, ogo.RouteOption{ogo.KEY_SKIPLOGIN: true, ogo.KEY_SKIPAUTH: true})
 	// 初始化并载入默认路由, 默认路由不会覆盖自定义路由
-	r.Init(r)
+	r.Init()
 }
 
 func (this *RootRouter) Root(c *ogo.RESTContext) {
