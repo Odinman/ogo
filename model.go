@@ -613,11 +613,14 @@ func (bm *BaseModel) DeleteRow(id string) (affected int64, err error) {
 func (bm *BaseModel) GetRows() (l *List, err error) {
 	//c := m.GetCtx()
 	if m := bm.GetModel(); m != nil {
+		l = new(List)
 		builder, _ := bm.ReadPrepare()
 		count, _ := builder.Count() //结果数
 		ms := bm.NewList()
 		//p := c.GetEnv(PaginationKey).(*Pagination)
 		if p := bm.GetPagination(); p != nil {
+			l.Info.Page = &p.Page
+			l.Info.PerPage = &p.PerPage
 			err = builder.Select(GetDbFields(m)).Offset(p.Offset).Limit(p.PerPage).Find(ms)
 		} else {
 			err = builder.Select(GetDbFields(m)).Find(ms)
@@ -630,10 +633,8 @@ func (bm *BaseModel) GetRows() (l *List, err error) {
 			return l, ErrNoRecord
 		}
 
-		l = &List{
-			Total: count,
-			List:  ms,
-		}
+		l.Total = count
+		l.List = ms
 
 		return l, nil
 	} else {
