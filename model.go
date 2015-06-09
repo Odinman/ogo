@@ -44,6 +44,13 @@ const (
 type List struct {
 	Total int64       `json:"total"`
 	List  interface{} `json:"list"`
+	Info  ListInfo    `json:"info"`
+}
+
+type ListInfo struct {
+	Page    *int        `json:"page,omitempty"`     //当前页面
+	PerPage *int        `json:"per_page,omitempty"` //每页元素个数
+	Sum     interface{} `json:"sum,omitempty"`      //求和
 }
 
 //错误代码
@@ -131,6 +138,7 @@ type Model interface {
 	// data accessor
 	GetRow(ext ...interface{}) (Model, error)   //获取单条记录
 	GetRows() (*List, error)                    //获取多条记录
+	GetSum(d []string) (*List, error)           //获取多条记录
 	GetCount() (int64, error)                   //获取多条记录
 	CreateRow() (Model, error)                  //创建单条记录
 	UpdateRow(id string) (int64, error)         //更新记录
@@ -637,6 +645,58 @@ func (bm *BaseModel) GetRows() (l *List, err error) {
 
 /* }}} */
 
+/* {{{ func (bm *BaseModel) GetSum(d []string) (l *List, err error)
+ * 获取list, 通用函数
+ */
+func (bm *BaseModel) GetSum(d []string) (l *List, err error) {
+	//c := m.GetCtx()
+	if m := bm.GetModel(); m != nil {
+		builder, _ := bm.ReadPrepare()
+
+		l = new(List)
+
+		group := make([]string, 0)
+		ms := bm.NewList()
+		if err := builder.Select(GetSumFields(m, group)).Find(ms); err == nil {
+			sumValue := reflect.Indirect(reflect.ValueOf(ms))
+			if sumValue.Len() > 0 {
+				l.Info.Sum = sumValue.Index(0).Interface()
+			}
+		}
+
+		if len(d) > 0 {
+			group = append(group, d...)
+		}
+		count, _ := builder.Count() //结果数
+		ms = bm.NewList()
+		if p := bm.GetPagination(); p != nil {
+			l.Info.Page = &p.Page
+			l.Info.PerPage = &p.PerPage
+			err = builder.Select(GetSumFields(m, group)).Offset(p.Offset).Limit(p.PerPage).Find(ms)
+		} else {
+			err = builder.Select(GetSumFields(m, group)).Find(ms)
+		}
+		if err != nil && err != sql.ErrNoRows {
+			//支持出错
+			return l, err
+		} else if ms == nil {
+			//没找到记录
+			return l, ErrNoRecord
+		}
+
+		l.Total = count
+		l.List = ms
+
+		return l, nil
+	} else {
+		err := fmt.Errorf("not found model")
+		Info("error: %s", err)
+		return nil, err
+	}
+}
+
+/* }}} */
+
 /* {{{ func (bm *BaseModel) GetCount() (cnt int64, err error)
  * 获取list, 通用函数
  */
@@ -858,6 +918,18 @@ func (bm *BaseModel) ReadPrepare() (b *gorp.Builder, err error) {
 		//默认排序
 		if cols := utils.ReadStructColumns(m, true); cols != nil {
 			for _, col := range cols {
+				//if col.TagOptions.Contains(DBTAG_PK) { // 默认为pk降序
+				if col.ExtOptions.Contains(TAG_ORDERBY) { // 默认为pk降序
+					b.Order(fmt.Sprintf("T.`%s` DESC", col.Tag))
+					ordered = true
+				}
+			}
+		}
+	}
+	if !ordered {
+		//默认排序
+		if cols := utils.ReadStructColumns(m, true); cols != nil {
+			for _, col := range cols {
 				if col.TagOptions.Contains(DBTAG_PK) { // 默认为pk降序
 					b.Order(fmt.Sprintf("T.`%s` DESC", col.Tag))
 				}
@@ -904,6 +976,43 @@ func GetDbFields(i interface{}) (s []string) {
 			}
 			s = append(s, col.Tag)
 		}
+	}
+	return
+}
+
+/* }}} */
+
+/* {{{ func GetSumFields(i interface{}, g []string) (s string)
+ * 从struct中解析数据库字段以及字段选项,为了报表
+ */
+func GetSumFields(i interface{}, g []string) (s string) {
+	if cols := utils.ReadStructColumns(i, true); cols != nil {
+		bs := bytes.Buffer{}
+		first := true
+		for _, col := range cols {
+			if !col.ExtOptions.Contains(TAG_REPORT) { //不是报表字段,不对外
+				continue
+			}
+			if col.ExtOptions.Contains(TAG_SECRET) { //保密,不对外
+				continue
+			}
+			if strings.ToLower(col.ExtTag) == "group" && !utils.InSlice(col.Tag, g) {
+				continue
+			}
+			if !first {
+				bs.WriteString(",")
+			}
+			switch et := strings.ToLower(col.ExtTag); et {
+			case "sum": //求和
+				bs.WriteString(fmt.Sprintf("SUM(T.`%s`) AS `%s`", col.Tag, col.Tag))
+			case "count": //计数
+				bs.WriteString(fmt.Sprintf("COUNT(T.`%s`) AS `%s`", col.Tag, col.Tag))
+			default:
+				bs.WriteString("T.`" + col.Tag + "`")
+			}
+			first = false
+		}
+		s = bs.String()
 	}
 	return
 }
