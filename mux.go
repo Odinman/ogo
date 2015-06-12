@@ -16,6 +16,7 @@ import (
 	"github.com/Odinman/ogo/libs/logs"
 	"github.com/Odinman/ogo/utils"
 	omq "github.com/Odinman/omq/utils"
+	"gopkg.in/redis.v3"
 )
 
 /* }}} */
@@ -52,6 +53,7 @@ type Mux struct {
 	logger   *logs.OLogger          //debug日志记录
 	accessor *logs.OLogger          //日志
 	omqpool  *omq.Pool              // omq连接池
+	cc       *redis.ClusterClient   // cluster client 客户端
 	Workers  map[string]*Worker
 	Routes   map[string]*Route
 	Hooks    HStack
@@ -247,6 +249,8 @@ func (mux *Mux) initEnv() (err error) {
 		Warn("omq error: %s", err)
 	}
 
+	// redis cluster
+
 	//db init,目前只有mysql
 	if dns := cfg.String("data::dns"); dns != "" {
 		OpenDB(DBTAG, dns)
@@ -357,6 +361,32 @@ func (mux *Mux) OmqPool() (*omq.Pool, error) {
 	}
 
 	return mux.omqpool, nil
+}
+
+/* }}} */
+
+/* {{{ func (mux *Mux) ClusterClient() (*redis.ClusterClient, error)
+ *
+ */
+func (mux *Mux) ClusterClient() (*redis.ClusterClient, error) {
+	if mux.cc == nil {
+		if cfg, err := mux.Config(); err != nil {
+			return nil, err
+		} else {
+			var clusterAddrs []string
+			if cass := cfg.String("cluster::addrs"); cass != "" {
+				clusterAddrs = strings.Split(cass, ",")
+				Info("[cluster][%s]", clusterAddrs)
+				mux.cc = redis.NewClusterClient(&redis.ClusterOptions{
+					Addrs: clusterAddrs,
+				})
+			} else {
+				return nil, fmt.Errorf("[cluster]not found config info")
+			}
+		}
+	}
+
+	return mux.cc, nil
 }
 
 /* }}} */

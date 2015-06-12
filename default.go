@@ -9,6 +9,7 @@ import (
 	"github.com/Odinman/ogo/libs/config"
 	"github.com/Odinman/ogo/libs/logs"
 	omq "github.com/Odinman/omq/utils"
+	"gopkg.in/redis.v3"
 )
 
 /* {{{ func init()
@@ -106,6 +107,19 @@ func OmqPool() *omq.Pool {
 		return nil
 	} else {
 		return omqpool
+	}
+}
+
+/* }}} */
+
+/* {{{ func ClusterClient() *redis.ClusterClient
+ *
+ */
+func ClusterClient() *redis.ClusterClient {
+	if cc, err := DMux.ClusterClient(); err != nil {
+		return nil
+	} else {
+		return cc
 	}
 }
 
