@@ -40,6 +40,7 @@ const (
 	USERID_KEY     = "_userid_"
 	APPID_KEY      = "_appid_"
 	PERMISSION_KEY = "_perm_"
+	EXT_KEY        = "_ext_"
 
 	//1x1 gir
 	base64GifPixel = "R0lGODlhAQABAIAAAP///wAAACwAAAAAAQABAAACAkQBADs="
