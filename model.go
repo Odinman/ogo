@@ -136,16 +136,16 @@ type Model interface {
 	ReadPrepare() (*gorp.Builder, error)
 
 	// data accessor
-	GetRow(ext ...interface{}) (Model, error)   //获取单条记录
-	GetRows() (*List, error)                    //获取多条记录
-	GetSum(d []string) (*List, error)           //获取多条记录
-	GetCount() (int64, error)                   //获取多条记录
-	CreateRow() (Model, error)                  //创建单条记录
-	UpdateRow(id string) (int64, error)         //更新记录
-	DeleteRow(id string) (int64, error)         //更新记录
-	Existense() func(tag string) (Model, error) //检查存在性
-	Valid() (Model, error)                      //数据验证
-	Filter() (Model, error)                     //数据过滤
+	GetRow(ext ...interface{}) (Model, error)         //获取单条记录
+	GetRows() (*List, error)                          //获取多条记录
+	GetSum(d []string) (*List, error)                 //获取多条记录
+	GetCount() (int64, error)                         //获取多条记录
+	CreateRow() (Model, error)                        //创建单条记录
+	UpdateRow(id string) (int64, error)               //更新记录
+	DeleteRow(id string) (int64, error)               //更新记录
+	Existense() func(tag string) (interface{}, error) //检查存在性
+	Valid() (Model, error)                            //数据验证
+	Filter() (Model, error)                           //数据过滤
 }
 
 //基础model,在这里可以实现Model接口, 其余的只需要嵌入这个struct,就可以继承这些方法
@@ -412,12 +412,12 @@ func (bm *BaseModel) PKey() string {
 
 /* }}} */
 
-/* {{{ func (bm *BaseModel) Existense() func(tag string) (Model, error)
+/* {{{ func (bm *BaseModel) Existense() func(tag string) (interface{}, error)
  *
  */
-func (bm *BaseModel) Existense() func(tag string) (Model, error) {
-	return func(tag string) (Model, error) {
-		return nil, fmt.Errorf("can't check")
+func (bm *BaseModel) Existense() func(tag string) (interface{}, error) {
+	return func(tag string) (interface{}, error) {
+		return nil, nil
 	}
 }
 
