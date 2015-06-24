@@ -124,6 +124,8 @@ type Model interface {
 	GetConditions() []*Condition
 	SetPagination(p *Pagination)
 	GetPagination() *Pagination
+	SetFields(fs []string)
+	GetFields() []string
 
 	New(c ...interface{}) Model
 	NewList() interface{} // 返回一个空结构列表
@@ -145,7 +147,7 @@ type Model interface {
 	DeleteRow(id string) (int64, error)               //更新记录
 	Existense() func(tag string) (interface{}, error) //检查存在性
 	Valid() (Model, error)                            //数据验证
-	Filter() (Model, error)                           //数据过滤
+	Filter() (Model, error)                           //数据过滤(创建,更新后)
 }
 
 //基础model,在这里可以实现Model接口, 其余的只需要嵌入这个struct,就可以继承这些方法
@@ -155,6 +157,7 @@ type BaseModel struct {
 	ctx        *RESTContext `json:"-" db:"-"`
 	conditions []*Condition `json:"-" db:"-"`
 	pagination *Pagination  `json:"-" db:"-"`
+	fields     []string     `json:"-" db:"-"`
 }
 
 /* {{{ func NewModel(m Model,c ...interface{}) Model {
@@ -297,6 +300,15 @@ func (bm *BaseModel) SetConditions(cs ...*Condition) (cons []*Condition, err err
 
 /* }}} */
 
+/* {{{ func (bm *BaseModel) GetConditions() []*Condition
+ *
+ */
+func (bm *BaseModel) GetConditions() []*Condition {
+	return bm.conditions
+}
+
+/* }}} */
+
 /* {{{ func (bm *BaseModel) SetPagination(p *Pagination)
  * 生成条件
  */
@@ -318,11 +330,23 @@ func (bm *BaseModel) GetPagination() *Pagination {
 
 /* }}} */
 
-/* {{{ func (bm *BaseModel) GetPagination() *Pagination
+/* {{{ func (bm *BaseModel) SetFields(fs []string)
+ * 生成条件
+ */
+func (bm *BaseModel) SetFields(fs []string) {
+	if bm.fields == nil {
+		bm.fields = make([]string, 0)
+	}
+	bm.fields = fs
+}
+
+/* }}} */
+
+/* {{{ func (bm *BaseModel) GetFields() []string
  *
  */
-func (bm *BaseModel) GetConditions() []*Condition {
-	return bm.conditions
+func (bm *BaseModel) GetFields() []string {
+	return bm.fields
 }
 
 /* }}} */
@@ -621,9 +645,9 @@ func (bm *BaseModel) GetRows() (l *List, err error) {
 		if p := bm.GetPagination(); p != nil {
 			l.Info.Page = &p.Page
 			l.Info.PerPage = &p.PerPage
-			err = builder.Select(GetDbFields(m)).Offset(p.Offset).Limit(p.PerPage).Find(ms)
+			err = builder.Select(GetDbFields(m, true)).Offset(p.Offset).Limit(p.PerPage).Find(ms)
 		} else {
-			err = builder.Select(GetDbFields(m)).Find(ms)
+			err = builder.Select(GetDbFields(m, true)).Find(ms)
 		}
 		if err != nil && err != sql.ErrNoRows {
 			//支持出错
@@ -965,15 +989,26 @@ func underscore(str string) string {
 
 /* }}} */
 
-/* {{{ GetDbFields(i interface{}) (s string)
+/* {{{ GetDbFields(i interface{}, ops ...interface{}) (s string)
  * 从struct中解析数据库字段以及字段选项
  */
-func GetDbFields(i interface{}) (s []string) {
+func GetDbFields(i interface{}, ops ...interface{}) (s []string) {
+	var readTag bool
+	if len(ops) > 0 {
+		if st, ok := ops[0].(bool); ok && st == true {
+			readTag = true
+		}
+	}
+
+	fs := i.(Model).GetFields()
 	if cols := utils.ReadStructColumns(i, true); cols != nil {
 		s = make([]string, 0)
 		for _, col := range cols {
-			//if col.Tag == "-" || col.ExtOptions.Contains(TAG_SECRET) { //保密,不对外
-			if col.Tag == "-" { //保密,不对外
+			if col.Tag == "-" { //无此字段
+				continue
+			} else if readTag && col.ExtOptions.Contains(TAG_SECRET) { //默认忽略tag
+				continue
+			} else if len(fs) > 0 && !col.TagOptions.Contains(DBTAG_PK) && !utils.InSlice(col.Tag, fs) {
 				continue
 			}
 			s = append(s, col.Tag)

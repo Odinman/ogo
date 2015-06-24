@@ -219,7 +219,15 @@ func ParseParams(c *web.C, h http.Handler) http.Handler {
 				rc.setOrderBy(v)
 			case _PARAM_FIELDS:
 				//过滤字段
-				rc.SetEnv(FieldsKey, v)
+				if len(v) > 1 { //传了多个
+					rc.SetEnv(FieldsKey, v)
+				} else {
+					if strings.Contains(v[0], ",") {
+						rc.SetEnv(FieldsKey, strings.Split(v[0], ","))
+					} else {
+						rc.SetEnv(FieldsKey, v)
+					}
+				}
 			case _PARAM_PERPAGE:
 				if len(v) > 0 {
 					pp = v[0]

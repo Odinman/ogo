@@ -80,6 +80,10 @@ func (_ *Router) PreGet(i interface{}) (interface{}, error) {
 	if cons := c.GetEnv(ConditionsKey); cons != nil { //从context里面获取参数条件
 		m.SetConditions(cons.([]*Condition)...)
 	}
+	// fields
+	if fs := c.GetEnv(FieldsKey); fs != nil { //从context里面获取参数条件
+		m.SetFields(fs.([]string))
+	}
 	return i, nil
 }
 
@@ -132,6 +136,10 @@ func (_ *Router) PreSearch(i interface{}) (interface{}, error) {
 	}
 	if cons := c.GetEnv(ConditionsKey); cons != nil { //从context里面获取参数条件
 		m.SetConditions(cons.([]*Condition)...)
+	}
+	// fields
+	if fs := c.GetEnv(FieldsKey); fs != nil { //从context里面获取参数条件
+		m.SetFields(fs.([]string))
 	}
 	return i, nil
 }
