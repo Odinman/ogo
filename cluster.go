@@ -34,3 +34,14 @@ func CacheGet(key string) (string, error) {
 }
 
 /* }}} */
+
+/* {{{ func GetLock(tag string) string
+ * 获取锁
+ */
+func GetLock(tag string) string {
+	if cc := ClusterClient(); cc != nil {
+	}
+	return ""
+}
+
+/* }}} */
