@@ -931,7 +931,6 @@ func (bm *BaseModel) ReadPrepare() (b *gorp.Builder, err error) {
 
 	// condition
 	if len(cons) > 0 {
-		Debug("conditions")
 		//range condition,先搞范围查询
 		for _, v := range cons {
 			if v.Range != nil {

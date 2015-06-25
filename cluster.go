@@ -25,6 +25,19 @@ func CacheSet(key, value string, expire int) error {
 
 /* }}} */
 
+/* {{{ func CacheIncrByFloat(key string, value float64) error
+ *
+ */
+func CacheIncrByFloat(key string, value float64) error {
+	if cc := ClusterClient(); cc != nil {
+		return cc.IncrByFloat(key, value).Err()
+	} else {
+		return fmt.Errorf("incr %s failed", key)
+	}
+}
+
+/* }}} */
+
 /* {{{ func CacheGet(key) error
  *
  */
