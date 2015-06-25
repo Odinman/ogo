@@ -266,10 +266,17 @@ func GetRealString(v reflect.Value) string {
 
 /* }}} */
 
-/* {{{ func valueStructParse()
- *
+/* {{{ func FieldExists(i interface{},f string) bool
+ * 判断一个结构变量是否有某个字段
  */
-func valueStructParse() {
+func FieldExists(i interface{}, f string) bool {
+	r := reflect.ValueOf(i)
+	fv := reflect.Indirect(r).FieldByName(f)
+	if !fv.IsValid() {
+		return false
+	} else {
+		return true
+	}
 }
 
 /* }}} */

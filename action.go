@@ -2,11 +2,7 @@
 
 package ogo
 
-import (
-	"reflect"
-
-	"github.com/Odinman/ogo/utils"
-)
+import ()
 
 const (
 	// generic action const
@@ -110,17 +106,9 @@ func (_ *Router) OnGet(i interface{}) (interface{}, error) {
  *
  */
 func (_ *Router) PostGet(i interface{}) (interface{}, error) {
-	if cols := utils.ReadStructColumns(i, true); cols != nil {
-		v := reflect.ValueOf(i)
-		for _, col := range cols {
-			if col.ExtOptions.Contains(TAG_SECRET) { //保密,不对外
-				fv := utils.FieldByIndex(v, col.Index)
-				fv.Set(reflect.Zero(fv.Type()))
-			}
-		}
-	}
+	//m := i.(Model)
+	//return m.Protect()
 	return i, nil
-
 }
 
 /* }}} */

@@ -149,6 +149,7 @@ type Model interface {
 	CheckerFactory() Checker                  //检查存在性
 	Valid() (Model, error)                    //数据验证
 	Filter() (Model, error)                   //数据过滤(创建,更新后)
+	Protect() (Model, error)                  //数据保护(获取数据时过滤字段)
 }
 
 type Checker func(string) (interface{}, error)
@@ -163,6 +164,7 @@ type BaseModel struct {
 	conditions []*Condition `json:"-" db:"-"`
 	pagination *Pagination  `json:"-" db:"-"`
 	fields     []string     `json:"-" db:"-"`
+	base       string       `json:"-" db:"-"` //这个的作用就是判断是否是BaseModel
 }
 
 /* {{{ func NewModel(m Model,c ...interface{}) Model {
@@ -537,7 +539,7 @@ func (bm *BaseModel) Valid() (Model, error) {
 			if fv.IsValid() && !utils.IsEmptyValue(fv) { //传入了内容
 				if col.ExtOptions.Contains(TAG_GENERATE) { //服务器生成, 忽略传入
 					fv.Set(reflect.Zero(fv.Type()))
-				} else if col.ExtOptions.Contains(TAG_DENY) { //尝试编辑不可编辑的字段,要报错
+				} else if updating && col.ExtOptions.Contains(TAG_DENY) { //尝试编辑不可编辑的字段,要报错
 					c.Info("%s is uneditable: %v", col.Tag, fv)
 					return nil, fmt.Errorf("%s is uneditable", col.Tag) //尝试编辑不可编辑的字段,直接报错
 				}
@@ -644,6 +646,30 @@ func (bm *BaseModel) Valid() (Model, error) {
 
 /* }}} */
 
+/* {{{ func (bm *BaseModel) Protect() (Model, error)
+ * 数据过滤
+ */
+func (bm *BaseModel) Protect() (Model, error) {
+	if m := bm.GetModel(); m != nil {
+		if cols := utils.ReadStructColumns(m, true); cols != nil {
+			v := reflect.ValueOf(m)
+			for _, col := range cols {
+				if col.ExtOptions.Contains(TAG_SECRET) { //保密,不对外
+					fv := utils.FieldByIndex(v, col.Index)
+					fv.Set(reflect.Zero(fv.Type()))
+				}
+			}
+		}
+		return m, nil
+	} else {
+		err := fmt.Errorf("not found model")
+		Info("error: %s", err)
+		return nil, err
+	}
+}
+
+/* }}} */
+
 /* {{{ func (bm *BaseModel) GetRow(ext ...interface{}) (Model, error)
  * 根据条件获取一条记录, model为表结构
  */
@@ -676,7 +702,7 @@ func (bm *BaseModel) GetRow(ext ...interface{}) (Model, error) {
 		//c.Debug("len: %d, no record", resultsValue.Len())
 		return nil, ErrNoRecord
 	}
-	return resultsValue.Index(0).Interface().(Model), nil
+	return BuildModel(resultsValue.Index(0).Interface().(Model)), nil
 }
 
 /* }}} */
