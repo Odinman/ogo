@@ -3,7 +3,6 @@
 package ogo
 
 import (
-	"fmt"
 	"reflect"
 
 	"github.com/Odinman/ogo/utils"
@@ -51,6 +50,7 @@ type ActionInterface interface {
 	PostCheck(i interface{}) (interface{}, error) // 搜索后的检查
 
 	Trigger(i interface{}) (interface{}, error) //触发器
+	Defer(i interface{})                        //触发器
 }
 
 /* {{{ func (_ *Router) Trigger(i interface{}) (interface{}, error)
@@ -58,6 +58,13 @@ type ActionInterface interface {
  */
 func (_ *Router) Trigger(i interface{}) (interface{}, error) {
 	return i, nil
+}
+
+/* }}} */
+/* {{{ func (_ *Router) Defer(i interface{})
+ *
+ */
+func (_ *Router) Defer(i interface{}) {
 }
 
 /* }}} */
@@ -168,73 +175,9 @@ func (_ *Router) PostSearch(i interface{}) (interface{}, error) {
  */
 func (_ *Router) PreCreate(i interface{}) (interface{}, error) {
 	m := i.(Model)
-	c := m.GetCtx()
 	var err error
 	if m, err = m.Valid(); err != nil {
 		return nil, err
-	}
-	v := reflect.ValueOf(m)
-	// existense checker
-	eChecker := m.Existense()
-	if cols := utils.ReadStructColumns(m, true); cols != nil {
-		for _, col := range cols {
-			fv := utils.FieldByIndex(v, col.Index)
-			//c.Trace("name:%s; kind:%v; type:%s; extag: %s", col.Tag, fv.Kind(), fv.Type().String(), col.ExtTag)
-			// check required field(when post)
-			if col.ExtOptions.Contains(TAG_REQUIRED) && (!fv.IsValid() || utils.IsEmptyValue(fv)) {
-				c.Debug("field %s required but empty", col.Tag)
-				return nil, fmt.Errorf("field %s required but empty", col.Tag)
-			}
-			switch col.ExtTag { //根据tag, 会对数据进行预处理
-			case "userid": //替换为userid
-				var userid string
-				if uid := c.GetEnv(USERID_KEY); uid == nil {
-					userid = "0"
-					c.Debug("userid not exists")
-				} else {
-					userid = uid.(string)
-					c.Debug("userid: %s", userid)
-				}
-				switch fv.Type().String() {
-				case "*string":
-					fv.Set(reflect.ValueOf(&userid))
-				case "string":
-					fv.Set(reflect.ValueOf(userid))
-				default:
-					return nil, fmt.Errorf("field(%s) must be string, not %s", col.Tag, fv.Kind().String())
-				}
-			case "existense": //检查存在性
-				if exValue, err := eChecker(col.Tag); err != nil {
-					return nil, fmt.Errorf("%s existense check failed: %s", col.Tag, err.Error())
-				} else {
-					c.Debug("%s existense: %v", col.Tag, exValue)
-					fv.Set(reflect.ValueOf(exValue))
-				}
-			case "uuid":
-				switch fv.Type().String() {
-				case "*string":
-					h := utils.NewShortUUID()
-					fv.Set(reflect.ValueOf(&h))
-				case "string":
-					h := utils.NewShortUUID()
-					fv.Set(reflect.ValueOf(h))
-				default:
-					return nil, fmt.Errorf("field(%s) must be string, not %s", col.Tag, fv.Kind().String())
-				}
-			case "luuid":
-				switch fv.Type().String() {
-				case "*string":
-					h := utils.NewUUID()
-					fv.Set(reflect.ValueOf(&h))
-				case "string":
-					h := utils.NewUUID()
-					fv.Set(reflect.ValueOf(h))
-				default:
-					return nil, fmt.Errorf("field(%s) must be string, not %s", col.Tag, fv.Kind().String())
-				}
-			default:
-			}
-		}
 	}
 	return m, nil
 }
@@ -268,76 +211,11 @@ func (_ *Router) PostCreate(i interface{}) (interface{}, error) {
  */
 func (_ *Router) PreUpdate(i interface{}) (interface{}, error) {
 	m := i.(Model)
-	c := m.GetCtx()
 	var err error
 	if m, err = m.Valid(); err != nil {
 		return nil, err
 	}
 
-	var rk string
-	var ok bool
-	if rk, ok = c.URLParams[RowkeyKey]; !ok {
-		return nil, fmt.Errorf("rowkey empty")
-	}
-	// old
-	var older Model
-	if older, err = m.GetRow(rk); err != nil {
-		return nil, err
-	}
-	v := reflect.ValueOf(m)
-	// existense checker
-	eChecker := m.Existense()
-	if cols := utils.ReadStructColumns(m, true); cols != nil {
-		for _, col := range cols {
-			fv := utils.FieldByIndex(v, col.Index)
-			//c.Trace("name:%s; kind:%v; type:%s; extag: %s", col.Tag, fv.Kind(), fv.Type().String(), col.ExtTag)
-			// check required field(when post)
-			if fv.IsValid() && !utils.IsEmptyValue(fv) {
-				if col.ExtOptions.Contains(TAG_DENY) { //尝试编辑不可编辑的字段,要报错
-					c.Info("%s is uneditable: %v", col.Tag, fv)
-					return nil, fmt.Errorf("%s is uneditable", col.Tag) //尝试编辑不可编辑的字段,直接报错
-				} else { //忽略
-					continue
-				}
-			}
-			// server generate,忽略传入的信息
-			switch col.ExtTag { //根据tag, 会对数据进行预处理
-			case "userid": //替换为userid
-				var userid string
-				if uid := c.GetEnv(USERID_KEY); uid == nil {
-					userid = "0"
-					c.Debug("userid not exists")
-				} else {
-					userid = uid.(string)
-					c.Debug("userid: %s", userid)
-				}
-				switch fv.Type().String() {
-				case "*string":
-					fv.Set(reflect.ValueOf(&userid))
-				case "string":
-					fv.Set(reflect.ValueOf(userid))
-				default:
-					return nil, fmt.Errorf("field(%s) must be string, not %s", col.Tag, fv.Kind().String())
-				}
-			case "existense": //检查存在性
-				if fv.IsValid() && !utils.IsEmptyValue(fv) { //update时,传入才检查
-					if exValue, err := eChecker(col.Tag); err != nil {
-						return nil, fmt.Errorf("%s existense check failed: %s", col.Tag, err.Error())
-					} else {
-						c.Debug("%s existense: %v", col.Tag, exValue)
-						fv.Set(reflect.ValueOf(exValue))
-					}
-				}
-			case "forbbiden": //这个字段如果旧记录有值, 则返回错误
-				ov := reflect.ValueOf(older)
-				fov := utils.FieldByIndex(ov, col.Index)
-				if fov.IsValid() && !utils.IsEmptyValue(fov) {
-					return nil, fmt.Errorf("field(%s) has value, can't be updated", col.Tag)
-				}
-			default:
-			}
-		}
-	}
 	return m, nil
 }
 

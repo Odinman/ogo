@@ -126,6 +126,7 @@ type Model interface {
 	GetPagination() *Pagination
 	SetFields(fs []string)
 	GetFields() []string
+	GetChecker() Checker
 
 	New(c ...interface{}) Model
 	NewList() interface{} // 返回一个空结构列表
@@ -138,23 +139,27 @@ type Model interface {
 	ReadPrepare() (*gorp.Builder, error)
 
 	// data accessor
-	GetRow(ext ...interface{}) (Model, error)         //获取单条记录
-	GetRows() (*List, error)                          //获取多条记录
-	GetSum(d []string) (*List, error)                 //获取多条记录
-	GetCount() (int64, error)                         //获取多条记录
-	CreateRow() (Model, error)                        //创建单条记录
-	UpdateRow(id string) (int64, error)               //更新记录
-	DeleteRow(id string) (int64, error)               //更新记录
-	Existense() func(tag string) (interface{}, error) //检查存在性
-	Valid() (Model, error)                            //数据验证
-	Filter() (Model, error)                           //数据过滤(创建,更新后)
+	GetRow(ext ...interface{}) (Model, error) //获取单条记录
+	GetRows() (*List, error)                  //获取多条记录
+	GetSum(d []string) (*List, error)         //获取多条记录
+	GetCount() (int64, error)                 //获取多条记录
+	CreateRow() (Model, error)                //创建单条记录
+	UpdateRow(id string) (int64, error)       //更新记录
+	DeleteRow(id string) (int64, error)       //更新记录
+	CheckerFactory() Checker                  //检查存在性
+	Valid() (Model, error)                    //数据验证
+	Filter() (Model, error)                   //数据过滤(创建,更新后)
 }
+
+type Checker func(string) (interface{}, error)
 
 //基础model,在这里可以实现Model接口, 其余的只需要嵌入这个struct,就可以继承这些方法
 type BaseModel struct {
 	Error      error        `json:"-" db:"-"`
+	Locked     []string     `json:"-" db:"-"`
 	Model      Model        `json:"-" db:"-"`
 	ctx        *RESTContext `json:"-" db:"-"`
+	checker    Checker      `json:"-" db:"-"`
 	conditions []*Condition `json:"-" db:"-"`
 	pagination *Pagination  `json:"-" db:"-"`
 	fields     []string     `json:"-" db:"-"`
@@ -351,6 +356,20 @@ func (bm *BaseModel) GetFields() []string {
 
 /* }}} */
 
+/* {{{ func (bm *BaseModel) GetChecker() Checker
+ *
+ */
+func (bm *BaseModel) GetChecker() Checker {
+	if bm.checker == nil {
+		if m := bm.GetModel(); m != nil {
+			bm.checker = m.CheckerFactory()
+		}
+	}
+	return bm.checker
+}
+
+/* }}} */
+
 /* {{{ func (bm *BaseModel) New(c ...interface{}) Model
  * 初始化model, 后面的c选填
  */
@@ -436,10 +455,10 @@ func (bm *BaseModel) PKey() string {
 
 /* }}} */
 
-/* {{{ func (bm *BaseModel) Existense() func(tag string) (interface{}, error)
+/* {{{ func (bm *BaseModel) CheckerFactory() Checker
  *
  */
-func (bm *BaseModel) Existense() func(tag string) (interface{}, error) {
+func (bm *BaseModel) CheckerFactory() Checker {
 	return func(tag string) (interface{}, error) {
 		return nil, nil
 	}
@@ -491,13 +510,42 @@ func (bm *BaseModel) Valid() (Model, error) {
 	if err := json.Unmarshal(c.RequestBody, m); err != nil {
 		return nil, err
 	}
+	// checker
+	checker := m.GetChecker()
 	v := reflect.ValueOf(m)
+	var creating, updating bool
+	var older Model
+	var err error
+	var rk string
+	var ok bool
+	r := c.Request
+	if r.Method == "POST" {
+		creating = true
+	} else if r.Method == "PATCH" {
+		updating = true
+		if rk, ok = c.URLParams[RowkeyKey]; !ok {
+			return nil, fmt.Errorf("rowkey empty")
+		}
+		if older, err = m.GetRow(rk); err != nil {
+			return nil, err
+		}
+	}
 	if cols := utils.ReadStructColumns(m, true); cols != nil {
 		for _, col := range cols {
 			fv := utils.FieldByIndex(v, col.Index)
 			// server generate,忽略传入的信息
-			if col.ExtOptions.Contains(TAG_GENERATE) && fv.IsValid() && !utils.IsEmptyValue(fv) { // 服务器生成
-				fv.Set(reflect.Zero(fv.Type()))
+			if fv.IsValid() && !utils.IsEmptyValue(fv) { //传入了内容
+				if col.ExtOptions.Contains(TAG_GENERATE) { //服务器生成, 忽略传入
+					fv.Set(reflect.Zero(fv.Type()))
+				} else if col.ExtOptions.Contains(TAG_DENY) { //尝试编辑不可编辑的字段,要报错
+					c.Info("%s is uneditable: %v", col.Tag, fv)
+					return nil, fmt.Errorf("%s is uneditable", col.Tag) //尝试编辑不可编辑的字段,直接报错
+				}
+			} else { //空
+				if col.ExtOptions.Contains(TAG_REQUIRED) && creating { // 创建时必须传入,但是为空
+					c.Debug("field %s required but empty", col.Tag)
+					return nil, fmt.Errorf("field %s required but empty", col.Tag)
+				}
 			}
 			switch col.ExtTag { //根据tag, 会对数据进行预处理
 			case "sha1":
@@ -515,6 +563,68 @@ func (bm *BaseModel) Valid() (Model, error) {
 						c.Debug("password: %s, encoded: %s", sv, h)
 					default:
 						return nil, fmt.Errorf("field(%s) must be string, not %s", col.Tag, fv.Kind().String())
+					}
+				}
+			case "userid": //替换为userid
+				if creating {
+					var userid string
+					if uid := c.GetEnv(USERID_KEY); uid == nil {
+						userid = "0"
+						c.Debug("userid not exists")
+					} else {
+						userid = uid.(string)
+						c.Debug("userid: %s", userid)
+					}
+					switch fv.Type().String() {
+					case "*string":
+						fv.Set(reflect.ValueOf(&userid))
+					case "string":
+						fv.Set(reflect.ValueOf(userid))
+					default:
+						return nil, fmt.Errorf("field(%s) must be string, not %s", col.Tag, fv.Kind().String())
+					}
+				}
+			case "existense": //检查存在性
+				if creating { //创建时才检查,这里不够安全(将来改)
+					if exValue, err := checker(col.Tag); err != nil {
+						return nil, fmt.Errorf("%s existense check failed: %s", col.Tag, err.Error())
+					} else {
+						c.Debug("%s existense: %v", col.Tag, exValue)
+						fv.Set(reflect.ValueOf(exValue))
+					}
+				}
+			case "uuid":
+				if creating {
+					switch fv.Type().String() {
+					case "*string":
+						h := utils.NewShortUUID()
+						fv.Set(reflect.ValueOf(&h))
+					case "string":
+						h := utils.NewShortUUID()
+						fv.Set(reflect.ValueOf(h))
+					default:
+						return nil, fmt.Errorf("field(%s) must be string, not %s", col.Tag, fv.Kind().String())
+					}
+				}
+			case "luuid":
+				if creating {
+					switch fv.Type().String() {
+					case "*string":
+						h := utils.NewUUID()
+						fv.Set(reflect.ValueOf(&h))
+					case "string":
+						h := utils.NewUUID()
+						fv.Set(reflect.ValueOf(h))
+					default:
+						return nil, fmt.Errorf("field(%s) must be string, not %s", col.Tag, fv.Kind().String())
+					}
+				}
+			case "forbbiden": //这个字段如果旧记录有值, 则返回错误
+				if updating {
+					ov := reflect.ValueOf(older)
+					fov := utils.FieldByIndex(ov, col.Index)
+					if fov.IsValid() && !utils.IsEmptyValue(fov) {
+						return nil, fmt.Errorf("field(%s) has value, can't be updated", col.Tag)
 					}
 				}
 			default:

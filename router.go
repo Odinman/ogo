@@ -493,6 +493,7 @@ func (rtr *Router) CRUD(i interface{}, flag int) Handler {
 
 	post := func(c *RESTContext) {
 		m := NewModel(i.(Model), c)
+		defer act.Defer(m)
 		var err error
 
 		if _, err = act.PreCreate(m); err != nil { // presearch准备条件等
