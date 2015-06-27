@@ -31,14 +31,6 @@ const (
 	TAG_ORDERBY    = "O"   //可排序
 	TAG_VERIFIABLE = "V"   //验证后可修改
 	TAG_RETURN     = "RET" // 返回,创建后需要返回数值
-	// 查询类型
-	CTYPE_IS    = 0
-	CTYPE_NOT   = 1
-	CTYPE_LIKE  = 2
-	CTYPE_JOIN  = 3
-	CTYPE_RANGE = 4
-	CTYPE_ORDER = 5
-	CTYPE_PAGE  = 6
 )
 
 type List struct {
@@ -69,6 +61,8 @@ type Condition struct {
 	Field string
 	Is    interface{}
 	Not   interface{}
+	Gt    interface{}
+	Lt    interface{}
 	Like  interface{}
 	Join  interface{}
 	Range interface{} //范围条件, btween ? and ?
@@ -100,6 +94,10 @@ func NewCondition(typ int, field string, cs ...interface{}) *Condition {
 		con.Is = v
 	case CTYPE_NOT:
 		con.Not = v
+	case CTYPE_GT:
+		con.Gt = v
+	case CTYPE_LT:
+		con.Lt = v
 	case CTYPE_JOIN:
 		con.Join = v
 	case CTYPE_LIKE:
@@ -287,18 +285,9 @@ func (bm *BaseModel) SetConditions(cs ...*Condition) (cons []*Condition, err err
 				}
 			}
 			if col.TagOptions.Contains(DBTAG_PK) || col.ExtOptions.Contains(TAG_CONDITION) { //primary key or conditional
-				if condition, e := GetCondition(cs, col.Tag); e == nil && (condition.Is != nil || condition.Not != nil || condition.Like != nil || condition.Join != nil) {
+				if condition, e := GetCondition(cs, col.Tag); e == nil && (condition.Is != nil || condition.Not != nil || condition.Gt != nil || condition.Lt != nil || condition.Like != nil || condition.Join != nil) {
 					bm.conditions = append(bm.conditions, condition)
 				}
-				//} else { //如果m有值也可以
-				//	v := reflect.ValueOf(m)
-				//	fv := utils.FieldByIndex(v, col.Index)
-				//	if fv.IsValid() && !utils.IsEmptyValue(fv) { //有值
-				//		if fs := utils.GetRealString(fv); fs != "" {
-				//			bm.conditions = append(bm.conditions, NewCondition(CTYPE_IS, col.Tag, fs))
-				//		}
-				//	}
-				//}
 			}
 		}
 	}
@@ -984,6 +973,46 @@ func (bm *BaseModel) ReadPrepare() (b *gorp.Builder, err error) {
 					}
 					vs.WriteString(")")
 					b.Where(fmt.Sprintf("T.`%s` NOT IN %s", v.Field, vs.String()))
+				default:
+				}
+			}
+			if v.Gt != nil {
+				switch vt := v.Gt.(type) {
+				case string:
+					b.Where(fmt.Sprintf("T.`%s` >= '%%%s%%'", v.Field, vt))
+				case []string:
+					vs := bytes.Buffer{}
+					first := true
+					vs.WriteString("(")
+					for _, vv := range vt {
+						if !first {
+							vs.WriteString(" OR ")
+						}
+						vs.WriteString(fmt.Sprintf("T.`%s` >= '%%%s%%'", v.Field, vv))
+						first = false
+					}
+					vs.WriteString(")")
+					b.Where(vs.String())
+				default:
+				}
+			}
+			if v.Lt != nil {
+				switch vt := v.Lt.(type) {
+				case string:
+					b.Where(fmt.Sprintf("T.`%s` < '%%%s%%'", v.Field, vt))
+				case []string:
+					vs := bytes.Buffer{}
+					first := true
+					vs.WriteString("(")
+					for _, vv := range vt {
+						if !first {
+							vs.WriteString(" OR ")
+						}
+						vs.WriteString(fmt.Sprintf("T.`%s` < '%%%s%%'", v.Field, vv))
+						first = false
+					}
+					vs.WriteString(")")
+					b.Where(vs.String())
 				default:
 				}
 			}

@@ -28,8 +28,21 @@ const (
 	//特殊前缀
 	_PPREFIX_NOT  = '!'
 	_PPREFIX_LIKE = '~'
+	_PPREFIX_GT   = '>'
+	_PPREFIX_LT   = '<'
 
 	OriginalRemoteAddrKey = "originalRemoteAddr"
+
+	// 查询类型
+	CTYPE_IS = iota
+	CTYPE_NOT
+	CTYPE_LIKE
+	CTYPE_GT
+	CTYPE_LT
+	CTYPE_JOIN
+	CTYPE_RANGE
+	CTYPE_ORDER
+	CTYPE_PAGE
 )
 
 var (
@@ -40,6 +53,26 @@ var (
 	contentMD5         = http.CanonicalHeaderKey("Content-MD5")
 	rcHolder           func(c web.C, w http.ResponseWriter, r *http.Request) *RESTContext
 )
+
+/* {{{ func getCTypeByPrefix(p string) int
+ *
+ */
+func getCTypeByPrefix(p byte) int {
+	switch p {
+	case _PPREFIX_NOT:
+		return CTYPE_NOT
+	case _PPREFIX_LIKE:
+		return CTYPE_LIKE
+	case _PPREFIX_GT:
+		return CTYPE_GT
+	case _PPREFIX_LT:
+		return CTYPE_LT
+	default:
+		return CTYPE_IS
+	}
+}
+
+/* }}} */
 
 /* {{{ func EnvInit(c *web.C, h http.Handler) http.Handler
  * 初始化环境
@@ -208,7 +241,7 @@ func ParseParams(c *web.C, h http.Handler) http.Handler {
 		// 解析参数
 		r.ParseForm()
 		// 根据ogo规则解析参数
-		var cType int
+		var ct int
 		var p, pp string
 		rc.setTimeRangeFromStartEnd()
 		for k, v := range r.Form {
@@ -256,32 +289,33 @@ func ParseParams(c *web.C, h http.Handler) http.Handler {
 
 				//根据参数名第一个字符来判断条件类型
 				prefix := k[0] //param prefix
-				switch prefix {
-				case _PPREFIX_NOT:
-					rc.Trace("having prefix not: %s", k)
+				if ct = getCTypeByPrefix(prefix); ct != CTYPE_IS {
 					k = k[1:]
-					cType = CTYPE_NOT
-					rc.Trace("key change to: %s, condition type: %d", k, cType)
-				case _PPREFIX_LIKE:
-					k = k[1:]
-					cType = CTYPE_LIKE
-				default:
-					cType = CTYPE_IS
 				}
+				//switch prefix {
+				//case _PPREFIX_NOT:
+				//	k = k[1:]
+				//	ct = CTYPE_NOT
+				//case _PPREFIX_LIKE:
+				//	k = k[1:]
+				//	ct = CTYPE_LIKE
+				//default:
+				//	ct = CTYPE_IS
+				//}
 
 				//如果参数中包含".",代表有关联查询
 				if strings.Contains(k, ".") {
 					js := strings.SplitN(k, ".", 2)
 					if js[0] != "" && js[1] != "" {
 						k = js[0]
-						cv = NewCondition(cType, js[1], cv)
+						cv = NewCondition(ct, js[1], cv)
 						//查询类型变为join
 						rc.Trace("join: %s, %s; con: %v", k, cv.(*Condition).Field, cv)
-						cType = CTYPE_JOIN
+						ct = CTYPE_JOIN
 					}
 				}
 
-				rc.setCondition(NewCondition(cType, k, cv))
+				rc.setCondition(NewCondition(ct, k, cv))
 			}
 		}
 		//记录分页信息
