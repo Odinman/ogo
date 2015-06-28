@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/Odinman/gorp"
+	//"github.com/Odinman/ogo/utils"
 	_ "github.com/go-sql-driver/mysql"
 )
 
@@ -56,6 +57,12 @@ func (_ BaseConverter) ToDb(val interface{}) (interface{}, error) {
 	case *[]string, []string, map[string]string, *map[string]string, map[string]interface{}, *map[string]interface{}: //转为字符串
 		c, _ := json.Marshal(t)
 		return string(c), nil
+	//case *float64:
+	//	ot := utils.ParseFloat(*t)
+	//	Info("float: %f", ot)
+	//	return ot, nil
+	//case float64:
+	//	return utils.ParseFloat(t), nil
 	default:
 		// 自定义的类型,如果实现了SelfConverter接口,则这里自动执行
 		if _, ok := val.(SelfConverter); ok {
