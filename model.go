@@ -579,7 +579,7 @@ func (bm *BaseModel) Valid() (Model, error) {
 				if creating { //创建时才检查,这里不够安全(将来改)
 					if exValue, err := checker(col.Tag); err != nil {
 						return nil, fmt.Errorf("%s existense check failed: %s", col.Tag, err.Error())
-					} else {
+					} else if exValue != nil {
 						c.Debug("%s existense: %v", col.Tag, exValue)
 						fv.Set(reflect.ValueOf(exValue))
 					}
@@ -979,7 +979,7 @@ func (bm *BaseModel) ReadPrepare() (b *gorp.Builder, err error) {
 			if v.Gt != nil {
 				switch vt := v.Gt.(type) {
 				case string:
-					b.Where(fmt.Sprintf("T.`%s` >= '%%%s%%'", v.Field, vt))
+					b.Where(fmt.Sprintf("T.`%s` >= '%s'", v.Field, vt))
 				case []string:
 					vs := bytes.Buffer{}
 					first := true
@@ -988,7 +988,7 @@ func (bm *BaseModel) ReadPrepare() (b *gorp.Builder, err error) {
 						if !first {
 							vs.WriteString(" OR ")
 						}
-						vs.WriteString(fmt.Sprintf("T.`%s` >= '%%%s%%'", v.Field, vv))
+						vs.WriteString(fmt.Sprintf("T.`%s` >= '%s'", v.Field, vv))
 						first = false
 					}
 					vs.WriteString(")")
@@ -999,7 +999,7 @@ func (bm *BaseModel) ReadPrepare() (b *gorp.Builder, err error) {
 			if v.Lt != nil {
 				switch vt := v.Lt.(type) {
 				case string:
-					b.Where(fmt.Sprintf("T.`%s` < '%%%s%%'", v.Field, vt))
+					b.Where(fmt.Sprintf("T.`%s` < '%s'", v.Field, vt))
 				case []string:
 					vs := bytes.Buffer{}
 					first := true
@@ -1008,7 +1008,7 @@ func (bm *BaseModel) ReadPrepare() (b *gorp.Builder, err error) {
 						if !first {
 							vs.WriteString(" OR ")
 						}
-						vs.WriteString(fmt.Sprintf("T.`%s` < '%%%s%%'", v.Field, vv))
+						vs.WriteString(fmt.Sprintf("T.`%s` < '%s'", v.Field, vv))
 						first = false
 					}
 					vs.WriteString(")")
@@ -1092,7 +1092,7 @@ func (bm *BaseModel) ReadPrepare() (b *gorp.Builder, err error) {
 	ordered := false
 	for _, v := range cons {
 		if v.Order != nil {
-			switch vt := v.Range.(type) {
+			switch vt := v.Order.(type) {
 			case *OrderBy: //只支持timerange
 				b.Order(fmt.Sprintf("T.`%s` %s", vt.Field, vt.Sort))
 				ordered = true

@@ -198,11 +198,10 @@ func (rc *RESTContext) setOrderBy(p []string) {
 		pieces := strings.SplitN(p[0], ",", 2)
 		ob.Field = pieces[0]
 		ob.Sort = "DESC" //默认降序
-		if len(pieces) > 1 {
-			if strings.ToUpper(pieces[1]) == "ASC" {
-				ob.Sort = "ASC"
-			}
+		if len(pieces) > 1 && strings.ToUpper(pieces[1]) == "ASC" {
+			ob.Sort = "ASC"
 		}
+		Debug("[orderby][field: %s][sort: %s]", ob.Field, ob.Sort)
 	}
 
 	return
