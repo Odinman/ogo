@@ -16,10 +16,12 @@ type Handler func(c *RESTContext)
 type RouteOption map[string]interface{}
 
 type Route struct {
-	Pattern interface{}
-	Method  string
-	Handler Handler
-	Options RouteOption
+	Pattern  interface{}
+	Method   string
+	Handler  Handler
+	Options  RouteOption
+	Updating bool
+	Creating bool
 }
 
 type Router struct {
@@ -67,6 +69,13 @@ func NewRoute(p interface{}, m string, h Handler, options ...map[string]interfac
 
 	if len(options) > 0 { //不管有几个,目前只有第一个有效
 		r.Options = options[0]
+	}
+
+	//更新还是创建
+	if m == "POST" {
+		r.Creating = true
+	} else if m == "PATCH" {
+		r.Updating = true
 	}
 
 	return r

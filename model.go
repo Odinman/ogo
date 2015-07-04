@@ -139,6 +139,7 @@ type Model interface {
 	// data accessor
 	GetRow(ext ...interface{}) (Model, error) //获取单条记录
 	GetRows() (*List, error)                  //获取多条记录
+	GetOlder() Model                          //获取旧记录
 	GetSum(d []string) (*List, error)         //获取多条记录
 	GetCount() (int64, error)                 //获取多条记录
 	CreateRow() (Model, error)                //创建单条记录
@@ -152,6 +153,11 @@ type Model interface {
 
 type Checker func(string) (interface{}, error)
 
+type Counter struct {
+	Key       string
+	Increment float64
+}
+
 //基础model,在这里可以实现Model接口, 其余的只需要嵌入这个struct,就可以继承这些方法
 type BaseModel struct {
 	Error      error        `json:"-" db:"-"`
@@ -163,6 +169,7 @@ type BaseModel struct {
 	pagination *Pagination  `json:"-" db:"-"`
 	fields     []string     `json:"-" db:"-"`
 	base       string       `json:"-" db:"-"` //这个的作用就是判断是否是BaseModel
+	older      Model        `json:"-" db:"-"`
 }
 
 /* {{{ func NewModel(m Model,c ...interface{}) Model {
@@ -504,23 +511,6 @@ func (bm *BaseModel) Valid() (Model, error) {
 	// checker
 	checker := m.GetChecker()
 	v := reflect.ValueOf(m)
-	var creating, updating bool
-	var older Model
-	var err error
-	var rk string
-	var ok bool
-	r := c.Request
-	if r.Method == "POST" {
-		creating = true
-	} else if r.Method == "PATCH" {
-		updating = true
-		if rk, ok = c.URLParams[RowkeyKey]; !ok {
-			return nil, fmt.Errorf("rowkey empty")
-		}
-		if older, err = m.GetRow(rk); err != nil {
-			return nil, err
-		}
-	}
 	if cols := utils.ReadStructColumns(m, true); cols != nil {
 		for _, col := range cols {
 			fv := utils.FieldByIndex(v, col.Index)
@@ -528,12 +518,12 @@ func (bm *BaseModel) Valid() (Model, error) {
 			if fv.IsValid() && !utils.IsEmptyValue(fv) { //传入了内容
 				if col.ExtOptions.Contains(TAG_GENERATE) { //服务器生成, 忽略传入
 					fv.Set(reflect.Zero(fv.Type()))
-				} else if updating && col.ExtOptions.Contains(TAG_DENY) { //尝试编辑不可编辑的字段,要报错
+				} else if c.Route.Updating && col.ExtOptions.Contains(TAG_DENY) { //尝试编辑不可编辑的字段,要报错
 					c.Info("%s is uneditable: %v", col.Tag, fv)
 					return nil, fmt.Errorf("%s is uneditable", col.Tag) //尝试编辑不可编辑的字段,直接报错
 				}
 			} else { //空
-				if col.ExtOptions.Contains(TAG_REQUIRED) && creating { // 创建时必须传入,但是为空
+				if col.ExtOptions.Contains(TAG_REQUIRED) && c.Route.Creating { // 创建时必须传入,但是为空
 					c.Debug("field %s required but empty", col.Tag)
 					return nil, fmt.Errorf("field %s required but empty", col.Tag)
 				}
@@ -557,7 +547,7 @@ func (bm *BaseModel) Valid() (Model, error) {
 					}
 				}
 			case "userid": //替换为userid
-				if creating {
+				if c.Route.Creating {
 					var userid string
 					if uid := c.GetEnv(USERID_KEY); uid == nil {
 						userid = "0"
@@ -576,7 +566,7 @@ func (bm *BaseModel) Valid() (Model, error) {
 					}
 				}
 			case "existense": //检查存在性
-				if creating { //创建时才检查,这里不够安全(将来改)
+				if c.Route.Creating { //创建时才检查,这里不够安全(将来改)
 					if exValue, err := checker(col.Tag); err != nil {
 						return nil, fmt.Errorf("%s existense check failed: %s", col.Tag, err.Error())
 					} else if exValue != nil {
@@ -585,7 +575,7 @@ func (bm *BaseModel) Valid() (Model, error) {
 					}
 				}
 			case "uuid":
-				if creating {
+				if c.Route.Creating {
 					switch fv.Type().String() {
 					case "*string":
 						h := utils.NewShortUUID()
@@ -598,7 +588,7 @@ func (bm *BaseModel) Valid() (Model, error) {
 					}
 				}
 			case "luuid":
-				if creating {
+				if c.Route.Creating {
 					switch fv.Type().String() {
 					case "*string":
 						h := utils.NewUUID()
@@ -611,7 +601,8 @@ func (bm *BaseModel) Valid() (Model, error) {
 					}
 				}
 			case "forbbiden": //这个字段如果旧记录有值, 则返回错误
-				if updating {
+				if c.Route.Updating {
+					older := m.GetOlder()
 					ov := reflect.ValueOf(older)
 					fov := utils.FieldByIndex(ov, col.Index)
 					if fov.IsValid() && !utils.IsEmptyValue(fov) {
@@ -855,6 +846,25 @@ func (bm *BaseModel) GetCount() (cnt int64, err error) {
 	builder, _ := bm.ReadPrepare()
 	return builder.Count()
 
+}
+
+/* }}} */
+
+/* {{{ func (bm *BaseModel) GetOlder() Model
+ * 获取旧记录
+ */
+func (bm *BaseModel) GetOlder() Model {
+	if bm.older == nil {
+		if m := bm.GetModel(); m != nil {
+			c := m.GetCtx()
+			if rk, ok := c.URLParams[RowkeyKey]; ok && c.Route.Updating {
+				if older, err := m.GetRow(rk); err == nil {
+					bm.older = older
+				}
+			}
+		}
+	}
+	return bm.older
 }
 
 /* }}} */
