@@ -12,6 +12,10 @@ import (
 	//"gopkg.in/redis.v3"
 )
 
+const (
+	TD_TOTAL_FIELD = "_total_"
+)
+
 /* {{{ func CacheSet(key, value string, expire int) error
  *
  */
@@ -38,7 +42,7 @@ func CacheIncrByFloat(key string, value float64) error {
 
 /* }}} */
 
-/* {{{ func CacheGet(key) error
+/* {{{ func CacheGet(key) (string,error)
  *
  */
 func CacheGet(key string) (string, error) {
@@ -107,6 +111,96 @@ func ReleaseLock(key string) error {
 		}
 	}
 	return fmt.Errorf("release wrong")
+}
+
+/* }}} */
+
+/* {{{ func DoTmpDeduct(tds ...string) error
+ * 临时扣除
+ */
+func DoTmpDeduct(tds ...string) (err error) {
+	if cc := ClusterClient(); cc != nil {
+		var key, cs, as, tf string
+		if len(tds) < 3 {
+			return fmt.Errorf("can't deduct")
+		}
+		key = tds[0]
+		cs = tds[1]
+		as = tds[2]
+		if len(tds) > 3 {
+			tf = tds[3]
+		} else {
+			tf = TD_TOTAL_FIELD
+		}
+		if cc.HExists(key, cs).Val() { // 相关字段存在,说明已经扣除
+			return nil
+		} else {
+			if cc.HSet(key, cs, as).Val() { // set 成功
+				amount, _ := strconv.ParseFloat(as, 64)
+				return cc.HIncrByFloat(key, tf, amount).Err()
+			}
+		}
+	} else {
+		return fmt.Errorf("not found cache client")
+	}
+	return fmt.Errorf("deduct failed")
+}
+
+/* }}} */
+
+/* {{{ func GetTmpDeductSum(tds ...string) (string, error)
+ * 获取临时扣除总额
+ */
+func GetTmpDeductSum(tds ...string) (string, error) {
+	if cc := ClusterClient(); cc != nil {
+		var key, tf string
+		if len(tds) < 1 {
+			return "", fmt.Errorf("can't get")
+		}
+		key = tds[1]
+		if len(tds) > 1 {
+			tf = tds[1]
+		} else {
+			tf = TD_TOTAL_FIELD
+		}
+		return cc.HGet(key, tf).Result()
+	} else {
+		return "", fmt.Errorf("not found cache client")
+	}
+}
+
+/* }}} */
+
+/* {{{ func ClearTmpDeduct(tds ...string) error
+ * 清除临时扣除
+ */
+func ClearTmpDeduct(tds ...string) error {
+	if cc := ClusterClient(); cc != nil {
+		var key, cs, tf string
+		if len(tds) < 2 {
+			return fmt.Errorf("can't deduct")
+		}
+		key = tds[0]
+		cs = tds[1]
+		if len(tds) > 2 {
+			tf = tds[2]
+		} else {
+			tf = TD_TOTAL_FIELD
+		}
+		if as, err := cc.HGet(key, cs).Result(); err != nil {
+			return err
+		} else {
+			amount, _ := strconv.ParseFloat(as, 64)
+			if err := cc.HDel(key, cs).Err(); err != nil {
+				return err
+			} else {
+				return cc.HIncrByFloat(key, tf, 0-amount).Err()
+			}
+		}
+	} else {
+		return fmt.Errorf("not found cache client")
+	}
+	return fmt.Errorf("deduct failed")
 }
 
 /* }}} */
