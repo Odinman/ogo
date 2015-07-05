@@ -16,6 +16,14 @@ const (
 	TD_TOTAL_FIELD = "_total_"
 )
 
+type TemporaryCounter struct {
+	Name          string // 计数器名称
+	Total         string // 汇总字段
+	TotalAmount   float64
+	Journal       string  //流水号
+	JournalAmount float64 //金额
+}
+
 /* {{{ func CacheSet(key, value string, expire int) error
  *
  */
@@ -115,86 +123,75 @@ func ReleaseLock(key string) error {
 
 /* }}} */
 
-/* {{{ func DoTmpDeduct(tds ...string) error
- * 临时扣除
+/* {{{ func (tc *TemporaryCounter) Incr(amount float64) error
+ * 临时扣除(就是在TemporaryCounter增加一笔)
  */
-func DoTmpDeduct(tds ...string) (err error) {
+func (tc *TemporaryCounter) Incr(amount float64) error {
 	if cc := ClusterClient(); cc != nil {
-		var key, cs, as, tf string
-		if len(tds) < 3 {
-			return fmt.Errorf("can't deduct")
+		if tc.Name == "" || tc.Journal == "" || amount == 0 { //必须有名称以及流水号
+			return fmt.Errorf("can't incr")
 		}
-		key = tds[0]
-		cs = tds[1]
-		as = tds[2]
-		if len(tds) > 3 {
-			tf = tds[3]
-		} else {
-			tf = TD_TOTAL_FIELD
+		if tc.Total == "" {
+			tc.Total = TD_TOTAL_FIELD
 		}
-		if cc.HExists(key, cs).Val() { // 相关字段存在,说明已经扣除
+		if cc.HExists(tc.Name, tc.Journal).Val() { // 流水号存在,说明已经处理
 			return nil
 		} else {
-			if cc.HSet(key, cs, as).Val() { // set 成功
-				amount, _ := strconv.ParseFloat(as, 64)
-				return cc.HIncrByFloat(key, tf, amount).Err()
+			if cc.HSet(tc.Name, tc.Journal, strconv.FormatFloat(amount, 'f', 6, 64)).Val() { // set 成功
+				tc.JournalAmount = amount
+				return cc.HIncrByFloat(tc.Name, tc.Total, amount).Err()
 			}
 		}
 	} else {
 		return fmt.Errorf("not found cache client")
 	}
-	return fmt.Errorf("deduct failed")
+	return fmt.Errorf("incr failed")
 }
 
 /* }}} */
 
-/* {{{ func GetTmpDeductSum(tds ...string) (string, error)
+/* {{{ func (tc *TemporaryCounter) GetTotalAmount() (float64, error)
  * 获取临时扣除总额
  */
-func GetTmpDeductSum(tds ...string) (string, error) {
+func (tc *TemporaryCounter) GetTotalAmount() (float64, error) {
 	if cc := ClusterClient(); cc != nil {
-		var key, tf string
-		if len(tds) < 1 {
-			return "", fmt.Errorf("can't get")
+		if tc.Name == "" { //必须有名称
+			return 0, fmt.Errorf("can't get")
 		}
-		key = tds[1]
-		if len(tds) > 1 {
-			tf = tds[1]
+		if tc.Total == "" {
+			tc.Total = TD_TOTAL_FIELD
+		}
+		if tas, err := cc.HGet(tc.Name, tc.Total).Result(); err != nil {
+			return 0, err
 		} else {
-			tf = TD_TOTAL_FIELD
+			return strconv.ParseFloat(tas, 64)
 		}
-		return cc.HGet(key, tf).Result()
 	} else {
-		return "", fmt.Errorf("not found cache client")
+		return 0, fmt.Errorf("not found cache client")
 	}
 }
 
 /* }}} */
 
-/* {{{ func ClearTmpDeduct(tds ...string) error
+/* {{{ func (tc *TemporaryCounter) clearJournal(journal string) error
  * 清除临时扣除
  */
-func ClearTmpDeduct(tds ...string) error {
+func (tc *TemporaryCounter) clearJournal(journal string) error {
 	if cc := ClusterClient(); cc != nil {
-		var key, cs, tf string
-		if len(tds) < 2 {
-			return fmt.Errorf("can't deduct")
+		if tc.Name == "" || journal == "" { //必须有名称以及流水号
+			return fmt.Errorf("can't clear")
 		}
-		key = tds[0]
-		cs = tds[1]
-		if len(tds) > 2 {
-			tf = tds[2]
-		} else {
-			tf = TD_TOTAL_FIELD
+		if tc.Total == "" {
+			tc.Total = TD_TOTAL_FIELD
 		}
-		if as, err := cc.HGet(key, cs).Result(); err != nil {
+		if as, err := cc.HGet(tc.Name, journal).Result(); err != nil {
 			return err
 		} else {
 			amount, _ := strconv.ParseFloat(as, 64)
-			if err := cc.HDel(key, cs).Err(); err != nil {
+			if err := cc.HDel(tc.Name, journal).Err(); err != nil {
 				return err
 			} else {
-				return cc.HIncrByFloat(key, tf, 0-amount).Err()
+				return cc.HIncrByFloat(tc.Name, tc.Total, 0-amount).Err()
 			}
 		}
 	} else {

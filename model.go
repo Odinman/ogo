@@ -153,11 +153,6 @@ type Model interface {
 
 type Checker func(string) (interface{}, error)
 
-type Counter struct {
-	Key       string
-	Increment float64
-}
-
 //基础model,在这里可以实现Model接口, 其余的只需要嵌入这个struct,就可以继承这些方法
 type BaseModel struct {
 	Error      error        `json:"-" db:"-"`
