@@ -173,10 +173,10 @@ func (tc *TemporaryCounter) GetTotalAmount() (float64, error) {
 
 /* }}} */
 
-/* {{{ func (tc *TemporaryCounter) clearJournal(journal string) error
+/* {{{ func (tc *TemporaryCounter) ClearJournal(journal string) error
  * 清除临时扣除
  */
-func (tc *TemporaryCounter) clearJournal(journal string) error {
+func (tc *TemporaryCounter) ClearJournal(journal string) error {
 	if cc := ClusterClient(); cc != nil {
 		if tc.Name == "" || journal == "" { //必须有名称以及流水号
 			return fmt.Errorf("can't clear")
