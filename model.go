@@ -110,6 +110,8 @@ func NewCondition(typ int, field string, cs ...interface{}) *Condition {
 		con.Order = v
 	case CTYPE_PAGE:
 		con.Page = v
+	case CTYPE_RAW:
+		con.Raw = v.(string)
 	default:
 	}
 	return con
@@ -123,49 +125,34 @@ func (con *Condition) Merge(oc *Condition) {
 		return
 	}
 	if oc.Is != nil {
-		if con.Is == nil {
-			con.Is = oc.Is
-		}
+		con.Is = oc.Is
 	}
 	if oc.Not != nil {
-		if con.Not == nil {
-			con.Not = oc.Not
-		}
+		con.Not = oc.Not
 	}
 	if oc.Gt != nil {
-		if con.Gt == nil {
-			con.Gt = oc.Gt
-		}
+		con.Gt = oc.Gt
 	}
 	if oc.Lt != nil {
-		if con.Lt == nil {
-			con.Lt = oc.Lt
-		}
+		con.Lt = oc.Lt
 	}
 	if oc.Like != nil {
-		if con.Like == nil {
-			con.Like = oc.Like
-		}
+		con.Like = oc.Like
 	}
 	if oc.Range != nil {
-		if con.Range == nil {
-			con.Range = oc.Range
-		}
+		con.Range = oc.Range
 	}
 	if oc.Order != nil {
-		if con.Order == nil {
-			con.Order = oc.Order
-		}
+		con.Order = oc.Order
 	}
 	if oc.Join != nil {
-		if con.Join == nil {
-			con.Join = oc.Join
-		}
+		con.Join = oc.Join
 	}
-	if oc.Join != nil {
-		if con.Join == nil {
-			con.Join = oc.Join
-		}
+	if oc.Page != nil {
+		con.Page = oc.Page
+	}
+	if oc.Raw != "" {
+		con.Raw = oc.Raw
 	}
 }
 
@@ -345,7 +332,8 @@ func (bm *BaseModel) SetConditions(cs ...*Condition) (cons []*Condition, err err
 				}
 			}
 			if col.TagOptions.Contains(DBTAG_PK) || col.ExtOptions.Contains(TAG_CONDITION) { //primary key or conditional
-				if condition, e := GetCondition(cs, col.Tag); e == nil && (condition.Is != nil || condition.Not != nil || condition.Gt != nil || condition.Lt != nil || condition.Like != nil || condition.Join != nil) {
+				if condition, e := GetCondition(cs, col.Tag); e == nil && (condition.Is != nil || condition.Not != nil || condition.Gt != nil || condition.Lt != nil || condition.Like != nil || condition.Join != nil || condition.Raw != "") {
+					//Debug("[SetConditions][tag: %s]%v", col.Tag, condition)
 					bm.conditions = append(bm.conditions, condition)
 				}
 			}
@@ -1003,11 +991,29 @@ func (bm *BaseModel) ReadPrepare() (b *gorp.Builder, err error) {
 		jc := 0
 		for _, v := range cons {
 			//Debug("[key: %s]%v", v.Field, v)
+			if v.Raw != "" {
+				b.Where(fmt.Sprint("(", v.Raw, ")"))
+			}
 			if v.Is != nil {
+				//Debug("[=][key: %s]%v", v.Field, v)
 				switch vt := v.Is.(type) {
 				case string:
 					b.Where(fmt.Sprintf("T.`%s` = ?", v.Field), vt)
 				case []string:
+					//Debug("[=][slices][key: %s]%v", v.Field, v)
+					vs := bytes.Buffer{}
+					first := true
+					vs.WriteString("(")
+					for _, vv := range vt {
+						if !first {
+							vs.WriteString(",")
+						}
+						vs.WriteString(fmt.Sprintf("'%s'", vv))
+						first = false
+					}
+					vs.WriteString(")")
+					b.Where(fmt.Sprintf("T.`%s` IN %s", v.Field, vs.String()))
+				case []interface{}:
 					vs := bytes.Buffer{}
 					first := true
 					vs.WriteString("(")
@@ -1028,6 +1034,19 @@ func (bm *BaseModel) ReadPrepare() (b *gorp.Builder, err error) {
 				case string:
 					b.Where(fmt.Sprintf("T.`%s` != ?", v.Field), vt)
 				case []string:
+					vs := bytes.Buffer{}
+					first := true
+					vs.WriteString("(")
+					for _, vv := range vt {
+						if !first {
+							vs.WriteString(",")
+						}
+						vs.WriteString(fmt.Sprintf("'%s'", vv))
+						first = false
+					}
+					vs.WriteString(")")
+					b.Where(fmt.Sprintf("T.`%s` NOT IN %s", v.Field, vs.String()))
+				case []interface{}:
 					vs := bytes.Buffer{}
 					first := true
 					vs.WriteString("(")
@@ -1061,6 +1080,19 @@ func (bm *BaseModel) ReadPrepare() (b *gorp.Builder, err error) {
 					}
 					vs.WriteString(")")
 					b.Where(vs.String())
+				case []interface{}:
+					vs := bytes.Buffer{}
+					first := true
+					vs.WriteString("(")
+					for _, vv := range vt {
+						if !first {
+							vs.WriteString(" OR ")
+						}
+						vs.WriteString(fmt.Sprintf("T.`%s` >= '%s'", v.Field, vv))
+						first = false
+					}
+					vs.WriteString(")")
+					b.Where(vs.String())
 				default:
 				}
 			}
@@ -1082,6 +1114,19 @@ func (bm *BaseModel) ReadPrepare() (b *gorp.Builder, err error) {
 					}
 					vs.WriteString(")")
 					b.Where(vs.String())
+				case []interface{}:
+					vs := bytes.Buffer{}
+					first := true
+					vs.WriteString("(")
+					for _, vv := range vt {
+						if !first {
+							vs.WriteString(" OR ")
+						}
+						vs.WriteString(fmt.Sprintf("T.`%s` < '%s'", v.Field, vv))
+						first = false
+					}
+					vs.WriteString(")")
+					b.Where(vs.String())
 				default:
 				}
 			}
@@ -1090,6 +1135,19 @@ func (bm *BaseModel) ReadPrepare() (b *gorp.Builder, err error) {
 				case string:
 					b.Where(fmt.Sprintf("T.`%s` LIKE '%%%s%%'", v.Field, vt))
 				case []string:
+					vs := bytes.Buffer{}
+					first := true
+					vs.WriteString("(")
+					for _, vv := range vt {
+						if !first {
+							vs.WriteString(" OR ")
+						}
+						vs.WriteString(fmt.Sprintf("T.`%s` LIKE '%%%s%%'", v.Field, vv))
+						first = false
+					}
+					vs.WriteString(")")
+					b.Where(vs.String())
+				case []interface{}:
 					vs := bytes.Buffer{}
 					first := true
 					vs.WriteString("(")

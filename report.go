@@ -7,10 +7,10 @@ import (
 )
 
 type Aggregation struct {
-	Key    string `json:"key"`
-	Value  string `json:"value"`
-	Count  string `json:"count"`
-	Amount string `json:"amount"`
+	Key    string  `json:"key,omitempty"`
+	Value  string  `json:"value,omitempty"`
+	Count  int     `json:"count"`
+	Amount float64 `json:"amount"`
 }
 type Aggregations map[string][]Aggregation
 type Report struct {
@@ -38,6 +38,25 @@ func (rpt *Report) WithDefaults() *Report {
 	rpt.ReportInfo.Tz = Env().Location.String()
 
 	return rpt
+}
+
+/* }}} */
+
+/* {{{ func UpdateAggregation(as []Aggregation, a Aggregation) []Aggregation
+ *
+ */
+func UpdateAggregation(as []Aggregation, a Aggregation) []Aggregation {
+	if len(as) > 0 {
+		for i, ta := range as {
+			if ta.Key == a.Key {
+				as[i].Count += a.Count
+				as[i].Amount += a.Amount
+				return as
+			}
+		}
+	}
+	//Debug("[append: %s]", a.Key)
+	return append(as, a)
 }
 
 /* }}} */

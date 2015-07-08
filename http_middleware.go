@@ -43,6 +43,7 @@ const (
 	CTYPE_RANGE
 	CTYPE_ORDER
 	CTYPE_PAGE
+	CTYPE_RAW
 )
 
 var (
