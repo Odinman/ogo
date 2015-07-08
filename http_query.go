@@ -84,12 +84,22 @@ func (rc *RESTContext) GetCondition(k string) (con *Condition, err error) {
  *
 */
 func (rc *RESTContext) setCondition(con *Condition) {
-	//Debug("[setCondition]%v", con)
+	//Debug("[setCondition][key: %s]%v", con.Field, con)
 	if _, ok := rc.Env[ConditionsKey]; !ok {
 		//没有conditions,自动初始化
 		rc.SetEnv(ConditionsKey, make([]*Condition, 0))
 	}
-	rc.Env[ConditionsKey] = append(rc.Env[ConditionsKey].([]*Condition), con)
+	//rc.Env[ConditionsKey] = append(rc.Env[ConditionsKey].([]*Condition), con)
+	set := false
+	for _, ec := range rc.Env[ConditionsKey].([]*Condition) {
+		if ec.Field == con.Field {
+			ec.Merge(con)
+			set = true
+		}
+	}
+	if !set {
+		rc.Env[ConditionsKey] = append(rc.Env[ConditionsKey].([]*Condition), con)
+	}
 }
 
 /* }}} */

@@ -21,16 +21,19 @@ const (
 	DBTAG_LOGIC = "logic"
 
 	//tag
-	TAG_REQUIRED   = "R"   // 必填
-	TAG_GENERATE   = "G"   // 服务端生成, 同时不可编辑
-	TAG_CONDITION  = "C"   // 可作为查询条件
-	TAG_DENY       = "D"   // 不可编辑, 可为空
-	TAG_SECRET     = "S"   //保密,一般不见人
-	TAG_TIMERANGE  = "TR"  //时间范围条件
-	TAG_REPORT     = "RPT" //报表字段
-	TAG_ORDERBY    = "O"   //可排序
-	TAG_VERIFIABLE = "V"   //验证后可修改
-	TAG_RETURN     = "RET" // 返回,创建后需要返回数值
+	TAG_REQUIRED   = "R"     // 必填
+	TAG_GENERATE   = "G"     // 服务端生成, 同时不可编辑
+	TAG_CONDITION  = "C"     // 可作为查询条件
+	TAG_DENY       = "D"     // 不可编辑, 可为空
+	TAG_SECRET     = "S"     //保密,一般不见人
+	TAG_TIMERANGE  = "TR"    //时间范围条件
+	TAG_REPORT     = "RPT"   //报表字段
+	TAG_CANGROUP   = "GRP"   //可以group操作
+	TAG_ORDERBY    = "O"     //可排序
+	TAG_VERIFIABLE = "V"     //验证后可修改
+	TAG_RETURN     = "RET"   // 返回,创建后需要返回数值
+	TAG_SUM        = "SUM"   // 求和
+	TAG_COUNT      = "COUNT" // 计数
 )
 
 type List struct {
@@ -81,7 +84,6 @@ func NewCondition(typ int, field string, cs ...interface{}) *Condition {
 	if field == "" || len(cs) < 1 { //至少1个元素
 		return nil
 	}
-	//Debug("[NewCondition]field: %s", field)
 	con := &Condition{Field: field}
 	var v interface{}
 	if len(cs) == 1 {
@@ -112,6 +114,62 @@ func NewCondition(typ int, field string, cs ...interface{}) *Condition {
 	}
 	return con
 }
+
+/* {{{ func (con *Condition) Merge(oc *Condition)
+ * 直接覆盖
+ */
+func (con *Condition) Merge(oc *Condition) {
+	if oc == nil {
+		return
+	}
+	if oc.Is != nil {
+		if con.Is == nil {
+			con.Is = oc.Is
+		}
+	}
+	if oc.Not != nil {
+		if con.Not == nil {
+			con.Not = oc.Not
+		}
+	}
+	if oc.Gt != nil {
+		if con.Gt == nil {
+			con.Gt = oc.Gt
+		}
+	}
+	if oc.Lt != nil {
+		if con.Lt == nil {
+			con.Lt = oc.Lt
+		}
+	}
+	if oc.Like != nil {
+		if con.Like == nil {
+			con.Like = oc.Like
+		}
+	}
+	if oc.Range != nil {
+		if con.Range == nil {
+			con.Range = oc.Range
+		}
+	}
+	if oc.Order != nil {
+		if con.Order == nil {
+			con.Order = oc.Order
+		}
+	}
+	if oc.Join != nil {
+		if con.Join == nil {
+			con.Join = oc.Join
+		}
+	}
+	if oc.Join != nil {
+		if con.Join == nil {
+			con.Join = oc.Join
+		}
+	}
+}
+
+/* }}} */
 
 type Model interface {
 	SetModel(m Model) Model
@@ -804,27 +862,30 @@ func (bm *BaseModel) GetSum(d []string) (l *List, err error) {
 			group = append(group, d...)
 		}
 		builder.Group(group)
-		count, _ := builder.Count() //结果数
-		ms = bm.NewList()
-		if p := bm.GetPagination(); p != nil {
-			l.Info.Page = &p.Page
-			l.Info.PerPage = &p.PerPage
-			err = builder.Select(GetSumFields(m, group)).Offset(p.Offset).Limit(p.PerPage).Find(ms)
+		if count, _ := builder.Count(); count > 0 {
+			ms = bm.NewList()
+			if p := bm.GetPagination(); p != nil {
+				l.Info.Page = &p.Page
+				l.Info.PerPage = &p.PerPage
+				err = builder.Select(GetSumFields(m, group)).Offset(p.Offset).Limit(p.PerPage).Find(ms)
+			} else {
+				err = builder.Select(GetSumFields(m, group)).Find(ms)
+			}
+			if err != nil && err != sql.ErrNoRows {
+				//支持出错
+				return l, err
+			} else if ms == nil {
+				//没找到记录
+				return l, ErrNoRecord
+			}
+
+			l.Total = count
+			l.List = ms
 		} else {
-			err = builder.Select(GetSumFields(m, group)).Find(ms)
-		}
-		if err != nil && err != sql.ErrNoRows {
-			//支持出错
-			return l, err
-		} else if ms == nil {
-			//没找到记录
-			return l, ErrNoRecord
+			err = ErrNoRecord
 		}
 
-		l.Total = count
-		l.List = ms
-
-		return l, nil
+		return
 	} else {
 		err := fmt.Errorf("not found model")
 		Info("error: %s", err)
@@ -928,7 +989,7 @@ func (bm *BaseModel) ReadPrepare() (b *gorp.Builder, err error) {
 		//range condition,先搞范围查询
 		for _, v := range cons {
 			if v.Range != nil {
-				Debug("[perpare]timerange")
+				//Debug("[perpare]timerange")
 				switch vt := v.Range.(type) {
 				case *TimeRange: //只支持timerange
 					b.Where(fmt.Sprintf("T.`%s` BETWEEN ? AND ?", v.Field), vt.Start, vt.End)
@@ -941,6 +1002,7 @@ func (bm *BaseModel) ReadPrepare() (b *gorp.Builder, err error) {
 		}
 		jc := 0
 		for _, v := range cons {
+			//Debug("[key: %s]%v", v.Field, v)
 			if v.Is != nil {
 				switch vt := v.Is.(type) {
 				case string:
@@ -982,6 +1044,7 @@ func (bm *BaseModel) ReadPrepare() (b *gorp.Builder, err error) {
 				}
 			}
 			if v.Gt != nil {
+				//Debug("[>=][key: %s]%v", v.Field, v)
 				switch vt := v.Gt.(type) {
 				case string:
 					b.Where(fmt.Sprintf("T.`%s` >= '%s'", v.Field, vt))
@@ -1002,6 +1065,7 @@ func (bm *BaseModel) ReadPrepare() (b *gorp.Builder, err error) {
 				}
 			}
 			if v.Lt != nil {
+				//Debug("[<][key: %s]%v", v.Field, v)
 				switch vt := v.Lt.(type) {
 				case string:
 					b.Where(fmt.Sprintf("T.`%s` < '%s'", v.Field, vt))
@@ -1202,18 +1266,17 @@ func GetSumFields(i interface{}, g []string) (s string) {
 			if col.ExtOptions.Contains(TAG_SECRET) { //保密,不对外
 				continue
 			}
-			if strings.ToLower(col.ExtTag) == "group" && !utils.InSlice(col.Tag, g) {
+			if col.ExtOptions.Contains(TAG_CANGROUP) && !utils.InSlice(col.Tag, g) {
 				continue
 			}
 			if !first {
 				bs.WriteString(",")
 			}
-			switch et := strings.ToLower(col.ExtTag); et {
-			case "sum": //求和
+			if col.ExtOptions.Contains(TAG_SUM) {
 				bs.WriteString(fmt.Sprintf("SUM(T.`%s`) AS `%s`", col.Tag, col.Tag))
-			case "count": //计数
+			} else if col.ExtOptions.Contains(TAG_COUNT) {
 				bs.WriteString(fmt.Sprintf("COUNT(T.`%s`) AS `%s`", col.Tag, col.Tag))
-			default:
+			} else {
 				bs.WriteString("T.`" + col.Tag + "`")
 			}
 			first = false

@@ -291,17 +291,8 @@ func ParseParams(c *web.C, h http.Handler) http.Handler {
 				prefix := k[0] //param prefix
 				if ct = getCTypeByPrefix(prefix); ct != CTYPE_IS {
 					k = k[1:]
+					//Debug("[key: %s][ctype: %d]", k, ct)
 				}
-				//switch prefix {
-				//case _PPREFIX_NOT:
-				//	k = k[1:]
-				//	ct = CTYPE_NOT
-				//case _PPREFIX_LIKE:
-				//	k = k[1:]
-				//	ct = CTYPE_LIKE
-				//default:
-				//	ct = CTYPE_IS
-				//}
 
 				//如果参数中包含".",代表有关联查询
 				if strings.Contains(k, ".") {

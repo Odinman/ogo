@@ -482,6 +482,15 @@ func (rc *RESTContext) GetQueryParam(key string) (r string, c int) {
 
 /* }}} */
 
+/* {{{ func (rc *RESTContext) GetQueryParams(key string) (string, int)
+ */
+func (rc *RESTContext) GetQueryParams(key string) (rs []string) {
+	rs = rc.Request.Form[key]
+	return
+}
+
+/* }}} */
+
 /* {{{ func (rc *RESTContext) SetEnv(k string, v interface{})
  * 设置环境变量
  */
