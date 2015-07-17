@@ -30,6 +30,7 @@ const (
 	TAG_REPORT     = "RPT"   //报表字段
 	TAG_CANGROUP   = "GRP"   //可以group操作
 	TAG_ORDERBY    = "O"     //可排序
+	TAG_AORDERBY   = "AO"    //正排序(默认DESC)
 	TAG_VERIFIABLE = "V"     //验证后可修改
 	TAG_RETURN     = "RET"   // 返回,创建后需要返回数值
 	TAG_SUM        = "SUM"   // 求和
@@ -64,6 +65,7 @@ type Condition struct {
 	Field string
 	Is    interface{}
 	Not   interface{}
+	Or    interface{}
 	Gt    interface{}
 	Lt    interface{}
 	Like  interface{}
@@ -102,6 +104,8 @@ func NewCondition(typ int, field string, cs ...interface{}) *Condition {
 		con.Lt = v
 	case CTYPE_JOIN:
 		con.Join = v
+	case CTYPE_OR:
+		con.Or = v
 	case CTYPE_LIKE:
 		con.Like = v
 	case CTYPE_RANGE:
@@ -117,6 +121,186 @@ func NewCondition(typ int, field string, cs ...interface{}) *Condition {
 	return con
 }
 
+/* {{{ func (v *Condition) DoWhere(b *gorp.Builder)
+ * 只负责生成部分sql, IS/NOT/LIKE/GT/LT
+ */
+func (v *Condition) DoWhere(b *gorp.Builder) {
+	if v.Raw != "" {
+		b.Where(fmt.Sprint("(", v.Raw, ")"))
+	}
+	if v.Is != nil {
+		//Debug("[=][key: %s]%v", v.Field, v)
+		switch vt := v.Is.(type) {
+		case string:
+			b.Where(fmt.Sprintf("T.`%s` = ?", v.Field), vt)
+		case []string:
+			//Debug("[=][slices][key: %s]%v", v.Field, v)
+			vs := bytes.Buffer{}
+			first := true
+			vs.WriteString("(")
+			for _, vv := range vt {
+				if !first {
+					vs.WriteString(",")
+				}
+				vs.WriteString(fmt.Sprintf("'%s'", vv))
+				first = false
+			}
+			vs.WriteString(")")
+			b.Where(fmt.Sprintf("T.`%s` IN %s", v.Field, vs.String()))
+		case []interface{}:
+			vs := bytes.Buffer{}
+			first := true
+			vs.WriteString("(")
+			for _, vv := range vt {
+				if !first {
+					vs.WriteString(",")
+				}
+				vs.WriteString(fmt.Sprintf("'%s'", vv))
+				first = false
+			}
+			vs.WriteString(")")
+			b.Where(fmt.Sprintf("T.`%s` IN %s", v.Field, vs.String()))
+		default:
+		}
+	}
+	if v.Not != nil {
+		switch vt := v.Not.(type) {
+		case string:
+			b.Where(fmt.Sprintf("T.`%s` != ?", v.Field), vt)
+		case []string:
+			vs := bytes.Buffer{}
+			first := true
+			vs.WriteString("(")
+			for _, vv := range vt {
+				if !first {
+					vs.WriteString(",")
+				}
+				vs.WriteString(fmt.Sprintf("'%s'", vv))
+				first = false
+			}
+			vs.WriteString(")")
+			b.Where(fmt.Sprintf("T.`%s` NOT IN %s", v.Field, vs.String()))
+		case []interface{}:
+			vs := bytes.Buffer{}
+			first := true
+			vs.WriteString("(")
+			for _, vv := range vt {
+				if !first {
+					vs.WriteString(",")
+				}
+				vs.WriteString(fmt.Sprintf("'%s'", vv))
+				first = false
+			}
+			vs.WriteString(")")
+			b.Where(fmt.Sprintf("T.`%s` NOT IN %s", v.Field, vs.String()))
+		default:
+		}
+	}
+	if v.Gt != nil {
+		//Debug("[>=][key: %s]%v", v.Field, v)
+		switch vt := v.Gt.(type) {
+		case string:
+			b.Where(fmt.Sprintf("T.`%s` >= '%s'", v.Field, vt))
+		case []string:
+			vs := bytes.Buffer{}
+			first := true
+			vs.WriteString("(")
+			for _, vv := range vt {
+				if !first {
+					vs.WriteString(" OR ")
+				}
+				vs.WriteString(fmt.Sprintf("T.`%s` >= '%s'", v.Field, vv))
+				first = false
+			}
+			vs.WriteString(")")
+			b.Where(vs.String())
+		case []interface{}:
+			vs := bytes.Buffer{}
+			first := true
+			vs.WriteString("(")
+			for _, vv := range vt {
+				if !first {
+					vs.WriteString(" OR ")
+				}
+				vs.WriteString(fmt.Sprintf("T.`%s` >= '%s'", v.Field, vv))
+				first = false
+			}
+			vs.WriteString(")")
+			b.Where(vs.String())
+		default:
+		}
+	}
+	if v.Lt != nil {
+		//Debug("[<][key: %s]%v", v.Field, v)
+		switch vt := v.Lt.(type) {
+		case string:
+			b.Where(fmt.Sprintf("T.`%s` < '%s'", v.Field, vt))
+		case []string:
+			vs := bytes.Buffer{}
+			first := true
+			vs.WriteString("(")
+			for _, vv := range vt {
+				if !first {
+					vs.WriteString(" OR ")
+				}
+				vs.WriteString(fmt.Sprintf("T.`%s` < '%s'", v.Field, vv))
+				first = false
+			}
+			vs.WriteString(")")
+			b.Where(vs.String())
+		case []interface{}:
+			vs := bytes.Buffer{}
+			first := true
+			vs.WriteString("(")
+			for _, vv := range vt {
+				if !first {
+					vs.WriteString(" OR ")
+				}
+				vs.WriteString(fmt.Sprintf("T.`%s` < '%s'", v.Field, vv))
+				first = false
+			}
+			vs.WriteString(")")
+			b.Where(vs.String())
+		default:
+		}
+	}
+	if v.Like != nil {
+		switch vt := v.Like.(type) {
+		case string:
+			b.Where(fmt.Sprintf("T.`%s` LIKE '%%%s%%'", v.Field, vt))
+		case []string:
+			vs := bytes.Buffer{}
+			first := true
+			vs.WriteString("(")
+			for _, vv := range vt {
+				if !first {
+					vs.WriteString(" OR ")
+				}
+				vs.WriteString(fmt.Sprintf("T.`%s` LIKE '%%%s%%'", v.Field, vv))
+				first = false
+			}
+			vs.WriteString(")")
+			b.Where(vs.String())
+		case []interface{}:
+			vs := bytes.Buffer{}
+			first := true
+			vs.WriteString("(")
+			for _, vv := range vt {
+				if !first {
+					vs.WriteString(" OR ")
+				}
+				vs.WriteString(fmt.Sprintf("T.`%s` LIKE '%%%s%%'", v.Field, vv))
+				first = false
+			}
+			vs.WriteString(")")
+			b.Where(vs.String())
+		default:
+		}
+	}
+}
+
+/* }}} */
+
 /* {{{ func (con *Condition) Merge(oc *Condition)
  * 直接覆盖
  */
@@ -126,6 +310,9 @@ func (con *Condition) Merge(oc *Condition) {
 	}
 	if oc.Is != nil {
 		con.Is = oc.Is
+	}
+	if oc.Or != nil {
+		con.Or = oc.Or
 	}
 	if oc.Not != nil {
 		con.Not = oc.Not
@@ -332,7 +519,7 @@ func (bm *BaseModel) SetConditions(cs ...*Condition) (cons []*Condition, err err
 				}
 			}
 			if col.TagOptions.Contains(DBTAG_PK) || col.ExtOptions.Contains(TAG_CONDITION) { //primary key or conditional
-				if condition, e := GetCondition(cs, col.Tag); e == nil && (condition.Is != nil || condition.Not != nil || condition.Gt != nil || condition.Lt != nil || condition.Like != nil || condition.Join != nil || condition.Raw != "") {
+				if condition, e := GetCondition(cs, col.Tag); e == nil && (condition.Is != nil || condition.Not != nil || condition.Gt != nil || condition.Lt != nil || condition.Like != nil || condition.Join != nil || condition.Raw != "" || condition.Or != "") {
 					//Debug("[SetConditions][tag: %s]%v", col.Tag, condition)
 					bm.conditions = append(bm.conditions, condition)
 				}
@@ -577,12 +764,12 @@ func (bm *BaseModel) Valid() (Model, error) {
 						sv := fv.Elem().String()
 						h := utils.HashSha1(sv)
 						fv.Set(reflect.ValueOf(&h))
-						c.Debug("password: %s, encoded: %s", sv, h)
+						//c.Debug("password: %s, encoded: %s", sv, h)
 					case "string":
 						sv := fv.String()
 						h := utils.HashSha1(sv)
 						fv.Set(reflect.ValueOf(h))
-						c.Debug("password: %s, encoded: %s", sv, h)
+						//c.Debug("password: %s, encoded: %s", sv, h)
 					default:
 						return nil, fmt.Errorf("field(%s) must be string, not %s", col.Tag, fv.Kind().String())
 					}
@@ -592,10 +779,10 @@ func (bm *BaseModel) Valid() (Model, error) {
 					var userid string
 					if uid := c.GetEnv(USERID_KEY); uid == nil {
 						userid = "0"
-						c.Debug("userid not exists")
+						//c.Debug("userid not exists")
 					} else {
 						userid = uid.(string)
-						c.Debug("userid: %s", userid)
+						//c.Debug("userid: %s", userid)
 					}
 					switch fv.Type().String() {
 					case "*string":
@@ -611,7 +798,7 @@ func (bm *BaseModel) Valid() (Model, error) {
 					if exValue, err := checker(col.Tag); err != nil {
 						return nil, fmt.Errorf("%s existense check failed: %s", col.Tag, err.Error())
 					} else if exValue != nil {
-						c.Debug("%s existense: %v", col.Tag, exValue)
+						//c.Debug("%s existense: %v", col.Tag, exValue)
 						fv.Set(reflect.ValueOf(exValue))
 					}
 				}
@@ -701,6 +888,7 @@ func (bm *BaseModel) GetRow(ext ...interface{}) (Model, error) {
 		Info("error: %s", err)
 		return nil, err
 	}
+	c := m.GetCtx()
 	if len(ext) > 0 {
 		if id, ok := ext[0].(string); ok {
 			m.SetConditions(NewCondition(CTYPE_IS, m.PKey(), id))
@@ -723,7 +911,7 @@ func (bm *BaseModel) GetRow(ext ...interface{}) (Model, error) {
 		//c.Debug("len: %d, no record", resultsValue.Len())
 		return nil, ErrNoRecord
 	}
-	return BuildModel(resultsValue.Index(0).Interface().(Model)), nil
+	return BuildModel(resultsValue.Index(0).Interface().(Model), c), nil
 }
 
 /* }}} */
@@ -920,7 +1108,7 @@ func (bm *BaseModel) AddTable(tags ...string) {
 	if m := bm.GetModel(); m != nil {
 		reflectVal := reflect.ValueOf(m)
 		mv := reflect.Indirect(reflectVal).Interface()
-		Debug("table name: %s", bm.TableName())
+		//Debug("table name: %s", bm.TableName())
 		tb := bm.TableName()
 		gorp.AddTableWithName(mv, tb).SetKeys(true, bm.PKey())
 
@@ -989,22 +1177,27 @@ func (bm *BaseModel) ReadPrepare() (b *gorp.Builder, err error) {
 			}
 		}
 		jc := 0
+		orCons := make(map[string][]string)
 		for _, v := range cons {
 			//Debug("[key: %s]%v", v.Field, v)
-			if v.Raw != "" {
-				b.Where(fmt.Sprint("(", v.Raw, ")"))
-			}
-			if v.Is != nil {
-				//Debug("[=][key: %s]%v", v.Field, v)
-				switch vt := v.Is.(type) {
+			v.DoWhere(b) //已经处理了 raw/is/not/like/gt/lt
+			if v.Or != nil {
+				//Debug("[OR][key: %s]%v", v.Field, v)
+				oc := v.Or.(*Condition)
+				orKey := oc.Field
+				if orCons[orKey] == nil {
+					orCons[orKey] = make([]string, 0)
+				}
+				//Debug("or condition: %s", orKey)
+				switch ot := oc.Is.(type) {
 				case string:
-					b.Where(fmt.Sprintf("T.`%s` = ?", v.Field), vt)
+					//Debug("or condition: %s, field: %s", orKey, v.Field)
+					orCons[orKey] = append(orCons[orKey], fmt.Sprintf("T.`%s` = '%s'", v.Field, ot))
 				case []string:
-					//Debug("[=][slices][key: %s]%v", v.Field, v)
 					vs := bytes.Buffer{}
 					first := true
 					vs.WriteString("(")
-					for _, vv := range vt {
+					for _, vv := range ot {
 						if !first {
 							vs.WriteString(",")
 						}
@@ -1012,12 +1205,12 @@ func (bm *BaseModel) ReadPrepare() (b *gorp.Builder, err error) {
 						first = false
 					}
 					vs.WriteString(")")
-					b.Where(fmt.Sprintf("T.`%s` IN %s", v.Field, vs.String()))
+					orCons[orKey] = append(orCons[orKey], fmt.Sprintf("T.`%s` IN %s", v.Field, vs.String()))
 				case []interface{}:
 					vs := bytes.Buffer{}
 					first := true
 					vs.WriteString("(")
-					for _, vv := range vt {
+					for _, vv := range ot {
 						if !first {
 							vs.WriteString(",")
 						}
@@ -1025,141 +1218,7 @@ func (bm *BaseModel) ReadPrepare() (b *gorp.Builder, err error) {
 						first = false
 					}
 					vs.WriteString(")")
-					b.Where(fmt.Sprintf("T.`%s` IN %s", v.Field, vs.String()))
-				default:
-				}
-			}
-			if v.Not != nil {
-				switch vt := v.Not.(type) {
-				case string:
-					b.Where(fmt.Sprintf("T.`%s` != ?", v.Field), vt)
-				case []string:
-					vs := bytes.Buffer{}
-					first := true
-					vs.WriteString("(")
-					for _, vv := range vt {
-						if !first {
-							vs.WriteString(",")
-						}
-						vs.WriteString(fmt.Sprintf("'%s'", vv))
-						first = false
-					}
-					vs.WriteString(")")
-					b.Where(fmt.Sprintf("T.`%s` NOT IN %s", v.Field, vs.String()))
-				case []interface{}:
-					vs := bytes.Buffer{}
-					first := true
-					vs.WriteString("(")
-					for _, vv := range vt {
-						if !first {
-							vs.WriteString(",")
-						}
-						vs.WriteString(fmt.Sprintf("'%s'", vv))
-						first = false
-					}
-					vs.WriteString(")")
-					b.Where(fmt.Sprintf("T.`%s` NOT IN %s", v.Field, vs.String()))
-				default:
-				}
-			}
-			if v.Gt != nil {
-				//Debug("[>=][key: %s]%v", v.Field, v)
-				switch vt := v.Gt.(type) {
-				case string:
-					b.Where(fmt.Sprintf("T.`%s` >= '%s'", v.Field, vt))
-				case []string:
-					vs := bytes.Buffer{}
-					first := true
-					vs.WriteString("(")
-					for _, vv := range vt {
-						if !first {
-							vs.WriteString(" OR ")
-						}
-						vs.WriteString(fmt.Sprintf("T.`%s` >= '%s'", v.Field, vv))
-						first = false
-					}
-					vs.WriteString(")")
-					b.Where(vs.String())
-				case []interface{}:
-					vs := bytes.Buffer{}
-					first := true
-					vs.WriteString("(")
-					for _, vv := range vt {
-						if !first {
-							vs.WriteString(" OR ")
-						}
-						vs.WriteString(fmt.Sprintf("T.`%s` >= '%s'", v.Field, vv))
-						first = false
-					}
-					vs.WriteString(")")
-					b.Where(vs.String())
-				default:
-				}
-			}
-			if v.Lt != nil {
-				//Debug("[<][key: %s]%v", v.Field, v)
-				switch vt := v.Lt.(type) {
-				case string:
-					b.Where(fmt.Sprintf("T.`%s` < '%s'", v.Field, vt))
-				case []string:
-					vs := bytes.Buffer{}
-					first := true
-					vs.WriteString("(")
-					for _, vv := range vt {
-						if !first {
-							vs.WriteString(" OR ")
-						}
-						vs.WriteString(fmt.Sprintf("T.`%s` < '%s'", v.Field, vv))
-						first = false
-					}
-					vs.WriteString(")")
-					b.Where(vs.String())
-				case []interface{}:
-					vs := bytes.Buffer{}
-					first := true
-					vs.WriteString("(")
-					for _, vv := range vt {
-						if !first {
-							vs.WriteString(" OR ")
-						}
-						vs.WriteString(fmt.Sprintf("T.`%s` < '%s'", v.Field, vv))
-						first = false
-					}
-					vs.WriteString(")")
-					b.Where(vs.String())
-				default:
-				}
-			}
-			if v.Like != nil {
-				switch vt := v.Like.(type) {
-				case string:
-					b.Where(fmt.Sprintf("T.`%s` LIKE '%%%s%%'", v.Field, vt))
-				case []string:
-					vs := bytes.Buffer{}
-					first := true
-					vs.WriteString("(")
-					for _, vv := range vt {
-						if !first {
-							vs.WriteString(" OR ")
-						}
-						vs.WriteString(fmt.Sprintf("T.`%s` LIKE '%%%s%%'", v.Field, vv))
-						first = false
-					}
-					vs.WriteString(")")
-					b.Where(vs.String())
-				case []interface{}:
-					vs := bytes.Buffer{}
-					first := true
-					vs.WriteString("(")
-					for _, vv := range vt {
-						if !first {
-							vs.WriteString(" OR ")
-						}
-						vs.WriteString(fmt.Sprintf("T.`%s` LIKE '%%%s%%'", v.Field, vv))
-						first = false
-					}
-					vs.WriteString(")")
-					b.Where(vs.String())
+					orCons[orKey] = append(orCons[orKey], fmt.Sprintf("T.`%s` IN %s", v.Field, vs.String()))
 				default:
 				}
 			}
@@ -1183,16 +1242,12 @@ func (bm *BaseModel) ReadPrepare() (b *gorp.Builder, err error) {
 									}
 								}
 							}
-						} else {
-							//c.Info("unknown table %s", jt)
 						}
 						if canJoin {
 							js := fmt.Sprintf("LEFT JOIN `%s` T%d ON T.`%s` = T%d.`id`", jt, jc, v.Field, jc)
 							b.Joins(js)
 							b.Where(fmt.Sprintf("T%d.`%s`=?", jc, jf), vt.Is.(string))
 							jc++
-						} else {
-							//c.Trace("%s.%s can't join", jt, jf)
 						}
 					}
 				default:
@@ -1200,15 +1255,21 @@ func (bm *BaseModel) ReadPrepare() (b *gorp.Builder, err error) {
 				}
 			}
 		}
+		if len(orCons) > 0 {
+			for _, css := range orCons {
+				b.Where("(" + strings.Join(css, " OR ") + ")")
+			}
+		}
 	} else { //没有条件从自身找
-		Debug("find condition from struct")
+		//Debug("find condition from struct")
 		if cols := utils.ReadStructColumns(m, true); cols != nil {
 			v := reflect.ValueOf(m)
 			for _, col := range cols {
 				fv := utils.FieldByIndex(v, col.Index)
 				if (col.TagOptions.Contains(DBTAG_PK) || col.ExtOptions.Contains(TAG_CONDITION)) && fv.IsValid() && !utils.IsEmptyValue(fv) { //有值
 					if fs := utils.GetRealString(fv); fs != "" {
-						b.Or(fmt.Sprintf("T.`%s` = ?", col.Tag), fs)
+						// 多个字段有值, 用AND
+						b.Where(fmt.Sprintf("T.`%s` = ?", col.Tag), fs)
 					}
 				}
 			}
@@ -1220,10 +1281,10 @@ func (bm *BaseModel) ReadPrepare() (b *gorp.Builder, err error) {
 	for _, v := range cons {
 		if v.Order != nil {
 			switch vt := v.Order.(type) {
-			case *OrderBy: //只支持timerange
+			case *OrderBy:
 				b.Order(fmt.Sprintf("T.`%s` %s", vt.Field, vt.Sort))
 				ordered = true
-			case OrderBy: //只支持timerange
+			case OrderBy:
 				b.Order(fmt.Sprintf("T.`%s` %s", vt.Field, vt.Sort))
 				ordered = true
 			default:
@@ -1235,9 +1296,11 @@ func (bm *BaseModel) ReadPrepare() (b *gorp.Builder, err error) {
 		//默认排序
 		if cols := utils.ReadStructColumns(m, true); cols != nil {
 			for _, col := range cols {
-				//if col.TagOptions.Contains(DBTAG_PK) { // 默认为pk降序
 				if col.ExtOptions.Contains(TAG_ORDERBY) { // 默认为pk降序
 					b.Order(fmt.Sprintf("T.`%s` DESC", col.Tag))
+					ordered = true
+				} else if col.ExtOptions.Contains(TAG_AORDERBY) { //正排序
+					b.Order(fmt.Sprintf("T.`%s` ASC", col.Tag))
 					ordered = true
 				}
 			}

@@ -36,6 +36,7 @@ const (
 	// 查询类型
 	CTYPE_IS = iota
 	CTYPE_NOT
+	CTYPE_OR
 	CTYPE_LIKE
 	CTYPE_GT
 	CTYPE_LT
@@ -295,19 +296,29 @@ func ParseParams(c *web.C, h http.Handler) http.Handler {
 					//Debug("[key: %s][ctype: %d]", k, ct)
 				}
 
-				//如果参数中包含".",代表有关联查询
-				if strings.Contains(k, ".") {
-					js := strings.SplitN(k, ".", 2)
-					if js[0] != "" && js[1] != "" {
-						k = js[0]
-						cv = NewCondition(ct, js[1], cv)
-						//查询类型变为join
-						rc.Trace("join: %s, %s; con: %v", k, cv.(*Condition).Field, cv)
-						ct = CTYPE_JOIN
+				if strings.Contains(k, "|") { //包含"|",OR条件
+					os := strings.Split(k, "|")
+					for _, of := range os {
+						if of != "" {
+							//rc.Debug("[or condition][or field: %s]", of)
+							rc.setCondition(NewCondition(CTYPE_OR, of, NewCondition(ct, k, cv))) // k代表同类的or条件
+						}
 					}
+				} else {
+					//如果参数中包含".",代表有关联查询
+					if strings.Contains(k, ".") {
+						js := strings.SplitN(k, ".", 2)
+						if js[0] != "" && js[1] != "" {
+							k = js[0]
+							cv = NewCondition(ct, js[1], cv)
+							//查询类型变为join
+							rc.Trace("join: %s, %s; con: %v", k, cv.(*Condition).Field, cv)
+							ct = CTYPE_JOIN
+						}
+					}
+					rc.setCondition(NewCondition(ct, k, cv))
 				}
 
-				rc.setCondition(NewCondition(ct, k, cv))
 			}
 		}
 		//记录分页信息
