@@ -3,7 +3,11 @@
 package ogo
 
 import (
+	"reflect"
+	"strconv"
 	"time"
+
+	"github.com/Odinman/ogo/utils"
 )
 
 type Aggregation struct {
@@ -57,6 +61,43 @@ func UpdateAggregation(as []Aggregation, a Aggregation) []Aggregation {
 	}
 	//Debug("[append: %s]", a.Key)
 	return append(as, a)
+}
+
+/* }}} */
+
+/* {{{ func BuildAggregationsFromList(l *List, items []string) Aggregations
+ *
+ */
+func BuildAggregationsFromList(l *List, items []string) (as Aggregations) {
+	listValue := reflect.Indirect(reflect.ValueOf(l.List))
+	as = make(Aggregations)
+	for i := 0; i < listValue.Len(); i++ {
+		row := listValue.Index(i).Interface().(Model)
+		if cols := utils.ReadStructColumns(row, true); cols != nil {
+			rv := reflect.ValueOf(row)
+			for _, col := range cols {
+				frv := utils.FieldByIndex(rv, col.Index)
+				if !col.ExtOptions.Contains(TAG_TIMERANGE) && utils.InSlice(col.Tag, items) && frv.IsValid() && !utils.IsEmptyValue(frv) { //聚合元素
+					var key string
+					switch frv.Type().String() {
+					case "*string":
+						key = frv.Elem().String()
+					case "string":
+						key = frv.String()
+					case "*int":
+						key = strconv.Itoa(int(frv.Elem().Int()))
+					}
+					if _, ok := as[col.Tag]; !ok {
+						as[col.Tag] = make([]Aggregation, 0)
+					}
+					if cnt, _ := row.GetCount(); cnt > 0 {
+						as[col.Tag] = UpdateAggregation(as[col.Tag], Aggregation{Key: key, Count: int(cnt)})
+					}
+				}
+			}
+		}
+	}
+	return as
 }
 
 /* }}} */

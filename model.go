@@ -25,16 +25,21 @@ const (
 	TAG_GENERATE   = "G"     // 服务端生成, 同时不可编辑
 	TAG_CONDITION  = "C"     // 可作为查询条件
 	TAG_DENY       = "D"     // 不可编辑, 可为空
-	TAG_SECRET     = "S"     //保密,一般不见人
-	TAG_TIMERANGE  = "TR"    //时间范围条件
-	TAG_REPORT     = "RPT"   //报表字段
-	TAG_CANGROUP   = "GRP"   //可以group操作
-	TAG_ORDERBY    = "O"     //可排序
-	TAG_AORDERBY   = "AO"    //正排序(默认DESC)
-	TAG_VERIFIABLE = "V"     //验证后可修改
+	TAG_SECRET     = "S"     // 保密,一般不见人
+	TAG_TIMERANGE  = "TR"    // 时间范围条件
+	TAG_REPORT     = "RPT"   // 报表字段
+	TAG_CANGROUP   = "GRP"   // 可以group操作
+	TAG_ORDERBY    = "O"     // 可排序
+	TAG_AORDERBY   = "AO"    // 逆排序(默认DESC)
+	TAG_VERIFIABLE = "V"     // 验证后可修改
 	TAG_RETURN     = "RET"   // 返回,创建后需要返回数值
 	TAG_SUM        = "SUM"   // 求和
+	TAG_TSUM       = "TS"    // 总求和(放到聚合中,只能有一个)
 	TAG_COUNT      = "COUNT" // 计数
+
+	// ext field
+	EXF_SUM   = "sum"
+	EXF_COUNT = "count"
 )
 
 type List struct {
@@ -387,6 +392,8 @@ type Checker func(string) (interface{}, error)
 
 //基础model,在这里可以实现Model接口, 其余的只需要嵌入这个struct,就可以继承这些方法
 type BaseModel struct {
+	Count      int64        `json:"count,omitempty" db:"count"` // 计数
+	Sum        float64      `json:"sum,omitempty" db:"sum"`     // 求和
 	Error      error        `json:"-" db:"-"`
 	Locked     []string     `json:"-" db:"-"`
 	Model      Model        `json:"-" db:"-"`
@@ -1066,9 +1073,12 @@ func (bm *BaseModel) GetSum(d []string) (l *List, err error) {
  * 获取list, 通用函数
  */
 func (bm *BaseModel) GetCount() (cnt int64, err error) {
-	builder, _ := bm.ReadPrepare()
-	return builder.Count()
-
+	if bm.Count > 0 {
+		return bm.Count, nil
+	} else {
+		builder, _ := bm.ReadPrepare()
+		return builder.Count()
+	}
 }
 
 /* }}} */
@@ -1386,8 +1396,11 @@ func GetSumFields(i interface{}, g []string) (s string) {
 			}
 			if col.ExtOptions.Contains(TAG_SUM) {
 				bs.WriteString(fmt.Sprintf("SUM(T.`%s`) AS `%s`", col.Tag, col.Tag))
+				if col.ExtOptions.Contains(TAG_TSUM) {
+					bs.WriteString(fmt.Sprintf(",SUM(T.`%s`) AS `%s`", col.Tag, EXF_SUM))
+				}
 			} else if col.ExtOptions.Contains(TAG_COUNT) {
-				bs.WriteString(fmt.Sprintf("COUNT(T.`%s`) AS `%s`", col.Tag, col.Tag))
+				bs.WriteString(fmt.Sprintf("COUNT(T.`%s`) AS `%s`", col.Tag, EXF_COUNT))
 			} else {
 				bs.WriteString("T.`" + col.Tag + "`")
 			}
