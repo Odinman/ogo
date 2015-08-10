@@ -1038,28 +1038,19 @@ func (bm *BaseModel) GetSum(d []string) (l *List, err error) {
 			group = append(group, d...)
 		}
 		builder.Group(group)
-		if count, _ := builder.Count(); count > 0 {
-			ms = bm.NewList()
-			if p := bm.GetPagination(); p != nil {
-				l.Info.Page = &p.Page
-				l.Info.PerPage = &p.PerPage
-				err = builder.Select(GetSumFields(m, group)).Offset(p.Offset).Limit(p.PerPage).Find(ms)
-			} else {
-				err = builder.Select(GetSumFields(m, group)).Find(ms)
-			}
-			if err != nil && err != sql.ErrNoRows {
-				//支持出错
-				return l, err
-			} else if ms == nil {
-				//没找到记录
-				return l, ErrNoRecord
-			}
 
-			l.Total = count
-			l.List = ms
-		} else {
-			err = ErrNoRecord
+		ms = bm.NewList()
+
+		if err = builder.Select(GetSumFields(m, group)).Find(ms); err != nil {
+			return l, err
+		} else if ms == nil {
+			return l, ErrNoRecord
 		}
+
+		listValue := reflect.Indirect(reflect.ValueOf(ms))
+		l.Total = int64(listValue.Len())
+
+		l.List = ms
 
 		return
 	} else {
