@@ -10,8 +10,8 @@ import (
 
 const (
 	_DEF_PAGE     = 1 //1-base
-	_DEF_PER_PAGE = 25
-	_MAX_PER_PAGE = 100 //每页最大个数
+	_DEF_PER_PAGE = 100
+	_MAX_PER_PAGE = 1000 //每页最大个数
 
 	//time
 	_DATE_FORM  = "2006-01-02"

@@ -519,7 +519,7 @@ func (bm *BaseModel) SetConditions(cs ...*Condition) (cons []*Condition, err err
 				}
 			}
 			if col.TagOptions.Contains(DBTAG_PK) || col.ExtOptions.Contains(TAG_CONDITION) { //primary key or conditional
-				if condition, e := GetCondition(cs, col.Tag); e == nil && (condition.Is != nil || condition.Not != nil || condition.Gt != nil || condition.Lt != nil || condition.Like != nil || condition.Join != nil || condition.Raw != "" || condition.Or != "") {
+				if condition, e := GetCondition(cs, col.Tag); e == nil && (condition.Is != nil || condition.Not != nil || condition.Gt != nil || condition.Lt != nil || condition.Like != nil || condition.Join != nil || condition.Raw != "" || condition.Or != nil) {
 					//Debug("[SetConditions][tag: %s]%v", col.Tag, condition)
 					bm.conditions = append(bm.conditions, condition)
 				}
