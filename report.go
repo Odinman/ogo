@@ -90,9 +90,8 @@ func BuildAggregationsFromList(l *List, items []string) (as Aggregations) {
 					if _, ok := as[col.Tag]; !ok {
 						as[col.Tag] = make([]Aggregation, 0)
 					}
-					if cnt, _ := row.GetCount(); cnt > 0 {
-						as[col.Tag] = UpdateAggregation(as[col.Tag], Aggregation{Key: key, Count: int(cnt)})
-					}
+					cnt, sum := row.GetCountNSum()
+					as[col.Tag] = UpdateAggregation(as[col.Tag], Aggregation{Key: key, Count: int(cnt), Amount: sum})
 				}
 			}
 		}

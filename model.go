@@ -379,6 +379,7 @@ type Model interface {
 	GetOlder() Model                          //获取旧记录
 	GetSum(d []string) (*List, error)         //获取多条记录
 	GetCount() (int64, error)                 //获取多条记录
+	GetCountNSum() (int64, float64)           //获取count and sum
 	CreateRow() (Model, error)                //创建单条记录
 	UpdateRow(id string) (int64, error)       //更新记录
 	DeleteRow(id string) (int64, error)       //更新记录
@@ -1079,6 +1080,15 @@ func (bm *BaseModel) GetCount() (cnt int64, err error) {
 		builder, _ := bm.ReadPrepare()
 		return builder.Count()
 	}
+}
+
+/* }}} */
+
+/* {{{ func (bm *BaseModel) GetCountNSum() (cnt int64, sum float64)
+ * 获取计数以及求和, 通用函数
+ */
+func (bm *BaseModel) GetCountNSum() (cnt int64, sum float64) {
+	return bm.Count, bm.Sum
 }
 
 /* }}} */
