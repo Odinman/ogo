@@ -21,21 +21,23 @@ const (
 	DBTAG_LOGIC = "logic"
 
 	//tag
-	TAG_REQUIRED   = "R"     // 必填
-	TAG_GENERATE   = "G"     // 服务端生成, 同时不可编辑
-	TAG_CONDITION  = "C"     // 可作为查询条件
-	TAG_DENY       = "D"     // 不可编辑, 可为空
-	TAG_SECRET     = "S"     // 保密,一般不见人
-	TAG_TIMERANGE  = "TR"    // 时间范围条件
-	TAG_REPORT     = "RPT"   // 报表字段
-	TAG_CANGROUP   = "GRP"   // 可以group操作
-	TAG_ORDERBY    = "O"     // 可排序
-	TAG_AORDERBY   = "AO"    // 逆排序(默认DESC)
-	TAG_VERIFIABLE = "V"     // 验证后可修改
-	TAG_RETURN     = "RET"   // 返回,创建后需要返回数值
-	TAG_SUM        = "SUM"   // 求和
-	TAG_TSUM       = "TS"    // 总求和(放到聚合中,只能有一个)
-	TAG_COUNT      = "COUNT" // 计数
+	TAG_REQUIRED    = "R"     // 必填
+	TAG_GENERATE    = "G"     // 服务端生成, 同时不可编辑
+	TAG_CONDITION   = "C"     // 可作为查询条件
+	TAG_DENY        = "D"     // 不可编辑, 可为空
+	TAG_SECRET      = "S"     // 保密,一般不见人
+	TAG_HIDDEN      = "H"     // 隐藏
+	TAG_TIMERANGE   = "TR"    // 时间范围条件
+	TAG_REPORT      = "RPT"   // 报表字段
+	TAG_CANGROUP    = "GRP"   // 可以group操作
+	TAG_ORDERBY     = "O"     // 可排序
+	TAG_AORDERBY    = "AO"    // 逆排序(默认DESC)
+	TAG_VERIFIABLE  = "V"     // 验证后可修改
+	TAG_RETURN      = "RET"   // 返回,创建后需要返回数值
+	TAG_SUM         = "SUM"   // 求和
+	TAG_TSUM        = "TS"    // 总求和(放到聚合中,只能有一个)
+	TAG_COUNT       = "COUNT" // 计数
+	TAG_AGGREGATION = "AGG"   // 聚合
 
 	// ext field
 	EXF_SUM   = "sum"
@@ -393,8 +395,8 @@ type Checker func(string) (interface{}, error)
 
 //基础model,在这里可以实现Model接口, 其余的只需要嵌入这个struct,就可以继承这些方法
 type BaseModel struct {
-	Count      int64        `json:"count,omitempty" db:"count"` // 计数
-	Sum        float64      `json:"sum,omitempty" db:"sum"`     // 求和
+	Count      int64        `json:"count,omitempty" filter:",H,G,D"` // 计数
+	Sum        float64      `json:"sum,omitempty" filter:",H,G,D"`   // 求和
 	Error      error        `json:"-" db:"-"`
 	Locked     []string     `json:"-" db:"-"`
 	Model      Model        `json:"-" db:"-"`
@@ -1370,6 +1372,8 @@ func GetDbFields(i interface{}, ops ...interface{}) (s []string) {
 		s = make([]string, 0)
 		for _, col := range cols {
 			if col.Tag == "-" { //无此字段
+				continue
+			} else if col.ExtOptions.Contains(TAG_HIDDEN) { //隐藏字段忽略
 				continue
 			} else if readTag && col.ExtOptions.Contains(TAG_SECRET) { //默认忽略tag
 				continue
