@@ -851,7 +851,7 @@ func (bm *BaseModel) Valid() (Model, error) {
 				//可自定义,初始化时放到tagHooks里面
 				if col.ExtTag != "" && fv.IsValid() && !utils.IsEmptyValue(fv) { //还必须有值
 					if hk, ok := DMux.TagHooks[col.ExtTag]; ok {
-						fv.Set(hk(fv))
+						fv.Set(hk(v))
 					} else {
 						c.Info("cannot find hook for tag: %s", col.ExtTag)
 					}
