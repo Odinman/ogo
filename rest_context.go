@@ -38,6 +38,7 @@ const (
 	SIDE_KEY       = "_sidekey_"
 	USERID_KEY     = "_userid_"
 	APPID_KEY      = "_appid_"
+	STAG_KEY       = "_stag_"
 	PERMISSION_KEY = "_perm_"
 	EXT_KEY        = "_ext_"
 

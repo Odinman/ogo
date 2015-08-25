@@ -838,6 +838,19 @@ func (bm *BaseModel) Valid() (Model, error) {
 						return nil, fmt.Errorf("field(%s) must be string, not %s", col.Tag, fv.Kind().String())
 					}
 				}
+			case "stag":
+				if c.Route.Creating { // 创建时加上内容
+					if stag := c.GetEnv(STAG_KEY); stag != "" {
+						switch fv.Type().String() {
+						case "*string":
+							fv.Set(reflect.ValueOf(&stag))
+						case "string":
+							fv.Set(reflect.ValueOf(stag))
+						default:
+							return nil, fmt.Errorf("field(%s) must be string, not %s", col.Tag, fv.Kind().String())
+						}
+					}
+				}
 			case "forbbiden": //这个字段如果旧记录有值, 则返回错误
 				if c.Route.Updating {
 					older := m.GetOlder()
