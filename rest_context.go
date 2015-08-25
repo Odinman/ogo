@@ -19,7 +19,6 @@ const (
 	//env key
 	RequestIDKey      = "_reqid_"
 	SaveBodyKey       = "_sb_"
-	SaveResultKey     = "_sr_"
 	NoLogKey          = "_nl_"
 	PaginationKey     = "_pagination_"
 	FieldsKey         = "_fields_"
@@ -294,9 +293,6 @@ func (rc *RESTContext) RESTOK(data interface{}) (err error) {
 	}
 	rc.RESTHeader(status)
 
-	if sr := rc.GetEnv(SaveResultKey); sr != nil && sr.(bool) == true {
-		rc.Access.App = data
-	}
 	// write data
 	err = rc.RESTBody(data)
 	return
@@ -525,6 +521,42 @@ func (rc *RESTContext) SaveAccess() {
 	if rc.Access != nil {
 		rc.Access.Save()
 	}
+}
+
+/* }}} */
+
+/* {{{ func (rc *RESTContext) NewAppLogging(al *AppLog)
+ * 设置环境变量
+ */
+func (rc *RESTContext) NewAppLogging(al *AppLog) {
+	rc.Access.SaveApp(al)
+}
+
+/* }}} */
+
+/* {{{ func (rc *RESTContext) AppLoggingNew(i interface{})
+ * 设置环境变量
+ */
+func (rc *RESTContext) AppLoggingNew(i interface{}) {
+	rc.Access.App.New = i
+}
+
+/* }}} */
+
+/* {{{ func (rc *RESTContext) AppLoggingOld(i interface{})
+ * 设置环境变量
+ */
+func (rc *RESTContext) AppLoggingOld(i interface{}) {
+	rc.Access.App.Old = i
+}
+
+/* }}} */
+
+/* {{{ func (rc *RESTContext) AppLoggingResult(i interface{})
+ * 设置环境变量
+ */
+func (rc *RESTContext) AppLoggingResult(i interface{}) {
+	rc.Access.App.Result = i
 }
 
 /* }}} */

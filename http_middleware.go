@@ -139,6 +139,8 @@ func EnvInit(c *web.C, h http.Handler) http.Handler {
 			rc.RESTBadRequest(rcErr)
 			return
 		}
+		//app logging,默认为AppLog
+		rc.NewAppLogging(new(AppLog))
 
 		h.ServeHTTP(lw, r)
 

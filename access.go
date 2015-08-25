@@ -17,7 +17,8 @@ type Access struct {
 	Session  string      `json:"s"`
 	Duration string      `json:"d"`
 	Http     *HTTPLog    `json:"http,omitempty"`
-	App      interface{} `json:"app,omitempty"` //app自定义日志
+	App      *AppLog     `json:"app,omitempty"`   //app日志
+	Debug    interface{} `json:"debug,omitempty"` //app debug日志
 }
 
 type HTTPLog struct {
@@ -34,6 +35,12 @@ type HTTPLog struct {
 	OutHeader http.Header  `json:"oh,omitempty"`
 }
 
+type AppLog struct {
+	New    interface{} `json:"new,omitempty"`
+	Old    interface{} `json:"old,omitempty"`
+	Result interface{} `json:"result,omitempty"`
+}
+
 /* {{{ func (ac *Access) Save()
  * 记录access日志
  */
@@ -41,6 +48,33 @@ func (ac *Access) Save() {
 	if ab, err := json.Marshal(ac); err == nil {
 		accessor.Access(string(ab))
 	}
+}
+
+/* }}} */
+
+/* {{{ func (ac *Access) SaveApp(al *AppLog)
+ * 放置app日志
+ */
+func (ac *Access) SaveApp(al *AppLog) {
+	ac.App = al
+}
+
+/* }}} */
+
+/* {{{ func (ac *Access) GetApp() interface{}
+ * 放置app日志
+ */
+func (ac *Access) GetApp() interface{} {
+	return ac.App
+}
+
+/* }}} */
+
+/* {{{ func (ac *Access) SaveDebug(i interface{})
+ * 放置app日志
+ */
+func (ac *Access) SaveDebug(i interface{}) {
+	ac.Debug = i
 }
 
 /* }}} */

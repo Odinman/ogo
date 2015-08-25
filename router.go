@@ -529,6 +529,7 @@ func (rtr *Router) CRUD(i interface{}, flag int) Handler {
 		if r, err = act.PostCreate(r); err != nil {
 			c.Warn("postCreate error: %s", err)
 		}
+		c.AppLoggingResult(r)
 		c.RESTOK(r)
 		return
 	}
@@ -592,6 +593,7 @@ func (rtr *Router) CRUD(i interface{}, flag int) Handler {
 			c.Warn("postCreate error: %s", err)
 		}
 
+		c.AppLoggingResult(r)
 		c.RESTOK(r)
 		return
 	}

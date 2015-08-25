@@ -935,6 +935,9 @@ func (bm *BaseModel) CreateRow() (Model, error) {
 		if err := db.Insert(m); err != nil { //Insert会把m换成新的
 			return nil, err
 		} else {
+			if c := m.GetCtx(); c != nil {
+				c.AppLoggingNew(m)
+			}
 			return m.SetModel(m), nil
 		}
 	} else {
@@ -951,6 +954,8 @@ func (bm *BaseModel) CreateRow() (Model, error) {
  */
 func (bm *BaseModel) UpdateRow(id string) (affected int64, err error) {
 	if m := bm.GetModel(); m != nil {
+		c := m.GetCtx()
+		c.AppLoggingNew(m)
 		db := bm.DBConn(WRITETAG)
 		if id != "" {
 			if err = utils.ImportValue(m, map[string]string{DBTAG_PK: id}); err != nil {
@@ -1105,6 +1110,7 @@ func (bm *BaseModel) GetOlder() Model {
 			if rk, ok := c.URLParams[RowkeyKey]; ok && c.Route.Updating {
 				if older, err := m.GetRow(rk); err == nil {
 					bm.older = older
+					c.AppLoggingOld(older)
 				}
 			}
 		}
