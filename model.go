@@ -509,6 +509,11 @@ func (bm *BaseModel) SetConditions(cs ...*Condition) (cons []*Condition, err err
 	}
 	if cols := utils.ReadStructColumns(m, true); cols != nil {
 		for _, col := range cols {
+			// raw
+			if condition, e := GetCondition(cs, col.Tag); e == nil && condition.Raw != "" {
+				//Debug("[SetConditions][raw][tag: %s]%v", col.Tag, condition)
+				bm.conditions = append(bm.conditions, condition)
+			}
 			// time range
 			if col.ExtOptions.Contains(TAG_TIMERANGE) {
 				if condition, e := GetCondition(cs, TAG_TIMERANGE); e == nil && condition.Range != nil {
@@ -529,7 +534,7 @@ func (bm *BaseModel) SetConditions(cs ...*Condition) (cons []*Condition, err err
 				}
 			}
 			if col.TagOptions.Contains(DBTAG_PK) || col.ExtOptions.Contains(TAG_CONDITION) { //primary key or conditional
-				if condition, e := GetCondition(cs, col.Tag); e == nil && (condition.Is != nil || condition.Not != nil || condition.Gt != nil || condition.Lt != nil || condition.Like != nil || condition.Join != nil || condition.Raw != "" || condition.Or != nil) {
+				if condition, e := GetCondition(cs, col.Tag); e == nil && (condition.Is != nil || condition.Not != nil || condition.Gt != nil || condition.Lt != nil || condition.Like != nil || condition.Join != nil || condition.Or != nil) {
 					//Debug("[SetConditions][tag: %s]%v", col.Tag, condition)
 					bm.conditions = append(bm.conditions, condition)
 				}
@@ -840,7 +845,7 @@ func (bm *BaseModel) Valid() (Model, error) {
 				}
 			case "stag":
 				if c.Route.Creating { // 创建时加上内容
-					if stag := c.GetEnv(STAG_KEY); stag != "" {
+					if stag := c.GetEnv(STAG_KEY).(string); stag != "" {
 						switch fv.Type().String() {
 						case "*string":
 							fv.Set(reflect.ValueOf(&stag))
