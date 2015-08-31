@@ -16,6 +16,7 @@ const (
 	//time
 	_DATE_FORM  = "2006-01-02"
 	_DATE_FORM1 = "20060102"
+	_TIME_FORM  = "20060102150405"
 )
 
 //时间段
@@ -215,6 +216,48 @@ func (rc *RESTContext) setOrderBy(p []string) {
 	}
 
 	return
+}
+
+/* }}} */
+
+/* {{{ func ParseCondition(typ string, con *Condition) *Condition
+ *
+ */
+func ParseCondition(typ string, con *Condition) *Condition {
+	switch typ {
+	case "*time.Time":
+		if con.Is != nil {
+			if cv, ok := con.Is.(string); ok {
+				if t, err := time.ParseInLocation(_TIME_FORM, cv, Env().Location); err == nil {
+					con.Is = t
+				}
+			}
+		}
+		if con.Not != nil {
+			if cv, ok := con.Not.(string); ok {
+				if t, err := time.ParseInLocation(_TIME_FORM, cv, Env().Location); err == nil {
+					con.Not = t
+				}
+			}
+		}
+		if con.Gt != nil {
+			if cv, ok := con.Gt.(string); ok {
+				if t, err := time.ParseInLocation(_TIME_FORM, cv, Env().Location); err == nil {
+					con.Gt = t
+				}
+			}
+		}
+		if con.Lt != nil {
+			if cv, ok := con.Lt.(string); ok {
+				if t, err := time.ParseInLocation(_TIME_FORM, cv, Env().Location); err == nil {
+					con.Lt = t
+				}
+			}
+		}
+		return con
+	default:
+		return con
+	}
 }
 
 /* }}} */

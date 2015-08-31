@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+	"time"
 
 	"github.com/Odinman/gorp"
 	"github.com/Odinman/ogo/utils"
@@ -221,6 +222,10 @@ func (v *Condition) DoWhere(b *gorp.Builder) {
 			}
 			vs.WriteString(")")
 			b.Where(vs.String())
+		case *TimeRange:
+			b.Where(fmt.Sprintf("T.`%s` >= ?", v.Field), vt.Start)
+		case TimeRange:
+			b.Where(fmt.Sprintf("T.`%s` >= ?", v.Field), vt.Start)
 		case []interface{}:
 			vs := bytes.Buffer{}
 			first := true
@@ -255,6 +260,10 @@ func (v *Condition) DoWhere(b *gorp.Builder) {
 			}
 			vs.WriteString(")")
 			b.Where(vs.String())
+		case *time.Time:
+			b.Where(fmt.Sprintf("T.`%s` < ?", v.Field), vt)
+		case time.Time:
+			b.Where(fmt.Sprintf("T.`%s` < ?", v.Field), vt)
 		case []interface{}:
 			vs := bytes.Buffer{}
 			first := true
@@ -535,8 +544,8 @@ func (bm *BaseModel) SetConditions(cs ...*Condition) (cons []*Condition, err err
 			}
 			if col.TagOptions.Contains(DBTAG_PK) || col.ExtOptions.Contains(TAG_CONDITION) { //primary key or conditional
 				if condition, e := GetCondition(cs, col.Tag); e == nil && (condition.Is != nil || condition.Not != nil || condition.Gt != nil || condition.Lt != nil || condition.Like != nil || condition.Join != nil || condition.Or != nil) {
-					//Debug("[SetConditions][tag: %s]%v", col.Tag, condition)
-					bm.conditions = append(bm.conditions, condition)
+					//Debug("[SetConditions][tag: %s][type: %s]%v", col.Tag, col.Type.String(), condition)
+					bm.conditions = append(bm.conditions, ParseCondition(col.Type.String(), condition))
 				}
 			}
 		}
