@@ -617,7 +617,6 @@ func (rtr *Router) CRUD(i interface{}, flag int) Handler {
 			}
 		} else {
 			if cnt, _ := act.PostCheck(cnt); cnt.(int64) > 0 {
-				c.Warn("PostCheck error: %s", err)
 				c.RESTNotOK(nil)
 			} else {
 				c.RESTOK(nil)
