@@ -145,7 +145,7 @@ func (w *AccessLogWriter) createLogFile() (*os.File, error) {
 		}
 	}
 	// Open the log file
-	fd, err := os.OpenFile(w.Filename, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0660)
+	fd, err := os.OpenFile(w.Filename, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0755)
 	return fd, err
 }
 

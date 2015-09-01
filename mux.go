@@ -132,7 +132,7 @@ func (mux *Mux) Env() (*Environ, error) {
 		env.Daemonize = false
 		env.DebugLevel = logs.LevelTrace //默认debug等级
 		env.IndentJSON = false
-		env.MaxMemory = 1 << 26                              //64MB
+		env.MaxMemory = 1 << 32                              // 4GB
 		env.Location, _ = time.LoadLocation("Asia/Shanghai") //默认上海时区
 
 		workPath, _ := os.Getwd()
@@ -288,7 +288,7 @@ func (mux *Mux) Config() (config.ConfigContainer, error) {
 func (mux *Mux) Logger() (*logs.OLogger, error) {
 	if mux.logger == nil {
 		// init logger
-		logger := logs.NewLogger(2046)
+		logger := logs.NewLogger(204600)
 		var err error
 		if mux.env.Daemonize {
 			err = logger.SetLogger("file", `{"filename":"logs/debug.log"}`)
@@ -317,7 +317,7 @@ func (mux *Mux) Logger() (*logs.OLogger, error) {
 func (mux *Mux) Accessor() (*logs.OLogger, error) {
 	if mux.accessor == nil {
 		// init logger
-		logger := logs.NewLogger(2046)
+		logger := logs.NewLogger(204600)
 		var err error
 		err = logger.SetLogger("access", fmt.Sprintf(`{"filename":"%s"}`, mux.env.AccessPath))
 
