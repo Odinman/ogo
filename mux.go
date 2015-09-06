@@ -132,15 +132,15 @@ func (mux *Mux) Env() (*Environ, error) {
 		env.Daemonize = false
 		env.DebugLevel = logs.LevelTrace //默认debug等级
 		env.IndentJSON = false
-		env.MaxMemory = 1 << 26                              //64MB
+		env.MaxMemory = 1 << 32                              // 4G
 		env.Location, _ = time.LoadLocation("Asia/Shanghai") //默认上海时区
 
 		workPath, _ := os.Getwd()
 		env.WorkPath, _ = filepath.Abs(workPath)
 		env.AppPath, _ = filepath.Abs(filepath.Dir(os.Args[0]))
-		env.ProcName = filepath.Base(os.Args[0])   //程序名字
-		env.Worker = strings.ToLower(env.ProcName) //worker默认为procname,小写
-		env.AccessPath = "logs/access.log"         //默认access日志是程序目录下的logs/access.log
+		env.ProcName = filepath.Base(os.Args[0])                          //程序名字
+		env.Worker = strings.ToLower(env.ProcName)                        //worker默认为procname,小写
+		env.AccessPath = filepath.Join(env.AppPath, "logs", "access.log") //默认access日志是程序目录下的logs/access.log
 
 		//默认配置文件是 conf/{ProcName}.conf
 		env.AppConfigPath = filepath.Join(env.AppPath, "conf", env.ProcName+".conf")
@@ -288,10 +288,11 @@ func (mux *Mux) Config() (config.ConfigContainer, error) {
 func (mux *Mux) Logger() (*logs.OLogger, error) {
 	if mux.logger == nil {
 		// init logger
-		logger := logs.NewLogger(2046)
+		logger := logs.NewLogger(204600)
 		var err error
 		if mux.env.Daemonize {
-			err = logger.SetLogger("file", `{"filename":"logs/debug.log"}`)
+			df := filepath.Join(env.AppPath, "logs", "debug.log")
+			err = logger.SetLogger("file", fmt.Sprintf(`{"filename":"%s"}`, df))
 		} else {
 			err = logger.SetLogger("console", "")
 		}
@@ -317,7 +318,7 @@ func (mux *Mux) Logger() (*logs.OLogger, error) {
 func (mux *Mux) Accessor() (*logs.OLogger, error) {
 	if mux.accessor == nil {
 		// init logger
-		logger := logs.NewLogger(2046)
+		logger := logs.NewLogger(204600)
 		var err error
 		err = logger.SetLogger("access", fmt.Sprintf(`{"filename":"%s"}`, mux.env.AccessPath))
 
