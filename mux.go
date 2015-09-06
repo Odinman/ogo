@@ -132,7 +132,7 @@ func (mux *Mux) Env() (*Environ, error) {
 		env.Daemonize = false
 		env.DebugLevel = logs.LevelTrace //默认debug等级
 		env.IndentJSON = false
-		env.MaxMemory = 1 << 32                              // 4G
+		env.MaxMemory = 1 << 32                              // 4GB
 		env.Location, _ = time.LoadLocation("Asia/Shanghai") //默认上海时区
 
 		workPath, _ := os.Getwd()
