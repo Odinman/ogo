@@ -54,7 +54,7 @@ func OpenDB(tag, dns string) (err error) {
  */
 func (_ BaseConverter) ToDb(val interface{}) (interface{}, error) {
 	switch t := val.(type) {
-	case *[]string, []string, map[string]string, *map[string]string, map[string]interface{}, *map[string]interface{}: //转为字符串
+	case *[]string, []string, *[]int, []int, map[string]string, *map[string]string, map[string]interface{}, *map[string]interface{}: //转为字符串
 		c, _ := json.Marshal(t)
 		return string(c), nil
 	//case *float64:
@@ -143,12 +143,13 @@ func (_ BaseConverter) FromDb(target interface{}) (gorp.CustomScanner, bool) {
 		binder := func(holder, target interface{}) error {
 			if holder.(*sql.NullString).Valid {
 				var st []string
-				str := holder.(*sql.NullString).String
-				//ogo.Debug("str: %s", str)
-				if err := json.Unmarshal([]byte(str), &st); err != nil {
-					return err
+				if str := holder.(*sql.NullString).String; str != "" {
+					//ogo.Debug("str: %s", str)
+					if err := json.Unmarshal([]byte(str), &st); err != nil {
+						return err
+					}
+					*(target.(**[]string)) = &st
 				}
-				*(target.(**[]string)) = &st
 			}
 			return nil
 		}
@@ -157,12 +158,13 @@ func (_ BaseConverter) FromDb(target interface{}) (gorp.CustomScanner, bool) {
 		binder := func(holder, target interface{}) error {
 			if holder.(*sql.NullString).Valid {
 				var st []string
-				str := holder.(*sql.NullString).String
-				//ogo.Debug("str: %s", str)
-				if err := json.Unmarshal([]byte(str), &st); err != nil {
-					return err
+				if str := holder.(*sql.NullString).String; str != "" {
+					//ogo.Debug("str: %s", str)
+					if err := json.Unmarshal([]byte(str), &st); err != nil {
+						return err
+					}
+					*(target.(*[]string)) = st
 				}
-				*(target.(*[]string)) = st
 			}
 			return nil
 		}
@@ -171,12 +173,12 @@ func (_ BaseConverter) FromDb(target interface{}) (gorp.CustomScanner, bool) {
 		binder := func(holder, target interface{}) error {
 			if holder.(*sql.NullString).Valid {
 				var st map[string]string
-				str := holder.(*sql.NullString).String
-				//ogo.Debug("str: %s", str)
-				if err := json.Unmarshal([]byte(str), &st); err != nil {
-					return err
+				if str := holder.(*sql.NullString).String; str != "" {
+					if err := json.Unmarshal([]byte(str), &st); err != nil {
+						return err
+					}
+					*(target.(**map[string]string)) = &st
 				}
-				*(target.(**map[string]string)) = &st
 			}
 			return nil
 		}
@@ -185,12 +187,12 @@ func (_ BaseConverter) FromDb(target interface{}) (gorp.CustomScanner, bool) {
 		binder := func(holder, target interface{}) error {
 			if holder.(*sql.NullString).Valid {
 				var st map[string]string
-				str := holder.(*sql.NullString).String
-				//ogo.Debug("str: %s", str)
-				if err := json.Unmarshal([]byte(str), &st); err != nil {
-					return err
+				if str := holder.(*sql.NullString).String; str != "" {
+					if err := json.Unmarshal([]byte(str), &st); err != nil {
+						return err
+					}
+					*(target.(*map[string]string)) = st
 				}
-				*(target.(*map[string]string)) = st
 			}
 			return nil
 		}
@@ -199,12 +201,13 @@ func (_ BaseConverter) FromDb(target interface{}) (gorp.CustomScanner, bool) {
 		binder := func(holder, target interface{}) error {
 			if holder.(*sql.NullString).Valid {
 				var st map[string]interface{}
-				str := holder.(*sql.NullString).String
-				//ogo.Debug("str: %s", str)
-				if err := json.Unmarshal([]byte(str), &st); err != nil {
-					return err
+				if str := holder.(*sql.NullString).String; str != "" {
+					//ogo.Debug("str: %s", str)
+					if err := json.Unmarshal([]byte(str), &st); err != nil {
+						return err
+					}
+					*(target.(**map[string]interface{})) = &st
 				}
-				*(target.(**map[string]interface{})) = &st
 			}
 			return nil
 		}
@@ -213,12 +216,13 @@ func (_ BaseConverter) FromDb(target interface{}) (gorp.CustomScanner, bool) {
 		binder := func(holder, target interface{}) error {
 			if holder.(*sql.NullString).Valid {
 				var st map[string]interface{}
-				str := holder.(*sql.NullString).String
-				//ogo.Debug("str: %s", str)
-				if err := json.Unmarshal([]byte(str), &st); err != nil {
-					return err
+				if str := holder.(*sql.NullString).String; str != "" {
+					//ogo.Debug("str: %s", str)
+					if err := json.Unmarshal([]byte(str), &st); err != nil {
+						return err
+					}
+					*(target.(*map[string]interface{})) = st
 				}
-				*(target.(*map[string]interface{})) = st
 			}
 			return nil
 		}
