@@ -1210,6 +1210,7 @@ func (bm *BaseModel) ReadPrepare() (b *gorp.Builder, err error) {
 	if len(cons) > 0 {
 		//range condition,先搞范围查询
 		for _, v := range cons {
+			//时间范围查询
 			if v.Range != nil {
 				//Debug("[perpare]timerange")
 				switch vt := v.Range.(type) {
@@ -1217,6 +1218,17 @@ func (bm *BaseModel) ReadPrepare() (b *gorp.Builder, err error) {
 					b.Where(fmt.Sprintf("T.`%s` BETWEEN ? AND ?", v.Field), vt.Start, vt.End)
 				case TimeRange: //只支持timerange
 					b.Where(fmt.Sprintf("T.`%s` BETWEEN ? AND ?", v.Field), vt.Start, vt.End)
+				default:
+					//nothing
+				}
+			}
+			//排序
+			if v.Order != nil {
+				switch vt := v.Order.(type) {
+				case *OrderBy:
+					b.Order(fmt.Sprintf("T.`%s` %s", vt.Field, vt.Sort))
+				case OrderBy:
+					b.Order(fmt.Sprintf("T.`%s` %s", vt.Field, vt.Sort))
 				default:
 					//nothing
 				}
@@ -1322,48 +1334,23 @@ func (bm *BaseModel) ReadPrepare() (b *gorp.Builder, err error) {
 		}
 	}
 
-	//order
-	ordered := false
-	for _, v := range cons {
-		if v.Order != nil {
-			switch vt := v.Order.(type) {
-			case *OrderBy:
-				b.Order(fmt.Sprintf("T.`%s` %s", vt.Field, vt.Sort))
-				ordered = true
-			case OrderBy:
-				b.Order(fmt.Sprintf("T.`%s` %s", vt.Field, vt.Sort))
-				ordered = true
-			default:
-				//nothing
+	if cols := utils.ReadStructColumns(m, true); cols != nil {
+		for _, col := range cols {
+			//处理排序问题,如果之前有排序，这里就是二次排序,如果之前无排序,这里是首要排序
+			if col.TagOptions.Contains(DBTAG_PK) { // 默认为pk降序
+				b.Order(fmt.Sprintf("T.`%s` DESC", col.Tag))
+			} else if col.ExtOptions.Contains(TAG_ORDERBY) { // 默认为pk降序
+				b.Order(fmt.Sprintf("T.`%s` DESC", col.Tag))
+			} else if col.ExtOptions.Contains(TAG_AORDERBY) { //正排序
+				b.Order(fmt.Sprintf("T.`%s` ASC", col.Tag))
 			}
-		}
-	}
-	if !ordered {
-		//默认排序
-		if cols := utils.ReadStructColumns(m, true); cols != nil {
-			for _, col := range cols {
-				if col.ExtOptions.Contains(TAG_ORDERBY) { // 默认为pk降序
-					b.Order(fmt.Sprintf("T.`%s` DESC", col.Tag))
-					ordered = true
-				} else if col.ExtOptions.Contains(TAG_AORDERBY) { //正排序
-					b.Order(fmt.Sprintf("T.`%s` ASC", col.Tag))
-					ordered = true
-				}
-			}
-		}
-	}
-	if !ordered {
-		//默认排序
-		if cols := utils.ReadStructColumns(m, true); cols != nil {
-			for _, col := range cols {
-				if col.TagOptions.Contains(DBTAG_PK) { // 默认为pk降序
-					b.Order(fmt.Sprintf("T.`%s` DESC", col.Tag))
-				}
+			// 处理逻辑删除
+			if col.TagOptions.Contains(DBTAG_LOGIC) {
+				b.Where(fmt.Sprintf("T.`%s` != -1", col.Tag))
 			}
 		}
 	}
 
-	//b.Where(SkipLogicDeleted(m))
 	return
 }
 
