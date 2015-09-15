@@ -61,7 +61,8 @@ func EnvInit(c *web.C, h http.Handler) http.Handler {
 		ac.InHeader = &r.Header
 		// env
 		if c.Env == nil {
-			c.Env = make(map[string]interface{})
+			//c.Env = make(map[string]interface{})
+			c.Env = make(map[interface{}]interface{})
 		}
 
 		// make rand string(for debug, session...)
