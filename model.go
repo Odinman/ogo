@@ -1335,11 +1335,12 @@ func (bm *BaseModel) ReadPrepare() (b *gorp.Builder, err error) {
 	}
 
 	if cols := utils.ReadStructColumns(m, true); cols != nil {
+		pks := ""
 		for _, col := range cols {
 			//处理排序问题,如果之前有排序，这里就是二次排序,如果之前无排序,这里是首要排序
 			if col.TagOptions.Contains(DBTAG_PK) { // 默认为pk降序
-				b.Order(fmt.Sprintf("T.`%s` DESC", col.Tag))
-			} else if col.ExtOptions.Contains(TAG_ORDERBY) { // 默认为pk降序
+				pks = fmt.Sprintf("T.`%s` DESC", col.Tag)
+			} else if col.ExtOptions.Contains(TAG_ORDERBY) { // 默认为降序
 				b.Order(fmt.Sprintf("T.`%s` DESC", col.Tag))
 			} else if col.ExtOptions.Contains(TAG_AORDERBY) { //正排序
 				b.Order(fmt.Sprintf("T.`%s` ASC", col.Tag))
@@ -1348,6 +1349,9 @@ func (bm *BaseModel) ReadPrepare() (b *gorp.Builder, err error) {
 			if col.TagOptions.Contains(DBTAG_LOGIC) {
 				b.Where(fmt.Sprintf("T.`%s` != -1", col.Tag))
 			}
+		}
+		if pks != "" { //pk排序放到最后
+			b.Order(pks)
 		}
 	}
 
