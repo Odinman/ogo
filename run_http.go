@@ -78,6 +78,8 @@ func (mux *Mux) Run() {
 
 	// in goji appengine mode (tags --appengine)
 	goji.Serve()
+
+	Warn("Starting Ogo on: %s", env.Port)
 }
 
 /* }}} */
