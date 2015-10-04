@@ -74,12 +74,11 @@ func (mux *Mux) Run() {
 		panic(err)
 	}
 
-	Debug("will run http server")
+	Warn("Starting Ogo(http mode) on: %s", env.Port)
 
 	// in goji appengine mode (tags --appengine)
 	goji.Serve()
 
-	Warn("Starting Ogo on: %s", env.Port)
 }
 
 /* }}} */
