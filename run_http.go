@@ -6,13 +6,10 @@ package ogo
  */
 import (
 	"fmt"
-	"net/http"
 	"os"
 	"path/filepath"
 	"runtime"
 
-	"github.com/Odinman/ogo/bind"
-	"github.com/Odinman/ogo/graceful"
 	"github.com/VividCortex/godaemon"
 	"github.com/nightlyone/lockfile"
 	"github.com/zenazn/goji"
@@ -80,28 +77,7 @@ func (mux *Mux) Run() {
 	Debug("will run http server")
 
 	// in goji appengine mode (tags --appengine)
-	//goji.Serve()
-	// 编译起来麻烦,直接把goji.Serve()代码copy到下面
-	goji.DefaultMux.Compile()
-	http.Handle("/", goji.DefaultMux)
-
-	// socket listen
-	bind.WithFlag()
-	listener := bind.Default()
-	Warn("Starting Ogo on: %s", listener.Addr().String())
-
-	graceful.HandleSignals()
-	bind.Ready()
-	graceful.PreHook(func() { WriteMsg("Received signal, gracefully stopping") })
-	graceful.PostHook(func() { WriteMsg("Stopped") })
-
-	err := graceful.Serve(listener, http.DefaultServeMux)
-
-	if err != nil {
-		Critical(err.Error())
-	}
-
-	graceful.Wait()
+	goji.Serve()
 }
 
 /* }}} */
