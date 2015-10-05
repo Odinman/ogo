@@ -13,6 +13,7 @@ import (
 	"github.com/VividCortex/godaemon"
 	"github.com/nightlyone/lockfile"
 	"github.com/zenazn/goji"
+	"github.com/zenazn/goji/bind"
 	gojimiddle "github.com/zenazn/goji/web/middleware"
 )
 
@@ -33,6 +34,9 @@ func init() {
 
 	//mime
 	initMime()
+
+	// flag
+	bind.WithFlag()
 }
 
 /* {{{ func (mux *Mux) Run()
