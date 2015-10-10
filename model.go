@@ -31,8 +31,8 @@ const (
 	TAG_TIMERANGE   = "TR"    // 时间范围条件
 	TAG_REPORT      = "RPT"   // 报表字段
 	TAG_CANGROUP    = "GRP"   // 可以group操作
-	TAG_ORDERBY     = "O"     // 可排序
-	TAG_AORDERBY    = "AO"    // 逆排序(默认DESC)
+	TAG_ORDERBY     = "O"     // 可排序(默认DESC)
+	TAG_AORDERBY    = "AO"    // 正排序(默认DESC)
 	TAG_VERIFIABLE  = "V"     // 验证后可修改
 	TAG_RETURN      = "RET"   // 返回,创建后需要返回数值
 	TAG_SUM         = "SUM"   // 求和
