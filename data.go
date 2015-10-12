@@ -54,7 +54,7 @@ func OpenDB(tag, dns string) (err error) {
  */
 func (_ BaseConverter) ToDb(val interface{}) (interface{}, error) {
 	switch t := val.(type) {
-	case *[]string, []string, *[]int, []int, map[string]string, *map[string]string, map[string]interface{}, *map[string]interface{}: //转为字符串
+	case *[]string, []string, *[]int, []int, map[string]string, *map[string]string, map[string]interface{}, *map[string]interface{}, map[interface{}]interface{}: //转为字符串
 		c, _ := json.Marshal(t)
 		return string(c), nil
 	//case *float64:
@@ -222,6 +222,21 @@ func (_ BaseConverter) FromDb(target interface{}) (gorp.CustomScanner, bool) {
 						return err
 					}
 					*(target.(*map[string]interface{})) = st
+				}
+			}
+			return nil
+		}
+		return gorp.CustomScanner{new(sql.NullString), target, binder}, true
+	case *map[interface{}]interface{}:
+		binder := func(holder, target interface{}) error {
+			if holder.(*sql.NullString).Valid {
+				var st map[interface{}]interface{}
+				if str := holder.(*sql.NullString).String; str != "" {
+					//ogo.Debug("str: %s", str)
+					if err := json.Unmarshal([]byte(str), &st); err != nil {
+						return err
+					}
+					*(target.(*map[interface{}]interface{})) = st
 				}
 			}
 			return nil

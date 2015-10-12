@@ -381,7 +381,7 @@ type Model interface {
 	AddTable(tags ...string)
 	DBConn(tag string) *gorp.DbMap // 数据库连接
 	TableName() string             // 返回表名称, 默认结构type名字(小写), 有特别的表名称,则自己implement 这个方法
-	PKey() string                  // key字段
+	PKey() (string, bool)          // key字段,以及是否auto incr
 	ReadPrepare() (*gorp.Builder, error)
 
 	// data accessor
@@ -682,25 +682,31 @@ func (bm *BaseModel) TableName() (n string) {
 
 /* }}} */
 
-/* {{{ func (bm *BaseModel) PKey() string
+/* {{{ func (bm *BaseModel) PKey() (string, bool)
  *  通过配置找到pk
  */
-func (bm *BaseModel) PKey() string {
+func (bm *BaseModel) PKey() (f string, ai bool) {
 	var m Model
 	if m = bm.GetModel(); m == nil {
 		err := fmt.Errorf("not found model")
 		Info("error: %s", err)
-		return ""
+		return "", false
 	}
 	if cols := utils.ReadStructColumns(m, true); cols != nil {
 		for _, col := range cols {
 			// check required field
 			if col.TagOptions.Contains(DBTAG_PK) {
-				return col.Tag
+				f = col.Tag
+				if col.ExtOptions.Contains(TAG_GENERATE) && col.ExtTag != "" { //服务端生成并且有tag
+					ai = false
+				} else {
+					ai = true
+				}
+				return
 			}
 		}
 	}
-	return ""
+	return
 }
 
 /* }}} */
@@ -928,7 +934,8 @@ func (bm *BaseModel) GetRow(ext ...interface{}) (Model, error) {
 	c := m.GetCtx()
 	if len(ext) > 0 {
 		if id, ok := ext[0].(string); ok {
-			m.SetConditions(NewCondition(CTYPE_IS, m.PKey(), id))
+			pf, _ := m.PKey()
+			m.SetConditions(NewCondition(CTYPE_IS, pf, id))
 		}
 	}
 	builder, _ := m.ReadPrepare()
@@ -1156,7 +1163,13 @@ func (bm *BaseModel) AddTable(tags ...string) {
 		mv := reflect.Indirect(reflectVal).Interface()
 		//Debug("table name: %s", bm.TableName())
 		tb := bm.TableName()
-		gorp.AddTableWithName(mv, tb).SetKeys(true, bm.PKey())
+		pf, ai := m.PKey()
+		if !ai {
+			Debug("[pk not auto incr: %s]", pf)
+		} else {
+			Debug("[pk auto incr: %s]", pf)
+		}
+		gorp.AddTableWithName(mv, tb).SetKeys(ai, pf)
 
 		//data accessor, 默认都是DBTAG
 		DataAccessor[tb+"::"+WRITETAG] = DBTAG

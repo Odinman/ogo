@@ -73,7 +73,7 @@ func (_ *Router) PreGet(i interface{}) (interface{}, error) {
 	c := m.GetCtx()
 	// pk,放入条件
 	id := c.URLParams[RowkeyKey]
-	pk := m.PKey()
+	pk, _ := m.PKey()
 	c.Debug("[PreGet][pk: %s, id: %s]", pk, id)
 	m.SetConditions(NewCondition(CTYPE_IS, pk, id))
 	// 从restcontext里获取条件
