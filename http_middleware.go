@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"mime"
 	"net/http"
-	//"path/filepath"
+	"regexp"
 	"runtime/debug"
 	"strings"
 	"time"
@@ -51,6 +51,7 @@ var (
 	xForwardedFor      = http.CanonicalHeaderKey("X-Forwarded-For")
 	xRealIP            = http.CanonicalHeaderKey("X-Real-IP")
 	contentType        = http.CanonicalHeaderKey("Content-Type")
+	accHeader          = http.CanonicalHeaderKey("Accept")
 	contentDisposition = http.CanonicalHeaderKey("Content-Disposition")
 	contentMD5         = http.CanonicalHeaderKey("Content-MD5")
 	rcHolder           func(c web.C, w http.ResponseWriter, r *http.Request) *RESTContext
@@ -192,10 +193,10 @@ func Defer(c *web.C, h http.Handler) http.Handler {
 
 /* }}} */
 
-/* {{{ func Mime(c *web.C, h http.Handler) http.Handler
- * mimetype相关处理
+/* {{{ func ParseHeaders(c *web.C, h http.Handler) http.Handler
+ * headers相关处理
  */
-func Mime(c *web.C, h http.Handler) http.Handler {
+func ParseHeaders(c *web.C, h http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
 
 		rc := rcHolder(*c, w, r)
@@ -204,20 +205,24 @@ func Mime(c *web.C, h http.Handler) http.Handler {
 			rc.SetEnv(ContentMD5Key, cs)
 		}
 
-		// 看content-type
+		// Accept
+		rc.SetEnv(AcceptContentKey, "json") //默认为json
+		if acc := r.Header.Get(accHeader); acc != "" {
+			if acs := regexp.MustCompile("^application/vnd.[\\w]+.v([\\d.]+)\\+(\\w+)$").FindStringSubmatch(acc); len(acs) > 0 {
+				rc.SetEnv(AcceptVersionKey, acs[1]) //版本
+				rc.SetEnv(AcceptContentKey, acs[2]) //请求内容
+			}
+		}
+
+		// Content-Type
 		if ct := r.Header.Get(contentType); ct != "" {
 			rc.SetEnv(MimeTypeKey, ct)
 		}
 		if cd := r.Header.Get(contentDisposition); cd != "" {
 			//以传入的Disposition为主
 			if t, m, e := mime.ParseMediaType(cd); e == nil {
-				rc.Info("disposition: %s, mediatype: %s", cd, t)
+				rc.Debug("disposition: %s, mediatype: %s", cd, t)
 				rc.SetEnv(DispositionMTKey, t)
-				//if fname, ok := m["filename"]; ok {
-				//	if mt := mime.TypeByExtension(filepath.Ext(fname)); mt != "" {
-				//		rc.SetEnv(MimeTypeKey, mt)
-				//	}
-				//}
 				for k, v := range m {
 					dk := DispositionPrefix + k + "_"
 					rc.Debug("disposition key: %s, value: %v", dk, v)

@@ -31,7 +31,8 @@ func init() {
 	//增加自定义的middleware
 	goji.Use(EnvInit)
 	goji.Use(Defer)
-	goji.Use(Mime)
+	//goji.Use(Mime)
+	goji.Use(ParseHeaders)
 	goji.Use(ParseParams)
 
 	//mime

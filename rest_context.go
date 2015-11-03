@@ -30,17 +30,18 @@ const (
 	RowkeyKey         = "_rk_"
 	SelectorKey       = "_selector_"
 	MimeTypeKey       = "_mimetype_"
+	AcceptVersionKey  = "_accver_"     // 请求版本
+	AcceptContentKey  = "_acccontent_" // 请求内容
 	DispositionMTKey  = "_dmt_"
 	ContentMD5Key     = "_md5_"
 	DispositionPrefix = "_dp_"
-
-	DIMENSION_KEY  = "_dimension_" //在restcontext中的key
-	SIDE_KEY       = "_sidekey_"
-	USERID_KEY     = "_userid_"
-	APPID_KEY      = "_appid_"
-	STAG_KEY       = "_stag_"
-	PERMISSION_KEY = "_perm_"
-	EXT_KEY        = "_ext_"
+	DIMENSION_KEY     = "_dimension_" //在restcontext中的key
+	SIDE_KEY          = "_sidekey_"
+	USERID_KEY        = "_userid_"
+	APPID_KEY         = "_appid_"
+	STAG_KEY          = "_stag_"
+	PERMISSION_KEY    = "_perm_"
+	EXT_KEY           = "_ext_"
 
 	//1x1 gir
 	base64GifPixel = "R0lGODlhAQABAIAAAP///wAAACwAAAAAAQABAAACAkQBADs="

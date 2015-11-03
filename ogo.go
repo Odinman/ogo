@@ -16,7 +16,7 @@ import (
  */
 const (
 	// ogo daemon/http framework version.
-	VERSION      = "0.1.0"
+	VERSION      = "1.0"
 	DEFAULT_PORT = "8001"
 )
 
