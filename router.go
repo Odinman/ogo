@@ -545,7 +545,7 @@ func (rtr *Router) CRUD(i interface{}, flag int) Handler {
 		}
 
 		if _, err = act.OnDelete(m); err != nil {
-			c.Warn("OnUpdat error: %s", err)
+			c.Warn("OnUpdate error: %s", err)
 			c.RESTNotOK(err)
 			return
 		}
@@ -576,7 +576,7 @@ func (rtr *Router) CRUD(i interface{}, flag int) Handler {
 		}
 
 		if _, err = act.OnUpdate(m); err != nil {
-			c.Warn("OnUpdat error: %s", err)
+			c.Warn("OnUpdate error: %s", err)
 			c.RESTNotOK(err)
 			return
 		}
