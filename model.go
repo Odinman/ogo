@@ -933,7 +933,7 @@ func (bm *BaseModel) GetRow(ext ...interface{}) (Model, error) {
 	}
 	c := m.GetCtx()
 	if len(ext) > 0 {
-		if id, ok := ext[0].(string); ok {
+		if id, ok := ext[0].(string); ok && id != "" {
 			pf, _ := m.PKey()
 			m.SetConditions(NewCondition(CTYPE_IS, pf, id))
 		}
