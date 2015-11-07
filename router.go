@@ -224,6 +224,12 @@ func (rtr *Router) Trace(c *RESTContext) {
 func (rtr *Router) NotFound(c *RESTContext) {
 	c.HTTPError(http.StatusNotFound)
 }
+func (rtr *Router) EmptyHtml(c *RESTContext) {
+	c.HTTPOK(nil)
+}
+func (rtr *Router) EmptyGif(c *RESTContext) {
+	c.HTTPEmptyGif()
+}
 
 /* }}} */
 

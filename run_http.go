@@ -37,6 +37,16 @@ func init() {
 
 	//mime
 	initMime()
+
+	// root router
+	rr := NewRouter(new(Router), "").(*Router)
+	rr.AddRoute("GET", "/", rr.Get, RouteOption{KEY_SKIPLOGIN: true, KEY_SKIPAUTH: true})
+	rr.AddRoute("GET", "/favicon.ico", rr.EmptyGif, RouteOption{KEY_SKIPLOGIN: true, KEY_SKIPAUTH: true, NoLogKey: true})
+	rr.AddRoute("GET", "/index.html", rr.EmptyHtml, RouteOption{KEY_SKIPLOGIN: true, KEY_SKIPAUTH: true, NoLogKey: true})
+	rr.AddRoute("POST", "/", rr.Post, RouteOption{KEY_SKIPLOGIN: true, KEY_SKIPAUTH: true})
+	rr.AddRoute("DELETE", "/", rr.Delete, RouteOption{KEY_SKIPLOGIN: true, KEY_SKIPAUTH: true})
+	rr.AddRoute("PATCH", "/", rr.Patch, RouteOption{KEY_SKIPLOGIN: true, KEY_SKIPAUTH: true})
+	rr.Init()
 }
 
 /* {{{ func (mux *Mux) Run()
