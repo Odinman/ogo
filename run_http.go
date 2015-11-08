@@ -7,6 +7,8 @@ package ogo
 import (
 	"fmt"
 	//"net/http"
+	"bufio"
+	"io"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -20,6 +22,14 @@ import (
 )
 
 /* }}} */
+
+const (
+	stageKey = "__OGO_STAGE"
+)
+
+var (
+	stdOut io.Reader
+)
 
 func init() {
 	// 废除全部goji默认的gojimiddle
@@ -68,7 +78,33 @@ func (mux *Mux) Run() {
 		}
 	}()
 	if env.Daemonize {
-		godaemon.MakeDaemon(&godaemon.DaemonAttr{})
+		//  for debug, CaptureOutput
+		stdOut, _, _ = godaemon.MakeDaemon(&godaemon.DaemonAttr{CaptureOutput: true})
+		go func(reader io.Reader) {
+			scanner := bufio.NewScanner(reader)
+			for scanner.Scan() {
+				Debug("[stdOut] %s", scanner.Text())
+			}
+		}(stdOut)
+	} else {
+		if processStage := os.Getenv(stageKey); processStage == "" { //头一次
+			Debug("processStage: %s", processStage)
+			os.Setenv(stageKey, "ogo")
+			if procName, err := godaemon.GetExecutablePath(); err != nil || len(procName) == 0 {
+				panic(err)
+			} else {
+				files := make([]*os.File, 3)
+				files[0], files[1], files[2] = os.Stdin, os.Stdout, os.Stderr
+				dir, _ := os.Getwd()
+				osAttrs := os.ProcAttr{Dir: dir, Env: os.Environ(), Files: files}
+				if proc, err := os.StartProcess(procName, os.Args, &osAttrs); err != nil {
+					panic(err)
+				} else {
+					proc.Release()
+					os.Exit(0)
+				}
+			}
+		}
 	}
 	//check&write pidfile, added by odin
 	dir := filepath.Dir(env.PidFile)
@@ -92,27 +128,6 @@ func (mux *Mux) Run() {
 
 	// in goji appengine mode (tags --appengine)
 	goji.Serve()
-	//// 编译起来麻烦,直接把goji.Serve()代码copy到下面
-	//goji.DefaultMux.Compile()
-	//http.Handle("/", goji.DefaultMux)
-
-	//// socket listen
-	//bind.WithFlag()
-	//listener := bind.Default()
-	//Warn("Starting Ogo on: %s", listener.Addr().String())
-
-	//graceful.HandleSignals()
-	//bind.Ready()
-	//graceful.PreHook(func() { WriteMsg("Received signal, gracefully stopping") })
-	//graceful.PostHook(func() { WriteMsg("Stopped") })
-
-	//err := graceful.Serve(listener, http.DefaultServeMux)
-
-	//if err != nil {
-	//	Critical(err.Error())
-	//}
-
-	//graceful.Wait()
 }
 
 /* }}} */
