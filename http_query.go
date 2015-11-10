@@ -220,6 +220,29 @@ func (rc *RESTContext) setOrderBy(p []string) {
 
 /* }}} */
 
+/* {{{ func (rc *RESTContext) GetQueryParam(key string) (string, int)
+ */
+func (rc *RESTContext) GetQueryParam(key string) (r string, c int) {
+	v := rc.Request.Form[key]
+	c = len(v)
+	if c == 1 {
+		return string(v[0]), c
+	} else {
+		return string(strings.Join(v, ",")), c
+	}
+}
+
+/* }}} */
+
+/* {{{ func (rc *RESTContext) GetQueryParams(key string) (string, int)
+ */
+func (rc *RESTContext) GetQueryParams(key string) (rs []string) {
+	rs = rc.Request.Form[key]
+	return
+}
+
+/* }}} */
+
 /* {{{ func ParseCondition(typ string, con *Condition) *Condition
  *
  */
