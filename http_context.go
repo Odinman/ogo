@@ -11,11 +11,60 @@ import (
 	//"github.com/zenazn/goji/web"
 )
 
+/* {{{ func (rc *RESTContext) SetHeader(k,v string)
+ * set header
+ */
+func (rc *RESTContext) SetHeader(k, v string) {
+	return rc.Response.Header().Set(k, v)
+}
+
+/* }}} */
+
+/* {{{ func (rc *RESTContext) SetStatus(status int)
+ * 构建Status Code
+ */
+func (rc *RESTContext) SetStatus(status int) {
+	//rc.Response.WriteHeader(status)
+	rc.Status = status
+}
+
+/* }}} */
+
+/* {{{ func (rc *RESTContext) Output(data interface{}) (err error)
+ *
+ */
+func (rc *RESTContext) Output(data interface{}) (err error) {
+
+	var content []byte
+	if rc.Accept == ContentTypeHTML { //用户需要HTML
+		// tpl file
+		if ti, ok := c.Route.Options[KEY_TPL]; ok && ti.(string) != "" { //定义了tpl文件
+		}
+	} else { //默认为json
+		rc.SetHeader("Content-Type", "application/json; charset=UTF-8")
+		if method := strings.ToLower(rc.Request.Method); method != "head" {
+			if data != nil {
+				if env.IndentJSON {
+					content, _ = json.MarshalIndent(data, "", "  ")
+				} else {
+					content, _ = json.Marshal(data)
+				}
+			}
+		}
+	}
+	//write header & data
+	_, err = rc.WriteBytes(content)
+
+	return
+}
+
+/* }}} */
+
 /* {{{ func (rc *RESTContext) HTTPOK(data []byte) (err error)
  * 属于request的错误
  */
 func (rc *RESTContext) HTTPOK(data []byte) (err error) {
-	rc.Response.Header().Set("Content-Type", "text/html; charset=UTF-8")
+	rc.SetHeader("Content-Type", "text/html; charset=UTF-8")
 	rc.Status = http.StatusOK
 
 	// write data
@@ -29,7 +78,7 @@ func (rc *RESTContext) HTTPOK(data []byte) (err error) {
  * 属于request的错误
  */
 func (rc *RESTContext) HTTPEmptyGif() (err error) {
-	rc.Response.Header().Set("Content-Type", "image/gif")
+	rc.SetHeader("Content-Type", "image/gif")
 	rc.Status = http.StatusOK
 
 	// write data
@@ -44,13 +93,13 @@ func (rc *RESTContext) HTTPEmptyGif() (err error) {
  */
 func (rc *RESTContext) HTTPBack() (err error) {
 	rc.Status = http.StatusOK
-	rc.Response.Header().Set("Content-Type", "text/html; charset=UTF-8")
-	rc.Response.Header().Set("Cache-Control", "max-age=0")
-	rc.Response.Header().Set("Cache-Control", "no-cache")
-	rc.Response.Header().Set("Cache-Control", "must-revalidate")
-	rc.Response.Header().Set("Cache-Control", "private")
-	rc.Response.Header().Set("Expires", "Mon, 26 Jul 1997 05:00:00 GMT")
-	rc.Response.Header().Set("Pragma", "no-cache")
+	rc.SetHeader("Content-Type", "text/html; charset=UTF-8")
+	rc.SetHeader("Cache-Control", "max-age=0")
+	rc.SetHeader("Cache-Control", "no-cache")
+	rc.SetHeader("Cache-Control", "must-revalidate")
+	rc.SetHeader("Cache-Control", "private")
+	rc.SetHeader("Expires", "Mon, 26 Jul 1997 05:00:00 GMT")
+	rc.SetHeader("Pragma", "no-cache")
 
 	// write data
 	data := []byte(`<?xml version="1.0"?>
@@ -76,16 +125,16 @@ func (rc *RESTContext) HTTPBack() (err error) {
  */
 func (rc *RESTContext) HTTPRedirect(url string) (err error) {
 	rc.Status = http.StatusFound //302
-	rc.Response.Header().Set("Content-Type", "text/html; charset=UTF-8")
-	rc.Response.Header().Set("Cache-Control", "max-age=0")
-	rc.Response.Header().Set("Cache-Control", "no-cache")
-	rc.Response.Header().Set("Cache-Control", "must-revalidate")
-	rc.Response.Header().Set("Cache-Control", "private")
-	rc.Response.Header().Set("Expires", "Mon, 26 Jul 1997 05:00:00 GMT")
-	rc.Response.Header().Set("Pragma", "no-cache")
-	rc.Response.Header().Set("Location", url)
+	rc.SetHeader("Content-Type", "text/html; charset=UTF-8")
+	rc.SetHeader("Cache-Control", "max-age=0")
+	rc.SetHeader("Cache-Control", "no-cache")
+	rc.SetHeader("Cache-Control", "must-revalidate")
+	rc.SetHeader("Cache-Control", "private")
+	rc.SetHeader("Expires", "Mon, 26 Jul 1997 05:00:00 GMT")
+	rc.SetHeader("Pragma", "no-cache")
+	rc.SetHeader("Location", url)
 
-	err = rc.RESTBody(nil)
+	_, err = rc.WriteBytes([]byte{})
 	return
 }
 
@@ -96,10 +145,10 @@ func (rc *RESTContext) HTTPRedirect(url string) (err error) {
  */
 func (rc *RESTContext) HTTPError(status int) (err error) {
 
-	rc.RESTHeader(status)
+	rc.SetStatus(status)
 
 	// write data
-	err = rc.RESTBody(rc.NewRESTError(status, nil))
+	err = rc.Output(rc.NewRESTError(status, nil))
 
 	return
 }
@@ -120,7 +169,7 @@ func (rc *RESTContext) WriteBytes(data []byte) (n int, e error) {
 			}
 			for _, val := range encodings {
 				if val == "gzip" {
-					rc.Response.Header().Set("Content-Encoding", "gzip")
+					rc.SetHeader("Content-Encoding", "gzip")
 					b := new(bytes.Buffer)
 					w, _ := gzip.NewWriterLevel(b, gzip.BestSpeed)
 					w.Write(data)
@@ -128,7 +177,7 @@ func (rc *RESTContext) WriteBytes(data []byte) (n int, e error) {
 					data = b.Bytes()
 					break
 				} else if val == "deflate" {
-					rc.Response.Header().Set("Content-Encoding", "deflate")
+					rc.SetHeader("Content-Encoding", "deflate")
 					b := new(bytes.Buffer)
 					w, _ := flate.NewWriter(b, flate.BestSpeed)
 					w.Write(data)
@@ -139,7 +188,7 @@ func (rc *RESTContext) WriteBytes(data []byte) (n int, e error) {
 			}
 		}
 		rc.ContentLength = dLen
-		rc.Response.Header().Set("Content-Length", strconv.Itoa(rc.ContentLength))
+		rc.SetHeader("Content-Length", strconv.Itoa(rc.ContentLength))
 	}
 	if rc.Status == 0 {
 		rc.Status = http.StatusOK
@@ -159,7 +208,7 @@ func (rc *RESTContext) WriteBytes(data []byte) (n int, e error) {
  * 直接出二进制内容
  */
 func (rc *RESTContext) ServeBinary(mimetype string, data []byte) {
-	rc.Response.Header().Set("Content-Type", mimetype)
+	rc.SetHeader("Content-Type", mimetype)
 	rc.WriteBytes(data)
 }
 

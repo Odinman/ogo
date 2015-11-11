@@ -26,8 +26,6 @@ const (
 	RowkeyKey         = "_rk_"
 	SelectorKey       = "_selector_"
 	MimeTypeKey       = "_mimetype_"
-	AcceptVersionKey  = "_accver_"     // 请求版本
-	AcceptContentKey  = "_acccontent_" // 请求内容
 	DispositionMTKey  = "_dmt_"
 	ContentMD5Key     = "_md5_"
 	DispositionPrefix = "_dp_"
@@ -42,6 +40,11 @@ const (
 	//1x1 gir
 	base64GifPixel = "R0lGODlhAQABAIAAAP///wAAACwAAAAAAQABAAACAkQBADs="
 	//base64GifPixel = "R0lGODlhAQABAJAAAP8AAAAAACH5BAUQAAAALAAAAAABAAEAAAICBAEAOw=="
+
+	// 内容类型
+	ContentTypeJSON = 1 << iota
+	ContentTypeHTML
+	ContentTypeXML
 )
 
 var (
@@ -72,6 +75,8 @@ type RESTContext struct {
 	Status        int
 	ContentLength int
 	RequestBody   []byte
+	Accept        int //接受类型
+	Version       string
 	Access        *Access
 	Route         *Route
 }
@@ -94,6 +99,9 @@ func newContext(c web.C, w http.ResponseWriter, r *http.Request) (*RESTContext, 
 		Response: w,
 		Request:  r,
 	}
+
+	// default json
+	rc.Accept = ContentTypeJSON
 
 	//request body
 	if r.Method != "GET" && r.Method != "HEAD" && r.Method != "DELETE" {
@@ -167,38 +175,17 @@ func (rc *RESTContext) NewRESTError(status int, msg interface{}) (re error) {
 
 /* }}} */
 
-/* {{{ func (rc *RESTContext) RESTHeader(status int)
- *
+/* {{{ func (rc *RESTContext) RESTGenericError(status int, msg interface{}) (err error)
+ * 普通错误,就是没有抓到error时报的错
  */
-func (rc *RESTContext) RESTHeader(status int) {
-	// Content-Type always json
-	rc.Response.Header().Set("Content-Type", "application/json; charset=UTF-8")
-	// status
-	//rc.Response.WriteHeader(status)
-	rc.Status = status
-}
-
-/* }}} */
-
-/* {{{ func (rc *RESTContext) RESTBody(data interface{}) (err error)
- *
- */
-func (rc *RESTContext) RESTBody(data interface{}) (err error) {
-
-	var content []byte
-	if method := strings.ToLower(rc.Request.Method); method != "head" {
-		if data != nil {
-			if env.IndentJSON {
-				content, _ = json.MarshalIndent(data, "", "  ")
-			} else {
-				content, _ = json.Marshal(data)
-			}
-		}
-
+func (rc *RESTContext) RESTGenericError(status int, msg interface{}) (err error) {
+	rc.SetStatus(status)
+	// write data
+	if msg != nil {
+		err = rc.Output(rc.NewRESTError(status, msg))
+	} else {
+		err = rc.Output(nil)
 	}
-	//write header & data
-	_, err = rc.WriteBytes(content)
-
 	return
 }
 
@@ -215,10 +202,10 @@ func (rc *RESTContext) RESTOK(data interface{}) (err error) {
 	} else {
 		status = SUCCODE[method]
 	}
-	rc.RESTHeader(status)
+	rc.SetStatus(status)
 
 	// write data
-	err = rc.RESTBody(data)
+	err = rc.Output(data)
 	return
 }
 
@@ -235,29 +222,13 @@ func (rc *RESTContext) RESTNotOK(msg interface{}) (err error) {
 	} else {
 		status = FAILCODE[method]
 	}
-	rc.RESTHeader(status)
+	rc.SetStatus(status)
 
 	// write data
 	if msg != nil {
-		err = rc.RESTBody(rc.NewRESTError(status, msg))
+		err = rc.Output(rc.NewRESTError(status, msg))
 	} else {
-		err = rc.RESTBody(nil)
-	}
-	return
-}
-
-/* }}} */
-
-/* {{{ func (rc *RESTContext) RESTGenericError(status int, msg interface{}) (err error)
- * 普通错误,就是没有抓到error时报的错
- */
-func (rc *RESTContext) RESTGenericError(status int, msg interface{}) (err error) {
-	rc.RESTHeader(status)
-	// write data
-	if msg != nil {
-		err = rc.RESTBody(rc.NewRESTError(status, msg))
-	} else {
-		err = rc.RESTBody(nil)
+		err = rc.Output(nil)
 	}
 	return
 }
@@ -288,8 +259,8 @@ func (rc *RESTContext) RESTPanic(msg interface{}) (err error) {
 func (rc *RESTContext) RESTError(err error) error {
 	if re, ok := err.(*RESTError); ok {
 		// 标准错误,直接输出
-		rc.RESTHeader(re.status)
-		return rc.RESTBody(re)
+		rc.SetStatus(re.status)
+		return rc.Output(re)
 	} else {
 		//普通错误, 普通输入
 		rc.RESTNotOK(err)
@@ -304,62 +275,6 @@ func (rc *RESTContext) RESTError(err error) error {
  */
 func (rc *RESTContext) RESTBadRequest(msg interface{}) (err error) {
 	return rc.RESTGenericError(http.StatusBadRequest, msg)
-}
-
-/* }}} */
-
-/* {{{	RESTContext loggers
- * 可以在每个debug信息带上session
- */
-func (rc *RESTContext) Trace(format string, v ...interface{}) {
-	rc.logf("trace", format, v...)
-}
-func (rc *RESTContext) Debug(format string, v ...interface{}) {
-	rc.logf("debug", format, v...)
-}
-func (rc *RESTContext) Info(format string, v ...interface{}) {
-	rc.logf("info", format, v...)
-}
-func (rc *RESTContext) Print(format string, v ...interface{}) {
-	rc.logf("info", format, v...)
-}
-func (rc *RESTContext) Warn(format string, v ...interface{}) {
-	rc.logf("warn", format, v...)
-}
-func (rc *RESTContext) Error(format string, v ...interface{}) {
-	rc.logf("error", format, v...)
-}
-func (rc *RESTContext) Critical(format string, v ...interface{}) {
-	rc.logf("critical", format, v...)
-}
-func (rc *RESTContext) logf(tag, format string, v ...interface{}) {
-	if nl := rc.GetEnv(NoLogKey); nl == true {
-		// no logging
-		return
-	}
-	var prefix string
-	if p := rc.GetEnv(LogPrefixKey); p != nil {
-		prefix = p.(string)
-	}
-	if prefix != "" {
-		format = prefix + " " + format
-	}
-	switch strings.ToLower(tag) {
-	case "trace":
-		logger.Trace(format, v...)
-	case "debug":
-		logger.Debug(format, v...)
-	case "info":
-		logger.Info(format, v...)
-	case "warn":
-		logger.Warn(format, v...)
-	case "error":
-		logger.Error(format, v...)
-	case "critial":
-		logger.Critical(format, v...)
-	default:
-		logger.Debug(format, v...)
-	}
 }
 
 /* }}} */

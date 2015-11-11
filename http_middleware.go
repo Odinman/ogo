@@ -206,11 +206,14 @@ func ParseHeaders(c *web.C, h http.Handler) http.Handler {
 		}
 
 		// Accept
-		rc.SetEnv(AcceptContentKey, "json") //默认为json
 		if acc := r.Header.Get(accHeader); acc != "" {
-			if acs := regexp.MustCompile("^application/vnd.[\\w]+.v([\\d.]+)\\+(\\w+)$").FindStringSubmatch(acc); len(acs) > 0 {
-				rc.SetEnv(AcceptVersionKey, acs[1]) //版本
-				rc.SetEnv(AcceptContentKey, acs[2]) //请求内容
+			if acs := regexp.MustCompile("^application/vnd.[\\w]+.v([\\d.]+)\\+(\\w+)$").FindStringSubmatch(acc); len(acs) == 3 {
+				rc.Version = acs[1]
+				if strings.ToLower(acs[2]) == "html" {
+					rc.Accept = ContentTypeHTML
+				} else if strings.ToLower(acs[2]) == "xml" {
+					rc.Accept = ContentTypeXML
+				}
 			}
 		}
 

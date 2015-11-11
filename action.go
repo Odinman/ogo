@@ -4,22 +4,6 @@ package ogo
 
 import ()
 
-const (
-	// generic action const
-	GA_GET = 1 << iota
-	GA_SEARCH
-	GA_POST
-	GA_DELETE
-	GA_PATCH
-	//GA_PUT
-	GA_HEAD
-	GA_ALL = GA_GET | GA_SEARCH | GA_POST | GA_DELETE | GA_PATCH | GA_HEAD
-
-	KEY_SKIPAUTH  = "skipauth"
-	KEY_SKIPLOGIN = "skiplogin"
-	KEY_SKIPPERM  = "skipperm"
-)
-
 type ActionInterface interface {
 	PreGet(i interface{}) (interface{}, error)  //获取前
 	OnGet(i interface{}) (interface{}, error)   //获取中
