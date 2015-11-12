@@ -31,7 +31,8 @@ type Environ struct {
 	Worker        string         // worker name
 	AppConfigPath string         // config file path
 	RunMode       string         // run mode, "dev" or "prod"
-	AccessPath    string         //acces log file path
+	AccessPath    string         // acces log file path
+	TplDir        string         // tpl dir
 	Daemonize     bool           // daemonize or not
 	EnableGzip    bool           // enable gzip or not
 	DebugLevel    int            // debug level
@@ -141,6 +142,7 @@ func (mux *Mux) Env() (*Environ, error) {
 		env.ProcName = filepath.Base(os.Args[0])                          //程序名字
 		env.Worker = strings.ToLower(env.ProcName)                        //worker默认为procname,小写
 		env.AccessPath = filepath.Join(env.AppPath, "logs", "access.log") //默认access日志是程序目录下的logs/access.log
+		env.TplDir = filepath.Join(env.AppPath, "tpl")                    //默认tpl目录
 
 		//默认配置文件是 conf/{ProcName}.conf
 		env.AppConfigPath = filepath.Join(env.AppPath, "conf", env.ProcName+".conf")

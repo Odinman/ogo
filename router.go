@@ -16,6 +16,8 @@ type Handler func(c *RESTContext)
 type RouteOption map[string]interface{}
 
 type Route struct {
+	Key      string //独立标识
+	Endpoint string
 	Pattern  interface{}
 	Method   string
 	Handler  Handler
@@ -56,15 +58,17 @@ type RouterInterface interface {
 	CRUD(i interface{}, flag int) Handler
 }
 
-/* {{{ func NewRoute(p interface{}, m string, h Handler, options ...map[string]interface{}) *Route
+/* {{{ func NewRoute(p interface{}, ep string, m string, h Handler, options ...map[string]interface{}) *Route
  *
  */
-func NewRoute(p interface{}, m string, h Handler, options ...map[string]interface{}) *Route {
+func NewRoute(p interface{}, ep string, m string, h Handler, options ...map[string]interface{}) *Route {
 	r := &Route{
-		Pattern: p,
-		Method:  m,
-		Handler: h,
-		Options: make(map[string]interface{}),
+		Key:      fmt.Sprint(strings.ToUpper(m), " ", p),
+		Endpoint: ep,
+		Pattern:  p,
+		Method:   m,
+		Handler:  h,
+		Options:  make(map[string]interface{}),
 	}
 
 	if len(options) > 0 { //不管有几个,目前只有第一个有效
@@ -79,16 +83,6 @@ func NewRoute(p interface{}, m string, h Handler, options ...map[string]interfac
 	}
 
 	return r
-}
-
-/* }}} */
-
-/* {{{ func getRouteKey(rt *Route) (key string)
- *
- */
-func getRouteKey(rt *Route) (key string) {
-	key = fmt.Sprint(strings.ToUpper(rt.Method), " ", rt.Pattern)
-	return
 }
 
 /* }}} */
@@ -163,7 +157,7 @@ func (rtr *Router) Init() {
 	if len(rtr.Routes) > 0 {
 		for _, rt := range rtr.SRoutes {
 			//Debug("pattern: %s", rt.Pattern)
-			key := getRouteKey(rt)
+			key := rt.Key
 			// regist routes to Mux
 			rtr.Mux.Routes[key] = rt
 			switch strings.ToLower(rt.Method) {
@@ -194,7 +188,7 @@ func (rtr *Router) Init() {
 
 /* }}} */
 
-/* {{{ Routers默认Action
+/* {{{ Routers Default Action
  *
  */
 func (rtr *Router) Get(c *RESTContext) {
@@ -237,16 +231,17 @@ func (rtr *Router) EmptyGif(c *RESTContext) {
  *
  */
 func (rtr *Router) AddRoute(m string, p interface{}, h Handler, options ...map[string]interface{}) {
-	key := fmt.Sprint(strings.ToUpper(m), " ", p)
 	if rtr.Routes == nil {
 		rtr.Routes = make(map[string]*Route)
 		rtr.SRoutes = make([]*Route, 0)
 	}
+	rt := NewRoute(p, rtr.GetEndpoint(), m, h, options...)
+	key := rt.Key
 	if _, ok := rtr.Routes[key]; ok {
 		//手动加路由, 如果冲突则以最早的为准
 		Info("route dup: %s", key)
 	} else {
-		rtr.Routes[key] = NewRoute(p, m, h, options...)
+		rtr.Routes[key] = rt
 		rtr.SRoutes = append(rtr.SRoutes, rtr.Routes[key])
 	}
 }
@@ -263,112 +258,48 @@ func (rtr *Router) DefaultRoutes() {
 		Info("Not need default Routes because no endpoint")
 		return
 	}
-	var pattern, method, key string
+
+	var method, pattern string
 
 	// HEAD /{endpoint}
+	method = "HEAD"
 	pattern = "/" + rtr.Endpoint
-	method = "HEAD"
-	key = method + " " + pattern
-	if rtr.Routes == nil {
-		rtr.Routes = make(map[string]*Route)
-		rtr.SRoutes = make([]*Route, 0)
-	}
-	if _, ok := rtr.Routes[key]; ok {
-		// exists, warning, 默认路由不能覆盖自定义路由
-		Warn("default route dup: %s", key)
-	} else {
-		rt := NewRoute(pattern, method, ri.Head)
-		rtr.Routes[key] = rt
-		rtr.SRoutes = append(rtr.SRoutes, rt)
-	}
+	rtr.AddRoute(method, pattern, ri.Head)
+
 	// HEAD /{endpoint}/{id}
-	pattern = "/" + rtr.Endpoint + "/:" + RowkeyKey
 	method = "HEAD"
-	key = method + " " + pattern
-	if _, ok := rtr.Routes[key]; ok {
-		// exists, warning, 默认路由不能覆盖自定义路由
-	} else {
-		rt := NewRoute(pattern, method, ri.Head)
-		rtr.Routes[key] = rt
-		rtr.SRoutes = append(rtr.SRoutes, rt)
-	}
+	pattern = "/" + rtr.Endpoint + "/:" + RowkeyKey
+	rtr.AddRoute(method, pattern, ri.Head)
 
 	// GET /{endpoint}
 	pattern = "/" + rtr.Endpoint
 	method = "GET"
-	key = method + " " + pattern
-	if rtr.Routes == nil {
-		rtr.Routes = make(map[string]*Route)
-		rtr.SRoutes = make([]*Route, 0)
-	}
-	if _, ok := rtr.Routes[key]; ok {
-		// exists, warning, 默认路由不能覆盖自定义路由
-		Warn("default route dup: %s", key)
-	} else {
-		rt := NewRoute(pattern, method, ri.Get)
-		rtr.Routes[key] = rt
-		rtr.SRoutes = append(rtr.SRoutes, rt)
-	}
+	rtr.AddRoute(method, pattern, ri.Get)
 
 	// GET /{endpoint}/{id}
 	pattern = "/" + rtr.Endpoint + "/:" + RowkeyKey
 	method = "GET"
-	key = method + " " + pattern
-	if _, ok := rtr.Routes[key]; ok {
-		// exists, warning, 默认路由不能覆盖自定义路由
-	} else {
-		rt := NewRoute(pattern, method, ri.Get)
-		rtr.Routes[key] = rt
-		rtr.SRoutes = append(rtr.SRoutes, rt)
-	}
+	rtr.AddRoute(method, pattern, ri.Get)
 
 	// POST /{endpoint}
 	pattern = "/" + rtr.Endpoint
 	method = "POST"
-	key = method + " " + pattern
-	if _, ok := rtr.Routes[key]; ok {
-		// exists, warning, 默认路由不能覆盖自定义路由
-	} else {
-		rt := NewRoute(pattern, method, ri.Post)
-		rtr.Routes[key] = rt
-		rtr.SRoutes = append(rtr.SRoutes, rt)
-	}
+	rtr.AddRoute(method, pattern, ri.Post)
 
 	// DELETE /{endpoint}/{id}
 	pattern = "/" + rtr.Endpoint + "/:" + RowkeyKey
 	method = "DELETE"
-	key = method + " " + pattern
-	if _, ok := rtr.Routes[key]; ok {
-		// exists, warning, 默认路由不能覆盖自定义路由
-	} else {
-		rt := NewRoute(pattern, method, ri.Delete)
-		rtr.Routes[key] = rt
-		rtr.SRoutes = append(rtr.SRoutes, rt)
-	}
+	rtr.AddRoute(method, pattern, ri.Delete)
 
 	// PATCH /{endpoint}/{id}
 	pattern = "/" + rtr.Endpoint + "/:" + RowkeyKey
 	method = "PATCH"
-	key = method + " " + pattern
-	if _, ok := rtr.Routes[key]; ok {
-		// exists, warning, 默认路由不能覆盖自定义路由
-	} else {
-		rt := NewRoute(pattern, method, ri.Patch)
-		rtr.Routes[key] = rt
-		rtr.SRoutes = append(rtr.SRoutes, rt)
-	}
+	rtr.AddRoute(method, pattern, ri.Patch)
 
 	// PUT /{endpoint}/{id}
 	pattern = "/" + rtr.Endpoint + "/:" + RowkeyKey
 	method = "PUT"
-	key = method + " " + pattern
-	if _, ok := rtr.Routes[key]; ok {
-		// exists, warning, 默认路由不能覆盖自定义路由
-	} else {
-		rt := NewRoute(pattern, method, ri.Put)
-		rtr.Routes[key] = rt
-		rtr.SRoutes = append(rtr.SRoutes, rt)
-	}
+	rtr.AddRoute(method, pattern, ri.Put)
 }
 
 /* }}} */
