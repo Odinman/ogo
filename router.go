@@ -37,22 +37,22 @@ type Router struct {
 }
 
 type RouterInterface interface {
-	New(c interface{}, mux *Mux, endpoint string)
+	New(interface{}, *Mux, string)
 	AddRoute(m string, p interface{}, h Handler, options ...map[string]interface{})
 	DefaultRoutes() //默认路由
 	GetEndpoint() string
 	Init()
 
 	//method
-	Get(c *RESTContext)
-	Post(c *RESTContext)
-	Put(c *RESTContext)
-	Delete(c *RESTContext)
-	Patch(c *RESTContext)
-	Head(c *RESTContext)
-	Options(c *RESTContext)
-	Trace(c *RESTContext)
-	NotFound(c *RESTContext)
+	Get(*RESTContext)
+	Post(*RESTContext)
+	Put(*RESTContext)
+	Delete(*RESTContext)
+	Patch(*RESTContext)
+	Head(*RESTContext)
+	Options(*RESTContext)
+	Trace(*RESTContext)
+	NotFound(*RESTContext)
 
 	// action
 	CRUD(i interface{}, flag int) Handler
