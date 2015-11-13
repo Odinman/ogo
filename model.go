@@ -395,6 +395,7 @@ type Model interface {
 	UpdateRow(id string) (int64, error)       //更新记录
 	DeleteRow(id string) (int64, error)       //更新记录
 	CheckerFactory() Checker                  //检查存在性
+	Fill([]byte) error                        //填充内容
 	Valid() (Model, error)                    //数据验证
 	Filter() (Model, error)                   //数据过滤(创建,更新后)
 	Protect() (Model, error)                  //数据保护(获取数据时过滤字段)
@@ -414,8 +415,9 @@ type BaseModel struct {
 	conditions []*Condition `json:"-" db:"-"`
 	pagination *Pagination  `json:"-" db:"-"`
 	fields     []string     `json:"-" db:"-"`
-	base       string       `json:"-" db:"-"` //这个的作用就是判断是否是BaseModel
 	older      Model        `json:"-" db:"-"`
+	filled     bool         `json:"-" db:"-"` //是否有内容
+	//base       string       `json:"-" db:"-"` //这个的作用就是判断是否是BaseModel
 }
 
 /* {{{ func NewModel(m Model,c ...interface{}) Model {
@@ -752,6 +754,26 @@ func (bm *BaseModel) Filter() (Model, error) {
 
 /* }}} */
 
+/* {{{ func (bm *BaseModel) Fill(j []byte) error
+ * 根据条件获取一条记录, model为表结构
+ */
+func (bm *BaseModel) Fill(j []byte) error {
+	if bm.filled == true {
+		return nil
+	}
+	if m := bm.GetModel(); m == nil {
+		return fmt.Errorf("Not Found Model")
+	} else if err := json.Unmarshal(j, m); err != nil {
+		return err
+	} else {
+		bm.Model = m
+		bm.filled = true
+	}
+	return nil
+}
+
+/* }}} */
+
 /* {{{ func (bm *BaseModel) Valid() (Model, error)
  * 根据条件获取一条记录, model为表结构
  */
@@ -763,7 +785,8 @@ func (bm *BaseModel) Valid() (Model, error) {
 		return nil, err
 	}
 	c := m.GetCtx()
-	if err := json.Unmarshal(c.RequestBody, m); err != nil {
+	// fill model
+	if err := m.Fill(c.RequestBody); err != nil {
 		return nil, err
 	}
 	// checker
