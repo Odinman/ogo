@@ -77,12 +77,18 @@ func (rc *RESTContext) GetEnv(k string) (v interface{}) {
 /* {{{ func (rc *RESTContext) SetOTP(v,t,s string)
  * 设置环境变量
  */
-func (rc *RESTContext) SetOTP(v, t, s string) {
-	otp := new(OTPSpec)
-	otp.Value = v
-	otp.Type = t
-	otp.Sn = s
-	rc.OTP = otp
+func (rc *RESTContext) SetOTP(s ...string) {
+	if len(s) > 0 {
+		otp := new(OTPSpec)
+		otp.Value = s[0]
+		if len(s) > 1 {
+			otp.Type = s[1]
+		}
+		if len(s) > 2 {
+			otp.Sn = s[2]
+		}
+		rc.OTP = otp
+	}
 }
 
 /* }}} */

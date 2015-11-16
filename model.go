@@ -1164,7 +1164,7 @@ func (bm *BaseModel) GetOlder() Model {
 	if bm.older == nil {
 		if m := bm.GetModel(); m != nil {
 			c := m.GetCtx()
-			if rk, ok := c.URLParams[RowkeyKey]; ok && c.Route.Updating {
+			if rk, ok := c.URLParams[RowkeyKey]; ok {
 				if older, err := m.GetRow(rk); err == nil {
 					bm.older = older
 					c.AppLoggingOld(older)
