@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/zenazn/goji/web"
@@ -166,14 +167,18 @@ func (rc *RESTContext) RESTGenericError(status int, msg interface{}) (err error)
  */
 func (rc *RESTContext) RESTOK(data interface{}) (err error) {
 	if rc.Status <= 0 {
-		var status int
-		method := strings.ToLower(rc.Request.Method)
-		if _, ok := SUCCODE[method]; !ok {
-			status = http.StatusOK //默认都是StatusOK
+		if rc.OTP != nil {
+			return rc.RESTTFA(data)
 		} else {
-			status = SUCCODE[method]
+			var status int
+			method := strings.ToLower(rc.Request.Method)
+			if _, ok := SUCCODE[method]; !ok {
+				status = http.StatusOK //默认都是StatusOK
+			} else {
+				status = SUCCODE[method]
+			}
+			rc.SetStatus(status)
 		}
-		rc.SetStatus(status)
 	}
 
 	// write data
@@ -187,12 +192,16 @@ func (rc *RESTContext) RESTOK(data interface{}) (err error) {
  * rest tfa回应
  */
 func (rc *RESTContext) RESTTFA(data interface{}) (err error) {
-	rc.SetStatus(http.StatusAccepted)
-	rc.SetHeader("X-Qh-Otp", "required; sms")
+	if rc.OTP != nil {
+		rc.SetStatus(http.StatusAccepted)
+		rc.SetHeader(otpHeader, fmt.Sprintf("%s; %s=%s", rc.OTP.Value, rc.OTP.Type, strconv.Quote(rc.OTP.Sn)))
 
-	// write data
-	err = rc.Output(data)
-	return
+		// write data
+		err = rc.Output(data)
+		return
+	} else {
+		return rc.RESTOK(data)
+	}
 }
 
 /* }}} */
