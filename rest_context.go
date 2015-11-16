@@ -40,8 +40,15 @@ type RESTContext struct {
 	RequestBody   []byte
 	Accept        int //接受类型
 	Version       string
+	OTP           *OTPSpec
 	Access        *Access
 	Route         *Route
+}
+
+type OTPSpec struct {
+	Value string
+	Type  string
+	Sn    string
 }
 
 type RESTError struct {
@@ -158,14 +165,30 @@ func (rc *RESTContext) RESTGenericError(status int, msg interface{}) (err error)
  * 属于request的错误
  */
 func (rc *RESTContext) RESTOK(data interface{}) (err error) {
-	var status int
-	method := strings.ToLower(rc.Request.Method)
-	if _, ok := SUCCODE[method]; !ok {
-		status = http.StatusOK //默认都是StatusOK
-	} else {
-		status = SUCCODE[method]
+	if rc.Status <= 0 {
+		var status int
+		method := strings.ToLower(rc.Request.Method)
+		if _, ok := SUCCODE[method]; !ok {
+			status = http.StatusOK //默认都是StatusOK
+		} else {
+			status = SUCCODE[method]
+		}
+		rc.SetStatus(status)
 	}
-	rc.SetStatus(status)
+
+	// write data
+	err = rc.Output(data)
+	return
+}
+
+/* }}} */
+
+/* {{{ func (rc *RESTContext) RESTTFA(data interface{}) (err error)
+ * rest tfa回应
+ */
+func (rc *RESTContext) RESTTFA(data interface{}) (err error) {
+	rc.SetStatus(http.StatusAccepted)
+	rc.SetHeader("X-Qh-Otp", "required; sms")
 
 	// write data
 	err = rc.Output(data)
