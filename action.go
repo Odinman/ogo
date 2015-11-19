@@ -56,10 +56,11 @@ func (_ *Router) PreGet(i interface{}) (interface{}, error) {
 	m := i.(Model)
 	c := m.GetCtx()
 	// pk,放入条件
-	id := c.URLParams[RowkeyKey]
-	pk, _ := m.PKey()
-	c.Debug("[PreGet][pk: %s, id: %s]", pk, id)
-	m.SetConditions(NewCondition(CTYPE_IS, pk, id))
+	if id := c.URLParams[RowkeyKey]; id != "" {
+		pk, _ := m.PKey()
+		c.Debug("[PreGet][pk: %s, id: %s]", pk, id)
+		m.SetConditions(NewCondition(CTYPE_IS, pk, id))
+	}
 	// 从restcontext里获取条件
 	if tr := c.GetEnv(TimeRangeKey); tr != nil { //时间段参数
 		m.SetConditions(NewCondition(CTYPE_IS, TAG_TIMERANGE, tr.(*TimeRange)))
@@ -80,8 +81,6 @@ func (_ *Router) PreGet(i interface{}) (interface{}, error) {
  */
 func (_ *Router) OnGet(i interface{}) (interface{}, error) {
 	m := i.(Model)
-	//c := m.GetCtx()
-	//id := c.URLParams[RowkeyKey]
 	return m.GetRow(m)
 }
 
