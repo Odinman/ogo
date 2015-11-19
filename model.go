@@ -1052,17 +1052,17 @@ func (bm *BaseModel) DeleteRow(id string) (affected int64, err error) {
  * 获取list, 通用函数
  */
 func (bm *BaseModel) GetRows() (l *List, err error) {
-	//c := m.GetCtx()
 	if m := bm.GetModel(); m != nil {
+		c := m.GetCtx()
 		l = new(List)
 		builder, _ := bm.ReadPrepare()
 		count, _ := builder.Count() //结果数
 		ms := bm.NewList()
-		//p := c.GetEnv(PaginationKey).(*Pagination)
 		if p := bm.GetPagination(); p != nil {
 			l.Info.Page = &p.Page
 			l.Info.PerPage = &p.PerPage
 			err = builder.Select(GetDbFields(m, true)).Offset(p.Offset).Limit(p.PerPage).Find(ms)
+			c.Debug("[offset: %d][per_page: %d][error: %s]", p.Offset, p.PerPage, err)
 		} else {
 			err = builder.Select(GetDbFields(m, true)).Find(ms)
 		}
