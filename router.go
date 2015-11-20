@@ -380,6 +380,7 @@ func (rtr *Router) CRUD(i interface{}, flag int) Handler {
 	act := rtr.Controller.(ActionInterface)
 	get := func(c *RESTContext) {
 		m := NewModel(i.(Model), c)
+		defer act.Defer(m)
 
 		if _, err := act.PreGet(m); err != nil {
 			c.Warn("PreGet error: %s", err)
@@ -410,6 +411,7 @@ func (rtr *Router) CRUD(i interface{}, flag int) Handler {
 	}
 	search := func(c *RESTContext) {
 		m := NewModel(i.(Model), c)
+		defer act.Defer(m)
 
 		if _, err := act.PreSearch(m); err != nil { // presearch准备条件等
 			c.Warn("PreSearch error: %s", err)
@@ -473,6 +475,7 @@ func (rtr *Router) CRUD(i interface{}, flag int) Handler {
 
 	delete := func(c *RESTContext) {
 		m := NewModel(i.(Model), c)
+		defer act.Defer(m)
 		var err error
 
 		if _, err = act.PreDelete(m); err != nil { // presearch准备条件等
@@ -504,6 +507,7 @@ func (rtr *Router) CRUD(i interface{}, flag int) Handler {
 
 	patch := func(c *RESTContext) { //修改
 		m := NewModel(i.(Model), c)
+		defer act.Defer(m)
 		var err error
 
 		if _, err = act.PreUpdate(m); err != nil { // presearch准备条件等
@@ -538,6 +542,7 @@ func (rtr *Router) CRUD(i interface{}, flag int) Handler {
 	//}
 	head := func(c *RESTContext) { //检查字段
 		m := NewModel(i.(Model), c)
+		defer act.Defer(m)
 
 		if _, err := act.PreCheck(m); err != nil { // presearch准备条件等
 			c.Warn("PreCheck error: %s", err)

@@ -44,6 +44,7 @@ type RESTContext struct {
 	OTP           *OTPSpec
 	Access        *Access
 	Route         *Route
+	locks         map[string]*Lock //访问锁
 }
 
 type OTPSpec struct {
@@ -270,6 +271,44 @@ func (rc *RESTContext) RESTError(err error) error {
  */
 func (rc *RESTContext) RESTBadRequest(msg interface{}) (err error) {
 	return rc.RESTGenericError(http.StatusBadRequest, msg)
+}
+
+/* }}} */
+
+/* {{{ func (rc *RESTContext) GetLock(key string) (err error)
+ *
+ */
+func (rc *RESTContext) GetLock(key string) (err error) {
+	if rc.locks == nil {
+		rc.locks = make(map[string]*Lock)
+	}
+	if _, ok := rc.locks[key]; !ok {
+		rc.locks[key] = NewLock(key)
+	}
+	if err = rc.locks[key].Get(); err != nil {
+		rc.Info("get lock(%s) error: %s", key, err)
+	} else {
+		rc.Debug("get lock(%s) ok", key)
+	}
+	return
+}
+
+/* }}} */
+
+/* {{{ func (rc *RESTContext) ReleaseLocks()
+ * 释放所有锁
+ */
+func (rc *RESTContext) ReleaseLocks() {
+	if rc.locks == nil {
+		return
+	}
+	for key, lk := range rc.locks {
+		if err := lk.Release(); err != nil {
+			rc.Info("release lock(%s) error: %s", key, err)
+		} else {
+			rc.Debug("release lock(%s) ok")
+		}
+	}
 }
 
 /* }}} */

@@ -168,6 +168,8 @@ func Defer(c *web.C, h http.Handler) http.Handler {
 				//http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 				rc.HTTPError(http.StatusInternalServerError)
 			}
+			// release locks
+			rc.ReleaseLocks()
 
 			// save access log here
 			ac := rc.Access
