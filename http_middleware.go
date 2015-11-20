@@ -52,6 +52,7 @@ var (
 	xRealIP            = http.CanonicalHeaderKey("X-Real-IP")
 	contentType        = http.CanonicalHeaderKey("Content-Type")
 	accHeader          = http.CanonicalHeaderKey("Accept")
+	otpHeader          = http.CanonicalHeaderKey("X-Qh-Otp")
 	contentDisposition = http.CanonicalHeaderKey("Content-Disposition")
 	contentMD5         = http.CanonicalHeaderKey("Content-MD5")
 	rcHolder           func(c web.C, w http.ResponseWriter, r *http.Request) *RESTContext
@@ -167,6 +168,8 @@ func Defer(c *web.C, h http.Handler) http.Handler {
 				//http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 				rc.HTTPError(http.StatusInternalServerError)
 			}
+			// release locks
+			rc.ReleaseLocks()
 
 			// save access log here
 			ac := rc.Access
@@ -215,6 +218,10 @@ func ParseHeaders(c *web.C, h http.Handler) http.Handler {
 					rc.Accept = ContentTypeXML
 				}
 			}
+		}
+		// OTP Header
+		if v, t, s, err := utils.ParseOTP(r.Header, otpHeader); err == nil {
+			rc.OTP = &OTPSpec{Value: v, Type: t, Sn: s}
 		}
 
 		// Content-Type

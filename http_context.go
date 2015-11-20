@@ -4,18 +4,21 @@ import (
 	"bytes"
 	"compress/flate"
 	"compress/gzip"
+	"encoding/json"
+	"html/template"
 	"net/http"
+	"path/filepath"
 	"strconv"
 	"strings"
 
-	//"github.com/zenazn/goji/web"
+	"github.com/Odinman/ogo/utils"
 )
 
 /* {{{ func (rc *RESTContext) SetHeader(k,v string)
  * set header
  */
 func (rc *RESTContext) SetHeader(k, v string) {
-	return rc.Response.Header().Set(k, v)
+	rc.Response.Header().Set(k, v)
 }
 
 /* }}} */
@@ -35,20 +38,30 @@ func (rc *RESTContext) SetStatus(status int) {
  */
 func (rc *RESTContext) Output(data interface{}) (err error) {
 
-	var content []byte
 	if rc.Accept == ContentTypeHTML { //用户需要HTML
+		tplFile := ""
 		// tpl file
-		if ti, ok := c.Route.Options[KEY_TPL]; ok && ti.(string) != "" { //定义了tpl文件
+		if ti, ok := rc.Route.Options[KEY_TPL]; ok && ti.(string) != "" && utils.FileExists(ti.(string)) { //定义了tpl文件, 并且文件存在
+			tplFile = ti.(string)
+		} else if dt := filepath.Join(env.TplDir, rc.Request.URL.Path+".html"); utils.FileExists(dt) { //默认tpl文件, 为: tpldir+url.Path+".html"
+			tplFile = dt
 		}
-	} else { //默认为json
-		rc.SetHeader("Content-Type", "application/json; charset=UTF-8")
-		if method := strings.ToLower(rc.Request.Method); method != "head" {
-			if data != nil {
-				if env.IndentJSON {
-					content, _ = json.MarshalIndent(data, "", "  ")
-				} else {
-					content, _ = json.Marshal(data)
-				}
+		if tplFile != "" {
+			if t, err := template.ParseFiles(tplFile); err == nil {
+				return t.Execute(rc.Response, data)
+			}
+		}
+	}
+
+	// 以下仍然返回json
+	rc.SetHeader("Content-Type", "application/json; charset=UTF-8")
+	var content []byte
+	if method := strings.ToLower(rc.Request.Method); method != "head" {
+		if data != nil {
+			if env.IndentJSON {
+				content, _ = json.MarshalIndent(data, "", "  ")
+			} else {
+				content, _ = json.Marshal(data)
 			}
 		}
 	}

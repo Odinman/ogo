@@ -395,6 +395,7 @@ type Model interface {
 	UpdateRow(id string) (int64, error)       //更新记录
 	DeleteRow(id string) (int64, error)       //更新记录
 	CheckerFactory() Checker                  //检查存在性
+	Fill([]byte) error                        //填充内容
 	Valid() (Model, error)                    //数据验证
 	Filter() (Model, error)                   //数据过滤(创建,更新后)
 	Protect() (Model, error)                  //数据保护(获取数据时过滤字段)
@@ -407,15 +408,15 @@ type BaseModel struct {
 	Count      int64        `json:"count,omitempty" filter:",H,G,D"` // 计数
 	Sum        float64      `json:"sum,omitempty" filter:",H,G,D"`   // 求和
 	Error      error        `json:"-" db:"-"`
-	Locked     []string     `json:"-" db:"-"`
 	Model      Model        `json:"-" db:"-"`
 	ctx        *RESTContext `json:"-" db:"-"`
 	checker    Checker      `json:"-" db:"-"`
 	conditions []*Condition `json:"-" db:"-"`
 	pagination *Pagination  `json:"-" db:"-"`
 	fields     []string     `json:"-" db:"-"`
-	base       string       `json:"-" db:"-"` //这个的作用就是判断是否是BaseModel
 	older      Model        `json:"-" db:"-"`
+	filled     bool         `json:"-" db:"-"` //是否有内容
+	//base       string       `json:"-" db:"-"` //这个的作用就是判断是否是BaseModel
 }
 
 /* {{{ func NewModel(m Model,c ...interface{}) Model {
@@ -762,6 +763,26 @@ func (bm *BaseModel) Filter() (Model, error) {
 
 /* }}} */
 
+/* {{{ func (bm *BaseModel) Fill(j []byte) error
+ * 根据条件获取一条记录, model为表结构
+ */
+func (bm *BaseModel) Fill(j []byte) error {
+	if bm.filled == true {
+		return nil
+	}
+	if m := bm.GetModel(); m == nil {
+		return fmt.Errorf("Not Found Model")
+	} else if err := json.Unmarshal(j, m); err != nil {
+		return err
+	} else {
+		bm.Model = m
+		bm.filled = true
+	}
+	return nil
+}
+
+/* }}} */
+
 /* {{{ func (bm *BaseModel) Valid() (Model, error)
  * 根据条件获取一条记录, model为表结构
  */
@@ -773,7 +794,8 @@ func (bm *BaseModel) Valid() (Model, error) {
 		return nil, err
 	}
 	c := m.GetCtx()
-	if err := json.Unmarshal(c.RequestBody, m); err != nil {
+	// fill model
+	if err := m.Fill(c.RequestBody); err != nil {
 		return nil, err
 	}
 	// checker
@@ -1039,17 +1061,17 @@ func (bm *BaseModel) DeleteRow(id string) (affected int64, err error) {
  * 获取list, 通用函数
  */
 func (bm *BaseModel) GetRows() (l *List, err error) {
-	//c := m.GetCtx()
 	if m := bm.GetModel(); m != nil {
+		c := m.GetCtx()
 		l = new(List)
 		builder, _ := bm.ReadPrepare()
 		count, _ := builder.Count() //结果数
 		ms := bm.NewList()
-		//p := c.GetEnv(PaginationKey).(*Pagination)
 		if p := bm.GetPagination(); p != nil {
 			l.Info.Page = &p.Page
 			l.Info.PerPage = &p.PerPage
 			err = builder.Select(GetDbFields(m, true)).Offset(p.Offset).Limit(p.PerPage).Find(ms)
+			c.Debug("[offset: %d][per_page: %d][error: %s]", p.Offset, p.PerPage, err)
 		} else {
 			err = builder.Select(GetDbFields(m, true)).Find(ms)
 		}

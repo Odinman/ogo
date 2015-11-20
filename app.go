@@ -1,22 +1,5 @@
 package ogo
 
-const (
-	// generic action const
-	GA_GET = 1 << iota
-	GA_SEARCH
-	GA_POST
-	GA_DELETE
-	GA_PATCH
-	//GA_PUT
-	GA_HEAD
-	GA_ALL = GA_GET | GA_SEARCH | GA_POST | GA_DELETE | GA_PATCH | GA_HEAD
-
-	KEY_SKIPAUTH  = "skipauth"
-	KEY_SKIPLOGIN = "skiplogin"
-	KEY_SKIPPERM  = "skipperm"
-	KEY_TPL       = "tpl"
-)
-
 /* {{{ func (rc *RESTContext) SaveAccess()
  * 设置环境变量
  */
@@ -87,6 +70,25 @@ func (rc *RESTContext) GetEnv(k string) (v interface{}) {
 		return v
 	}
 	return nil
+}
+
+/* }}} */
+
+/* {{{ func (rc *RESTContext) SetOTP(v,t,s string)
+ * 设置环境变量
+ */
+func (rc *RESTContext) SetOTP(s ...string) {
+	if len(s) > 0 {
+		otp := new(OTPSpec)
+		otp.Value = s[0]
+		if len(s) > 1 {
+			otp.Type = s[1]
+		}
+		if len(s) > 2 {
+			otp.Sn = s[2]
+		}
+		rc.OTP = otp
+	}
 }
 
 /* }}} */

@@ -2,49 +2,13 @@ package ogo
 
 import (
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/zenazn/goji/web"
-)
-
-const (
-	//env key
-	RequestIDKey      = "_reqid_"
-	SaveBodyKey       = "_sb_"
-	NoLogKey          = "_nl_"
-	PaginationKey     = "_pagination_"
-	FieldsKey         = "_fields_"
-	TimeRangeKey      = "_tr_"
-	OrderByKey        = "_ob_"
-	ConditionsKey     = "_conditions_"
-	LogPrefixKey      = "_prefix_"
-	EndpointKey       = "_endpoint_"
-	RowkeyKey         = "_rk_"
-	SelectorKey       = "_selector_"
-	MimeTypeKey       = "_mimetype_"
-	DispositionMTKey  = "_dmt_"
-	ContentMD5Key     = "_md5_"
-	DispositionPrefix = "_dp_"
-	DIMENSION_KEY     = "_dimension_" //在restcontext中的key
-	SIDE_KEY          = "_sidekey_"
-	USERID_KEY        = "_userid_"
-	APPID_KEY         = "_appid_"
-	STAG_KEY          = "_stag_"
-	PERMISSION_KEY    = "_perm_"
-	EXT_KEY           = "_ext_"
-
-	//1x1 gir
-	base64GifPixel = "R0lGODlhAQABAIAAAP///wAAACwAAAAAAQABAAACAkQBADs="
-	//base64GifPixel = "R0lGODlhAQABAJAAAP8AAAAAACH5BAUQAAAALAAAAAABAAEAAAICBAEAOw=="
-
-	// 内容类型
-	ContentTypeJSON = 1 << iota
-	ContentTypeHTML
-	ContentTypeXML
 )
 
 var (
@@ -77,8 +41,16 @@ type RESTContext struct {
 	RequestBody   []byte
 	Accept        int //接受类型
 	Version       string
+	OTP           *OTPSpec
 	Access        *Access
 	Route         *Route
+	locks         map[string]*Lock //访问锁
+}
+
+type OTPSpec struct {
+	Value string
+	Type  string
+	Sn    string
 }
 
 type RESTError struct {
@@ -195,18 +167,42 @@ func (rc *RESTContext) RESTGenericError(status int, msg interface{}) (err error)
  * 属于request的错误
  */
 func (rc *RESTContext) RESTOK(data interface{}) (err error) {
-	var status int
-	method := strings.ToLower(rc.Request.Method)
-	if _, ok := SUCCODE[method]; !ok {
-		status = http.StatusOK //默认都是StatusOK
-	} else {
-		status = SUCCODE[method]
+	if rc.Status <= 0 {
+		if rc.OTP != nil {
+			return rc.RESTTFA(data)
+		} else {
+			var status int
+			method := strings.ToLower(rc.Request.Method)
+			if _, ok := SUCCODE[method]; !ok {
+				status = http.StatusOK //默认都是StatusOK
+			} else {
+				status = SUCCODE[method]
+			}
+			rc.SetStatus(status)
+		}
 	}
-	rc.SetStatus(status)
 
 	// write data
 	err = rc.Output(data)
 	return
+}
+
+/* }}} */
+
+/* {{{ func (rc *RESTContext) RESTTFA(data interface{}) (err error)
+ * rest tfa回应
+ */
+func (rc *RESTContext) RESTTFA(data interface{}) (err error) {
+	if rc.OTP != nil {
+		rc.SetStatus(http.StatusAccepted)
+		rc.SetHeader(otpHeader, fmt.Sprintf("%s; %s=%s", rc.OTP.Value, rc.OTP.Type, strconv.Quote(rc.OTP.Sn)))
+
+		// write data
+		err = rc.Output(data)
+		return
+	} else {
+		return rc.RESTOK(data)
+	}
 }
 
 /* }}} */
@@ -275,6 +271,44 @@ func (rc *RESTContext) RESTError(err error) error {
  */
 func (rc *RESTContext) RESTBadRequest(msg interface{}) (err error) {
 	return rc.RESTGenericError(http.StatusBadRequest, msg)
+}
+
+/* }}} */
+
+/* {{{ func (rc *RESTContext) GetLock(key string) (err error)
+ *
+ */
+func (rc *RESTContext) GetLock(key string) (err error) {
+	if rc.locks == nil {
+		rc.locks = make(map[string]*Lock)
+	}
+	if _, ok := rc.locks[key]; !ok {
+		rc.locks[key] = NewLock(key)
+	}
+	if err = rc.locks[key].Get(); err != nil {
+		rc.Info("get lock(%s) error: %s", key, err)
+	} else {
+		rc.Debug("get lock(%s) ok", key)
+	}
+	return
+}
+
+/* }}} */
+
+/* {{{ func (rc *RESTContext) ReleaseLocks()
+ * 释放所有锁
+ */
+func (rc *RESTContext) ReleaseLocks() {
+	if rc.locks == nil {
+		return
+	}
+	for key, lk := range rc.locks {
+		if err := lk.Release(); err != nil {
+			rc.Info("release lock(%s) error: %s", key, err)
+		} else {
+			rc.Debug("release lock(%s) ok")
+		}
+	}
 }
 
 /* }}} */
