@@ -381,7 +381,7 @@ type Model interface {
 	AddTable(tags ...string)
 	DBConn(tag string) *gorp.DbMap // 数据库连接
 	TableName() string             // 返回表名称, 默认结构type名字(小写), 有特别的表名称,则自己implement 这个方法
-	PKey() (string, bool)          // key字段,以及是否auto incr
+	PKey() (string, string, bool)  // key字段,以及是否auto incr
 	ReadPrepare() (*gorp.Builder, error)
 
 	// data accessor
@@ -682,21 +682,31 @@ func (bm *BaseModel) TableName() (n string) {
 
 /* }}} */
 
-/* {{{ func (bm *BaseModel) PKey() (string, bool)
+/* {{{ func (bm *BaseModel) PKey() (string, string, bool)
  *  通过配置找到pk
  */
-func (bm *BaseModel) PKey() (f string, ai bool) {
+func (bm *BaseModel) PKey() (f string, v string, ai bool) {
 	var m Model
 	if m = bm.GetModel(); m == nil {
 		err := fmt.Errorf("not found model")
 		Info("error: %s", err)
-		return "", false
+		return "", nil, false
 	}
+	mv := reflect.ValueOf(m)
 	if cols := utils.ReadStructColumns(m, true); cols != nil {
 		for _, col := range cols {
 			// check required field
 			if col.TagOptions.Contains(DBTAG_PK) {
 				f = col.Tag
+				fv := utils.FieldByIndex(mv, col.Index)
+				switch fv.Type().String() {
+				case "*string":
+					v = fv.Elem().String()
+				case "string":
+					v = fv.String()
+				default:
+					// nothing
+				}
 				if col.ExtOptions.Contains(TAG_GENERATE) && col.ExtTag != "" { //服务端生成并且有tag
 					ai = false
 				} else {
@@ -934,7 +944,7 @@ func (bm *BaseModel) GetRow(ext ...interface{}) (Model, error) {
 	c := m.GetCtx()
 	if len(ext) > 0 {
 		if id, ok := ext[0].(string); ok && id != "" {
-			pf, _ := m.PKey()
+			pf, _, _ := m.PKey()
 			m.SetConditions(NewCondition(CTYPE_IS, pf, id))
 		}
 	}
@@ -1140,11 +1150,19 @@ func (bm *BaseModel) GetCountNSum() (cnt int64, sum float64) {
 func (bm *BaseModel) GetOlder() Model {
 	if bm.older == nil {
 		if m := bm.GetModel(); m != nil {
+			var rk string
 			c := m.GetCtx()
-			if rk, ok := c.URLParams[RowkeyKey]; ok && c.Route.Updating {
+			if pf, pv, _ := m.PKey(); pv != "" { // 从Model里找rowkey
+				rk = pv
+			} else if c != nil {
+				rk = c.URLParams[RowkeyKey]
+			}
+			if rk != "" {
 				if older, err := m.GetRow(rk); err == nil {
 					bm.older = older
-					c.AppLoggingOld(older)
+					if c != nil {
+						c.AppLoggingOld(older)
+					}
 				}
 			}
 		}
@@ -1163,7 +1181,7 @@ func (bm *BaseModel) AddTable(tags ...string) {
 		mv := reflect.Indirect(reflectVal).Interface()
 		//Debug("table name: %s", bm.TableName())
 		tb := bm.TableName()
-		pf, ai := m.PKey()
+		pf, _, ai := m.PKey()
 		if !ai {
 			Debug("[pk not auto incr: %s]", pf)
 		} else {
