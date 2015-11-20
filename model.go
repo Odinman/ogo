@@ -689,9 +689,9 @@ func (bm *BaseModel) TableName() (n string) {
 func (bm *BaseModel) PKey() (f string, v string, ai bool) {
 	var m Model
 	if m = bm.GetModel(); m == nil {
-		err := fmt.Errorf("not found model")
+		err := fmt.Errorf("not_found_model")
 		Info("error: %s", err)
-		return "", nil, false
+		return "", "", false
 	}
 	mv := reflect.ValueOf(m)
 	if cols := utils.ReadStructColumns(m, true); cols != nil {
@@ -1021,7 +1021,9 @@ func (bm *BaseModel) CreateRow() (Model, error) {
 func (bm *BaseModel) UpdateRow(id string) (affected int64, err error) {
 	if m := bm.GetModel(); m != nil {
 		c := m.GetCtx()
-		c.AppLoggingNew(m)
+		if c != nil {
+			c.AppLoggingNew(m)
+		}
 		db := bm.DBConn(WRITETAG)
 		if id != "" {
 			if err = utils.ImportValue(m, map[string]string{DBTAG_PK: id}); err != nil {
@@ -1174,7 +1176,7 @@ func (bm *BaseModel) GetOlder() Model {
 		if m := bm.GetModel(); m != nil {
 			var rk string
 			c := m.GetCtx()
-			if pf, pv, _ := m.PKey(); pv != "" { // 从Model里找rowkey
+			if _, pv, _ := m.PKey(); pv != "" { // 从Model里找rowkey
 				rk = pv
 			} else if c != nil {
 				rk = c.URLParams[RowkeyKey]
