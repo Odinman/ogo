@@ -28,6 +28,7 @@ const (
 	TAG_DENY        = "D"     // 不可编辑, 可为空
 	TAG_SECRET      = "S"     // 保密,一般不见人
 	TAG_HIDDEN      = "H"     // 隐藏
+	TAG_DEFAULT     = "DEF"   // 默认
 	TAG_TIMERANGE   = "TR"    // 时间范围条件
 	TAG_REPORT      = "RPT"   // 报表字段
 	TAG_CANGROUP    = "GRP"   // 可以group操作
@@ -385,20 +386,20 @@ type Model interface {
 	ReadPrepare() (*gorp.Builder, error)
 
 	// data accessor
-	GetRow(ext ...interface{}) (Model, error) //获取单条记录
-	GetRows() (*List, error)                  //获取多条记录
-	GetOlder() Model                          //获取旧记录
-	GetSum(d []string) (*List, error)         //获取多条记录
-	GetCount() (int64, error)                 //获取多条记录
-	GetCountNSum() (int64, float64)           //获取count and sum
-	CreateRow() (Model, error)                //创建单条记录
-	UpdateRow(id string) (int64, error)       //更新记录
-	DeleteRow(id string) (int64, error)       //更新记录
-	CheckerFactory() Checker                  //检查存在性
-	Fill([]byte) error                        //填充内容
-	Valid() (Model, error)                    //数据验证
-	Filter() (Model, error)                   //数据过滤(创建,更新后)
-	Protect() (Model, error)                  //数据保护(获取数据时过滤字段)
+	GetRow(ext ...interface{}) (Model, error)    //获取单条记录
+	GetRows() (*List, error)                     //获取多条记录
+	GetOlder() Model                             //获取旧记录
+	GetSum(d []string) (*List, error)            //获取多条记录
+	GetCount() (int64, error)                    //获取多条记录
+	GetCountNSum() (int64, float64)              //获取count and sum
+	CreateRow() (Model, error)                   //创建单条记录
+	UpdateRow(ext ...interface{}) (int64, error) //更新记录
+	DeleteRow(id string) (int64, error)          //更新记录
+	CheckerFactory() Checker                     //检查存在性
+	Fill([]byte) error                           //填充内容
+	Valid() (Model, error)                       //数据验证
+	Filter() (Model, error)                      //数据过滤(创建,更新后)
+	Protect() (Model, error)                     //数据保护(获取数据时过滤字段)
 }
 
 type Checker func(string) (interface{}, error)
@@ -700,13 +701,16 @@ func (bm *BaseModel) PKey() (f string, v string, ai bool) {
 			if col.TagOptions.Contains(DBTAG_PK) {
 				f = col.Tag
 				fv := utils.FieldByIndex(mv, col.Index)
-				switch fv.Type().String() {
-				case "*string":
-					v = fv.Elem().String()
-				case "string":
-					v = fv.String()
-				default:
-					// nothing
+				v = ""
+				if fv.IsValid() && !utils.IsEmptyValue(fv) {
+					switch fv.Type().String() {
+					case "*string":
+						v = fv.Elem().String()
+					case "string":
+						v = fv.String()
+					default:
+						// nothing
+					}
 				}
 				if col.ExtOptions.Contains(TAG_GENERATE) && col.ExtTag != "" { //服务端生成并且有tag
 					ai = false
@@ -806,11 +810,12 @@ func (bm *BaseModel) Valid() (Model, error) {
 			fv := utils.FieldByIndex(v, col.Index)
 			// server generate,忽略传入的信息
 			if fv.IsValid() && !utils.IsEmptyValue(fv) { //传入了内容
-				if col.ExtOptions.Contains(TAG_GENERATE) { //服务器生成, 忽略传入
+				if col.ExtOptions.Contains(TAG_GENERATE) && !col.TagOptions.Contains(DBTAG_PK) { //服务器生成, 忽略传入
 					fv.Set(reflect.Zero(fv.Type()))
 				} else if c.Route.Updating && col.ExtOptions.Contains(TAG_DENY) { //尝试编辑不可编辑的字段,要报错
 					c.Info("%s is uneditable: %v", col.Tag, fv)
-					return nil, fmt.Errorf("%s is uneditable", col.Tag) //尝试编辑不可编辑的字段,直接报错
+					//return nil, fmt.Errorf("%s is uneditable", col.Tag) //尝试编辑不可编辑的字段,直接报错
+					fv.Set(reflect.Zero(fv.Type()))
 				}
 			} else { //空
 				if col.ExtOptions.Contains(TAG_REQUIRED) && c.Route.Creating { // 创建时必须传入,但是为空
@@ -836,8 +841,8 @@ func (bm *BaseModel) Valid() (Model, error) {
 						return nil, fmt.Errorf("field(%s) must be string, not %s", col.Tag, fv.Kind().String())
 					}
 				}
-			case "userid": //替换为userid
-				if c.Route.Creating {
+			case "userid": //替换为userid,如果指定了数值
+				if c.Route.Creating && (!fv.IsValid() || utils.IsEmptyValue(fv)) {
 					var userid string
 					if uid := c.GetEnv(USERID_KEY); uid == nil {
 						userid = "0"
@@ -853,6 +858,18 @@ func (bm *BaseModel) Valid() (Model, error) {
 						fv.Set(reflect.ValueOf(userid))
 					default:
 						return nil, fmt.Errorf("field(%s) must be string, not %s", col.Tag, fv.Kind().String())
+					}
+				}
+			case "time": //如果没有传值, 就是当前时间
+				if c.Route.Creating && (!fv.IsValid() || utils.IsEmptyValue(fv)) { //创建同时为空
+					now := time.Now()
+					switch fv.Type().String() {
+					case "*time.Time":
+						fv.Set(reflect.ValueOf(&now))
+					case "time.Time":
+						fv.Set(reflect.ValueOf(now))
+					default:
+						return nil, fmt.Errorf("field(%s) must be time.Time, not %s", col.Tag, fv.Kind().String())
 					}
 				}
 			case "existense": //检查存在性
@@ -964,9 +981,11 @@ func (bm *BaseModel) GetRow(ext ...interface{}) (Model, error) {
 		return nil, err
 	}
 	c := m.GetCtx()
-	if len(ext) > 0 {
+	//找rowkey
+	if pf, pv, _ := m.PKey(); pv != "" {
+		m.SetConditions(NewCondition(CTYPE_IS, pf, pv))
+	} else if len(ext) > 0 {
 		if id, ok := ext[0].(string); ok && id != "" {
-			pf, _, _ := m.PKey()
 			m.SetConditions(NewCondition(CTYPE_IS, pf, id))
 		}
 	}
@@ -1015,26 +1034,37 @@ func (bm *BaseModel) CreateRow() (Model, error) {
 
 /* }}} */
 
-/* {{{ func (bm *BaseModel) UpdateRow(id string) (affected int64, err error)
- * 根据条件获取一条记录, model为表结构
+/* {{{ func (bm *BaseModel) UpdateRow(ext ...interface{}) (affected int64, err error)
+ * 更新record
  */
-func (bm *BaseModel) UpdateRow(id string) (affected int64, err error) {
+func (bm *BaseModel) UpdateRow(ext ...interface{}) (affected int64, err error) {
 	if m := bm.GetModel(); m != nil {
 		c := m.GetCtx()
 		if c != nil {
 			c.AppLoggingNew(m)
+		}
+		var id string
+		if _, pv, _ := m.PKey(); pv != "" {
+			id = pv
+		} else if len(ext) > 0 {
+			if rk, ok := ext[0].(string); ok && rk != "" {
+				id = rk
+			}
 		}
 		db := bm.DBConn(WRITETAG)
 		if id != "" {
 			if err = utils.ImportValue(m, map[string]string{DBTAG_PK: id}); err != nil {
 				return
 			}
+		} else {
+			Info("not_found_row")
+			err = fmt.Errorf("not_found_row_to_update")
+			return
 		}
 		return db.Update(m)
 	} else {
-		err := fmt.Errorf("not found model")
-		Info("error: %s", err)
-		return 0, err
+		err = fmt.Errorf("not_found_model")
+		return
 	}
 }
 
@@ -1176,17 +1206,21 @@ func (bm *BaseModel) GetOlder() Model {
 		if m := bm.GetModel(); m != nil {
 			var rk string
 			c := m.GetCtx()
-			if _, pv, _ := m.PKey(); pv != "" { // 从Model里找rowkey
-				rk = pv
-			} else if c != nil {
+			if c != nil {
 				rk = c.URLParams[RowkeyKey]
 			}
 			if rk != "" {
+				Debug("found_pk_in_context: %s", rk)
 				if older, err := m.GetRow(rk); err == nil {
 					bm.older = older
 					if c != nil {
 						c.AppLoggingOld(older)
 					}
+				}
+			} else if older, err := m.GetRow(); err == nil { //通过本身条件查找
+				bm.older = older
+				if c != nil {
+					c.AppLoggingOld(older)
 				}
 			}
 		}

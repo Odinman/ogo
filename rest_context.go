@@ -306,7 +306,7 @@ func (rc *RESTContext) ReleaseLocks() {
 		if err := lk.Release(); err != nil {
 			rc.Info("release lock(%s) error: %s", key, err)
 		} else {
-			rc.Debug("release lock(%s) ok")
+			rc.Debug("release lock(%s) ok", key)
 		}
 	}
 }
