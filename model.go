@@ -875,7 +875,8 @@ func (bm *BaseModel) Valid() (Model, error) {
 			case "existense": //检查存在性
 				if c.Route.Creating { //创建时才检查,这里不够安全(将来改)
 					if exValue, err := checker(col.Tag); err != nil {
-						return nil, fmt.Errorf("%s existense check failed: %s", col.Tag, err.Error())
+						c.Debug("%s existense check failed: %s", col.Tag, err)
+						return nil, err
 					} else if exValue != nil {
 						//c.Debug("%s existense: %v", col.Tag, exValue)
 						fv.Set(reflect.ValueOf(exValue))
@@ -1103,7 +1104,7 @@ func (bm *BaseModel) GetRows() (l *List, err error) {
 			l.Info.Page = &p.Page
 			l.Info.PerPage = &p.PerPage
 			err = builder.Select(GetDbFields(m, true)).Offset(p.Offset).Limit(p.PerPage).Find(ms)
-			c.Debug("[offset: %d][per_page: %d][error: %s]", p.Offset, p.PerPage, err)
+			c.Debug("[offset: %d][per_page: %d]", p.Offset, p.PerPage)
 		} else {
 			err = builder.Select(GetDbFields(m, true)).Find(ms)
 		}

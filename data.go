@@ -65,7 +65,7 @@ func (_ BaseConverter) ToDb(val interface{}) (interface{}, error) {
 	//	return utils.ParseFloat(t), nil
 	default:
 		// 自定义的类型,如果实现了SelfConverter接口,则这里自动执行
-		Debug("val: %v", val)
+		Trace("val: %v", val)
 		if _, ok := val.(SelfConverter); ok {
 			Trace("selfconvert todb")
 			return val.(SelfConverter).ToDb()
@@ -74,7 +74,7 @@ func (_ BaseConverter) ToDb(val interface{}) (interface{}, error) {
 				Trace("prt selfconvert todb")
 				return val.(SelfConverter).ToDb()
 			} else {
-				Debug("not selfconvert todb")
+				Trace("not selfconvert todb")
 			}
 		} else {
 			Trace("zero value")
