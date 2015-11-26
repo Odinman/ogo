@@ -101,6 +101,31 @@ func OmqTask(msg ...string) error {
 
 /* }}} */
 
+/* {{{ func OmqBlockTask(msg ...string) error
+ *
+ */
+func OmqBlockTask(msg ...string) error {
+	if requester, e := OmqPool().Get(); e == nil && len(msg) > 1 {
+		defer requester.Close()
+		key := msg[0]
+		values := msg[1:]
+		if reply, e := requester.Do(13*time.Second, "BTASK", key, values); e == nil {
+			Debug("Received: %s", reply[0])
+			if reply[0] == "OK" {
+				return nil
+			}
+		} else {
+			Info("task %s error: %s", key, e)
+			return e
+		}
+	} else {
+		return e
+	}
+	return fmt.Errorf("block_task_failed")
+}
+
+/* }}} */
+
 /* {{{ func OmqPop(msg ...string) error
  *
  */
