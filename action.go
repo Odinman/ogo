@@ -159,9 +159,13 @@ func (_ *Router) PreCreate(i interface{}) (interface{}, error) {
  */
 func (_ *Router) OnCreate(i interface{}) (interface{}, error) {
 	m := i.(Model)
+	c := m.GetCtx()
 	if r, err := m.CreateRow(); err != nil {
 		return nil, err
 	} else {
+		if c != nil {
+			c.AppLoggingNew(r)
+		}
 		return r, nil
 	}
 }
@@ -198,6 +202,7 @@ func (_ *Router) OnUpdate(i interface{}) (interface{}, error) {
 	m := i.(Model)
 	c := m.GetCtx()
 	rk := c.URLParams[RowkeyKey]
+	c.AppLoggingNew(m)
 	if affected, err := m.UpdateRow(rk); err != nil {
 		return nil, err
 	} else {

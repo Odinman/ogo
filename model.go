@@ -1021,9 +1021,6 @@ func (bm *BaseModel) CreateRow() (Model, error) {
 		if err := db.Insert(m); err != nil { //Insert会把m换成新的
 			return nil, err
 		} else {
-			if c := m.GetCtx(); c != nil {
-				c.AppLoggingNew(m)
-			}
 			return m.SetModel(m), nil
 		}
 	} else {
@@ -1040,10 +1037,6 @@ func (bm *BaseModel) CreateRow() (Model, error) {
  */
 func (bm *BaseModel) UpdateRow(ext ...interface{}) (affected int64, err error) {
 	if m := bm.GetModel(); m != nil {
-		c := m.GetCtx()
-		if c != nil {
-			c.AppLoggingNew(m)
-		}
 		var id string
 		if _, pv, _ := m.PKey(); pv != "" {
 			id = pv
