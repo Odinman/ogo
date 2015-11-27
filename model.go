@@ -779,7 +779,7 @@ func (bm *BaseModel) Fill(j []byte) error {
 	} else if err := json.Unmarshal(j, m); err != nil {
 		return err
 	} else {
-		bm.Model = m
+		m.SetModel(m)
 		bm.filled = true
 	}
 	return nil
