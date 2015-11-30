@@ -170,6 +170,8 @@ func Defer(c *web.C, h http.Handler) http.Handler {
 			}
 			// release locks
 			rc.ReleaseLocks()
+			// launch tasks
+			rc.LaunchTasks()
 
 			// save access log here
 			ac := rc.Access

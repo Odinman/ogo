@@ -31,6 +31,12 @@ var (
 	EmptyGifBytes, _ = base64.StdEncoding.DecodeString(base64GifPixel)
 )
 
+type Task struct {
+	Queue string
+	Tag   string
+	Value string
+}
+
 // http context, 封装第三方包goji
 type RESTContext struct {
 	web.C
@@ -44,6 +50,7 @@ type RESTContext struct {
 	OTP           *OTPSpec
 	Access        *Access
 	Route         *Route
+	tasks         []*Task
 	locks         map[string]*Lock //访问锁
 }
 
@@ -291,6 +298,41 @@ func (rc *RESTContext) GetLock(key string) (err error) {
 		rc.Debug("get lock(%s) ok", key)
 	}
 	return
+}
+
+/* }}} */
+
+/* {{{ func (rc *RESTContext) PushTask(queue, tag, value string) error
+ *
+ */
+func (rc *RESTContext) PushTask(queue, tag, value string) error {
+	if queue == "" || tag == "" || value == "" {
+		return fmt.Errorf("task_format_error")
+	}
+	if rc.tasks == nil {
+		rc.tasks = make([]*Task, 0)
+	}
+	rc.tasks = append(rc.tasks, &Task{Queue: queue, Tag: tag, Value: value})
+	return nil
+}
+
+/* }}} */
+
+/* {{{ func (rc *RESTContext) LaunchTasks() error
+ *
+ */
+func (rc *RESTContext) LaunchTasks() error {
+	if rc.Status >= 400 || rc.tasks == nil || len(rc.tasks) <= 0 { // 400以内代表成功
+		return fmt.Errorf("not_need_launch")
+	}
+	for _, t := range rc.tasks {
+		if err := OmqTask(t.Queue, t.Tag, t.Value); err != nil {
+			rc.Info("[queue: %s][tag: %s][value: %s][failed]", t.Queue, t.Tag, t.Value)
+		} else {
+			rc.Debug("[queue: %s][tag: %s][value: %s]", t.Queue, t.Tag, t.Value)
+		}
+	}
+	return nil
 }
 
 /* }}} */
