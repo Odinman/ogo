@@ -137,6 +137,9 @@ func (rc *RESTContext) NewRESTError(status int, msg interface{}) (re error) {
 	errors["method"] = rc.Request.Method
 	errors["path"] = rc.Request.URL.Path
 	errors["code"] = fmt.Sprint(status) // 备用, 可存储比httpstatus更详细的错误代码,目前只存httpstatus
+	if rc.Access != nil && rc.Access.Session != "" {
+		errors["session"] = rc.Access.Session
+	}
 
 	var message string
 	if msg == nil {
