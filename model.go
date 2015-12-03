@@ -47,9 +47,10 @@ const (
 )
 
 type List struct {
-	Info  ListInfo    `json:"info,omitempty"`
-	Total int64       `json:"total"`
-	List  interface{} `json:"list"`
+	Info  ListInfo               `json:"info,omitempty"`
+	Total int64                  `json:"total"`
+	List  interface{}            `json:"list"`
+	Ext   map[string]interface{} `json:"ext,omitempty"`
 }
 
 type ListInfo struct {
@@ -406,17 +407,18 @@ type Checker func(string) (interface{}, error)
 
 //基础model,在这里可以实现Model接口, 其余的只需要嵌入这个struct,就可以继承这些方法
 type BaseModel struct {
-	Count      int64        `json:"count,omitempty" filter:",H,G,D"` // 计数
-	Sum        float64      `json:"sum,omitempty" filter:",H,G,D"`   // 求和
-	Error      error        `json:"-" db:"-"`
-	Model      Model        `json:"-" db:"-"`
-	ctx        *RESTContext `json:"-" db:"-"`
-	checker    Checker      `json:"-" db:"-"`
-	conditions []*Condition `json:"-" db:"-"`
-	pagination *Pagination  `json:"-" db:"-"`
-	fields     []string     `json:"-" db:"-"`
-	older      Model        `json:"-" db:"-"`
-	filled     bool         `json:"-" db:"-"` //是否有内容
+	Count      int64                  `json:"count,omitempty" filter:",H,G,D"` // 计数
+	Sum        float64                `json:"sum,omitempty" filter:",H,G,D"`   // 求和
+	Ext        map[string]interface{} `json:"ext,omitempty" filter:",H,G,D"`   // 扩展
+	Error      error                  `json:"-" db:"-"`
+	Model      Model                  `json:"-" db:"-"`
+	ctx        *RESTContext           `json:"-" db:"-"`
+	checker    Checker                `json:"-" db:"-"`
+	conditions []*Condition           `json:"-" db:"-"`
+	pagination *Pagination            `json:"-" db:"-"`
+	fields     []string               `json:"-" db:"-"`
+	older      Model                  `json:"-" db:"-"`
+	filled     bool                   `json:"-" db:"-"` //是否有内容
 	//base       string       `json:"-" db:"-"` //这个的作用就是判断是否是BaseModel
 }
 

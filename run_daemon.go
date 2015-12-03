@@ -5,7 +5,9 @@ package ogo
 /* {{{ import
  */
 import (
+	"bufio"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -16,6 +18,14 @@ import (
 	"github.com/nightlyone/lockfile"
 	//"github.com/zenazn/goji"
 	//"github.com/zenazn/goji/web/middleware"
+)
+
+var (
+	stdOut io.Reader
+)
+
+const (
+	stageKey = "__OGO_STAGE"
 )
 
 /* }}} */
@@ -38,8 +48,37 @@ func (mux *Mux) Run() {
 			fmt.Println("App crashed with error:", err)
 		}
 	}()
+	//if env.Daemonize {
+	//	godaemon.MakeDaemon(&godaemon.DaemonAttr{})
+	//}
 	if env.Daemonize {
-		godaemon.MakeDaemon(&godaemon.DaemonAttr{})
+		//  for debug, CaptureOutput
+		stdOut, _, _ = godaemon.MakeDaemon(&godaemon.DaemonAttr{CaptureOutput: true})
+		go func(reader io.Reader) {
+			scanner := bufio.NewScanner(reader)
+			for scanner.Scan() {
+				Debug("[stdOut] %s", scanner.Text())
+			}
+		}(stdOut)
+	} else {
+		if processStage := os.Getenv(stageKey); processStage == "" { //头一次
+			Debug("processStage: %s", processStage)
+			os.Setenv(stageKey, "ogo")
+			if procName, err := godaemon.GetExecutablePath(); err != nil || len(procName) == 0 {
+				panic(err)
+			} else {
+				files := make([]*os.File, 3)
+				files[0], files[1], files[2] = os.Stdin, os.Stdout, os.Stderr
+				dir, _ := os.Getwd()
+				osAttrs := os.ProcAttr{Dir: dir, Env: os.Environ(), Files: files}
+				if proc, err := os.StartProcess(procName, os.Args, &osAttrs); err != nil {
+					panic(err)
+				} else {
+					proc.Release()
+					os.Exit(0)
+				}
+			}
+		}
 	}
 	//check&write pidfile, added by odin
 	dir := filepath.Dir(env.PidFile)
