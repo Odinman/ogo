@@ -38,7 +38,7 @@ func (rc *RESTContext) SetStatus(status int) {
  */
 func (rc *RESTContext) Output(data interface{}) (err error) {
 
-	if rc.Accept == ContentTypeHTML { //用户需要HTML
+	if rc.Status >= 200 && rc.Status < 300 && rc.Accept == ContentTypeHTML { //用户需要HTML
 		tplFile := ""
 		// tpl file
 		if ti, ok := rc.Route.Options[KEY_TPL]; ok && ti.(string) != "" && utils.FileExists(ti.(string)) { //定义了tpl文件, 并且文件存在
