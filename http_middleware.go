@@ -211,7 +211,10 @@ func ParseHeaders(c *web.C, h http.Handler) http.Handler {
 		}
 
 		// Accept
-		if acc := r.Header.Get(accHeader); acc != "" {
+		//rc.Debug("html selector: %s", c.Env[SelectorKey])
+		if c.Env[SelectorKey] == "@_html_" {
+			rc.Accept = ContentTypeHTML
+		} else if acc := r.Header.Get(accHeader); acc != "" {
 			if acs := regexp.MustCompile("^application/vnd.[\\w]+.v([\\d.]+)\\+(\\w+)$").FindStringSubmatch(acc); len(acs) == 3 {
 				rc.Version = acs[1]
 				if strings.ToLower(acs[2]) == "html" {
