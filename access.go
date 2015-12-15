@@ -36,6 +36,7 @@ type HTTPLog struct {
 }
 
 type AppLog struct {
+	Info   interface{} `json:"info"`
 	New    interface{} `json:"new,omitempty"`
 	Old    interface{} `json:"old,omitempty"`
 	Result interface{} `json:"result,omitempty"`

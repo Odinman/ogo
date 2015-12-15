@@ -32,6 +32,15 @@ func (rc *RESTContext) AppLoggingNew(i interface{}) {
 
 /* }}} */
 
+/* {{{ func (rc *RESTContext) AppLoggingInfo(i interface{})
+ * 设置环境变量
+ */
+func (rc *RESTContext) AppLoggingInfo(i interface{}) {
+	rc.Access.App.Info = i
+}
+
+/* }}} */
+
 /* {{{ func (rc *RESTContext) AppLoggingOld(i interface{})
  * 设置环境变量
  */
