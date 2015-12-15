@@ -50,6 +50,7 @@ type RESTContext struct {
 	OTP           *OTPSpec
 	Access        *Access
 	Route         *Route
+	App           interface{}
 	tasks         []*Task
 	locks         map[string]*Lock //访问锁
 }
