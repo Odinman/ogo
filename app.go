@@ -32,11 +32,11 @@ func (rc *RESTContext) AppLoggingNew(i interface{}) {
 
 /* }}} */
 
-/* {{{ func (rc *RESTContext) AppLoggingInfo(i interface{})
+/* {{{ func (rc *RESTContext) AppLoggingCtag(ctag string)
  * 设置环境变量
  */
-func (rc *RESTContext) AppLoggingInfo(i interface{}) {
-	rc.Access.App.Info = i
+func (rc *RESTContext) AppLoggingCtag(ctag string) {
+	rc.Access.App.Ctag = ctag
 }
 
 /* }}} */
