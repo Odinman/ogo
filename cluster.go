@@ -75,7 +75,7 @@ func GetLock(key string) (string, error) {
 		for tried <= 3 {
 			tried++
 			//if err := cc.SetNX(key, val, 600*time.Second).Err(); err != nil { //10分钟自动消失
-			if err := cc.SetNX(key, val).Err(); err != nil { //10分钟自动消失
+			if err := cc.SetNX(key, val, 0).Err(); err != nil { //10分钟自动消失
 				Debug("[GetLock][key: %s][val: %s]", key, val)
 				// lock exist
 				if old, err := cc.Get(key).Result(); err == nil {
