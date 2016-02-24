@@ -75,8 +75,10 @@ func GetLock(key string) (string, error) {
 		for tried <= 3 {
 			tried++
 			if err := cc.SetNX(key, val, 600*time.Second).Err(); err != nil { //10分钟自动消失
+				Debug("[GetLock][key: %s][val: %s]", key, val)
 				// lock exist
 				if old, err := cc.Get(key).Result(); err == nil {
+					Debug("[GetLock][key: %s][old_val: %s]", key, old)
 					vs := strings.SplitN(old, ",", 2)
 					if ots, _ := strconv.Atoi(vs[0]); int(ts)-ots > 60 { //1分钟过期
 						//过期了,抢
@@ -90,13 +92,17 @@ func GetLock(key string) (string, error) {
 								//cc.Set(key, gl, 600*time.Second)
 							}
 						} else { //奇怪的情况
+							Debug("[GetLock][key: %s][old_val: %s][ots: %d][strange_failed]", key, old, ots)
 							return "", err
 						}
+					} else {
+						Debug("[GetLock][key: %s][old_val: %s][ots: %d][not_expired_failed]", key, old, ots)
 					}
 				} else { //奇怪的情况
 					return "", err
 				}
 			} else {
+				Debug("[GetLock][key: %s][val: %s][not_exists_ok]", key, val)
 				return cs, nil
 			}
 		}
