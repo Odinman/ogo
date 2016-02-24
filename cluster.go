@@ -113,8 +113,8 @@ func GetLock(key string) (string, error) {
 func ReleaseLock(key string) error {
 	if cc := ClusterClient(); cc != nil {
 		if cur, err := cc.Get(key).Result(); err == nil {
-			vs := strings.SplitN(cur, ",", 2)
-			Debug("[lock: %s]", vs[1])
+			//vs := strings.SplitN(cur, ",", 2)
+			Debug("[lock_val: %s]", cur)
 			return cc.Del(key).Err()
 		}
 	}
