@@ -299,7 +299,7 @@ func (rc *RESTContext) GetLock(key string) (err error) {
 	if err = rc.locks[key].Get(); err != nil {
 		rc.Info("get lock(%s) error: %s", key, err)
 	} else {
-		rc.Debug("get lock(%s) ok", key)
+		rc.Debug("get lock(%s) ok, checksum: %s", key, rc.locks[key].checksum)
 	}
 	return
 }
