@@ -17,7 +17,7 @@ type Access struct {
 	Session  string      `json:"s"`
 	Duration string      `json:"d"`
 	Http     *HTTPLog    `json:"http,omitempty"`
-	App      *AppLog     `json:"app,omitempty"`   //app日志
+	App      *AppLog     `json:"app,omitempty"`   //rest app日志
 	Debug    interface{} `json:"debug,omitempty"` //app debug日志
 }
 
@@ -37,10 +37,23 @@ type HTTPLog struct {
 
 type AppLog struct {
 	Ctag   string      `json:"ctag"`
+	Query  interface{} `json:"query,omitempty"`
 	New    interface{} `json:"new,omitempty"`
 	Old    interface{} `json:"old,omitempty"`
 	Result interface{} `json:"result,omitempty"`
 }
+
+/* {{{ func NewAccess() *Access
+ *
+ */
+func NewAccess() *Access {
+	ac := new(Access) //access日志信息
+	ac.Time = time.Now()
+	//ac.App = new(AppLog)
+	return ac
+}
+
+/* }}} */
 
 /* {{{ func (ac *Access) Save()
  * 记录access日志

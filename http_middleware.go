@@ -83,8 +83,7 @@ func getCTypeByPrefix(p byte) int {
  */
 func EnvInit(c *web.C, h http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
-		ac := new(Access) //access日志信息
-		ac.Time = time.Now()
+		ac := NewAccess() //access日志信息
 		ac.Http = new(HTTPLog)
 		ac.Http.Method = r.Method
 		ac.Http.URI = r.RequestURI
