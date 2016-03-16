@@ -35,7 +35,7 @@ func init() {
  */
 func GetOnlineKey(id string) (ol *Online, err error) {
 	if ol = OnlineCache.Get(id); ol == nil {
-		err = fmt.Errorf("not found")
+		err = fmt.Errorf("not_found")
 	}
 	return
 }

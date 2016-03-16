@@ -59,7 +59,9 @@ package main
 
 import (
 	"github.com/Odinman/ogo"
-	_ "<gopath_to_controllers>/controller"
+
+	_ "./hooks"
+	_ "./routers"
 )
 
 func main() {
@@ -67,50 +69,32 @@ func main() {
 }
 ```
 
-* controllers, 该目录下, 文件名可以自定, 范例如下:
+* routers, 该目录下, 文件名可以自定, 范例如下:
 
 ```
-package controller
+package routers
 
 import (
-	"fmt"
 	"github.com/Odinman/ogo"
+
+	"../models"
 )
 
-var UC *U = &U{ogo.Controller{Routes: make(map[string]*ogo.Route)}} //先初始化路由
+type TestRouter struct {
+	ogo.Router
+}
 
 func init() {
+	r := ogo.NewRouter(new(TestRouter), "test").(*TestRouter)
 	//先自定义路由, 因为优先级高, 自定义路由后定义的会覆盖先定义的
-	UC.AddRoute("GET", "/user/:_id_", UC.Test1)
-	UC.AddRoute("GET", "/user/:_id_", UC.Test2)
+	//r.AddRoute("GET", "/test", r.Root, ogo.RouteOption{ogo.KEY_SKIPLOGIN: true, ogo.KEY_SKIPAUTH: true})
 	// 初始化并载入默认路由, 默认路由不会覆盖自定义路由
-	UC.Init("user", UC)
-
+	r.GenericRoute(new(models.Test), ogo.GA_ALL)
+	r.Init(r)
 }
 
-type U struct {
-	ogo.Controller
-}
-
-func (u *U) Get(ctx *ogo.RESTContext) {
-	//ctx.Response.Write([]byte("123"))
-	u.Request += 1
-	fmt.Fprintf(ctx.Response, "Hello, this is Get, %s!, %d??", ctx.Context.URLParams["_id_"], u.Request)
-}
-
-func (u *U) Post(ctx *ogo.RESTContext) {
-	ctx.Response.Write([]byte("456"))
-}
-
-func (u *U) Test1(ctx *ogo.RESTContext) {
-	//ctx.Response.Write([]byte("123"))
-	fmt.Fprintf(ctx.Response, "Test1, %s!, %s?", ctx.Context.URLParams["_id_"], ctx.Context.URLParams["_selector_"])
-}
-
-func (u *U) Test2(ctx *ogo.RESTContext) {
-	u.Request += 1
-	//ctx.Response.Write([]byte("223"))
-	fmt.Fprintf(ctx.Response, "Test2, %s!, %s?, %d!!", ctx.Context.URLParams["_id_"], ctx.Context.URLParams["_selector_"], u.Request)
+func (this *TestRouter) Root(c *ogo.RESTContext) {
+    // do something
 }
 ```
 

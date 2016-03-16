@@ -15,6 +15,8 @@ import (
 	"github.com/Odinman/ogo/libs/config"
 	"github.com/Odinman/ogo/libs/logs"
 	"github.com/Odinman/ogo/utils"
+	omq "github.com/Odinman/omq/utils"
+	"gopkg.in/redis.v3"
 )
 
 /* }}} */
@@ -29,7 +31,8 @@ type Environ struct {
 	Worker        string         // worker name
 	AppConfigPath string         // config file path
 	RunMode       string         // run mode, "dev" or "prod"
-	AccessPath    string         //acces log file path
+	AccessPath    string         // acces log file path
+	TplDir        string         // tpl dir
 	Daemonize     bool           // daemonize or not
 	EnableGzip    bool           // enable gzip or not
 	DebugLevel    int            // debug level
@@ -50,9 +53,12 @@ type Mux struct {
 	cfg      config.ConfigContainer //配置信息
 	logger   *logs.OLogger          //debug日志记录
 	accessor *logs.OLogger          //日志
+	omqpool  *omq.Pool              // omq连接池
+	cc       *redis.ClusterClient   // cluster client 客户端
 	Workers  map[string]*Worker
 	Routes   map[string]*Route
 	Hooks    HStack
+	TagHooks map[string]TagHook
 }
 
 /* }}} */
@@ -67,6 +73,7 @@ func New() *Mux {
 			preHooks:  make([]OgoHook, 0),
 			postHooks: make([]OgoHook, 0),
 		},
+		TagHooks: make(map[string]TagHook),
 	}
 }
 
@@ -90,12 +97,22 @@ func (mux *Mux) PostHook(hook OgoHook) {
 
 /* }}} */
 
-/* {{{ func (mux *Mux) NewController(c ControllerInterface, endpoint string)
- * 这样做的目的是给controller设置mux(mux可多个) -- mux=multiplexer,复用器
+/* {{{ func (mux *Mux) AddTagHook(tag string, hook TagHook)
+ * 正式程序之后的钩子
  */
-func (mux *Mux) NewController(c ControllerInterface, endpoint string) ControllerInterface {
-	c.New(mux, endpoint)
-	return c
+func (mux *Mux) AddTagHook(tag string, hook TagHook) {
+	mux.TagHooks[tag] = hook
+}
+
+/* }}} */
+
+/* {{{ func (mux *Mux) NewRouter(c interface{}, endpoint string) RouterInterface
+ * 这样做的目的是给rounter设置mux(mux可多个) -- mux=multiplexer,复用器
+ */
+func (mux *Mux) NewRouter(c interface{}, endpoint string) RouterInterface {
+	rtr := c.(RouterInterface)
+	rtr.New(c, mux, endpoint)
+	return rtr
 }
 
 /* }}} */
@@ -116,15 +133,16 @@ func (mux *Mux) Env() (*Environ, error) {
 		env.Daemonize = false
 		env.DebugLevel = logs.LevelTrace //默认debug等级
 		env.IndentJSON = false
-		env.MaxMemory = 1 << 32                              //4G
+		env.MaxMemory = 1 << 32                              // 4GB
 		env.Location, _ = time.LoadLocation("Asia/Shanghai") //默认上海时区
 
 		workPath, _ := os.Getwd()
 		env.WorkPath, _ = filepath.Abs(workPath)
 		env.AppPath, _ = filepath.Abs(filepath.Dir(os.Args[0]))
-		env.ProcName = filepath.Base(os.Args[0])   //程序名字
-		env.Worker = strings.ToLower(env.ProcName) //worker默认为procname,小写
-		env.AccessPath = "logs/access.log"         //默认access日志是程序目录下的logs/access.log
+		env.ProcName = filepath.Base(os.Args[0])                          //程序名字
+		env.Worker = strings.ToLower(env.ProcName)                        //worker默认为procname,小写
+		env.AccessPath = filepath.Join(env.AppPath, "logs", "access.log") //默认access日志是程序目录下的logs/access.log
+		env.TplDir = filepath.Join(env.AppPath, "tpl")                    //默认tpl目录
 
 		//默认配置文件是 conf/{ProcName}.conf
 		env.AppConfigPath = filepath.Join(env.AppPath, "conf", env.ProcName+".conf")
@@ -228,6 +246,18 @@ func (mux *Mux) initEnv() (err error) {
 		return err
 	}
 
+	//omq
+	if omqpool, err = mux.OmqPool(); err != nil {
+		Warn("omq error: %s", err)
+	}
+
+	// redis cluster
+
+	//db init,目前只有mysql
+	if dns := cfg.String("data::dns"); dns != "" {
+		OpenDB(DBTAG, dns)
+	}
+
 	return nil
 }
 
@@ -263,7 +293,8 @@ func (mux *Mux) Logger() (*logs.OLogger, error) {
 		logger := logs.NewLogger(204600)
 		var err error
 		if mux.env.Daemonize {
-			err = logger.SetLogger("file", `{"filename":"logs/debug.log"}`)
+			df := filepath.Join(env.AppPath, "logs", "debug.log")
+			err = logger.SetLogger("file", fmt.Sprintf(`{"filename":"%s"}`, df))
 		} else {
 			err = logger.SetLogger("console", "")
 		}
@@ -301,6 +332,64 @@ func (mux *Mux) Accessor() (*logs.OLogger, error) {
 	}
 
 	return mux.accessor, nil
+}
+
+/* }}} */
+
+/* {{{ func (mux *Mux) OmqPool() (*omq.Pool, error)
+ *
+ */
+func (mux *Mux) OmqPool() (*omq.Pool, error) {
+	if mux.omqpool == nil {
+		if cfg, err := mux.Config(); err != nil {
+			return nil, err
+		} else {
+			var omqHost, omqPort string
+			var omqMax int
+			if omqHost = cfg.String("omq::host"); omqHost != "" {
+				if omqPort = cfg.String("omq::port"); omqPort == "" {
+					omqPort = "7000"
+				}
+				if max, err := cfg.Int("omq::max"); err != nil {
+					omqMax = max
+				} else {
+					omqMax = 100
+				}
+				Info("[omq][%s:%s]", omqHost, omqPort)
+				mux.omqpool = omq.NewPool(omq.ReqNewer(fmt.Sprint("tcp://", omqHost, ":", omqPort)), omqMax, 60*time.Second, Logger())
+			} else {
+				return nil, fmt.Errorf("[omq]not found config info")
+			}
+		}
+	}
+
+	return mux.omqpool, nil
+}
+
+/* }}} */
+
+/* {{{ func (mux *Mux) ClusterClient() (*redis.ClusterClient, error)
+ *
+ */
+func (mux *Mux) ClusterClient() (*redis.ClusterClient, error) {
+	if mux.cc == nil {
+		if cfg, err := mux.Config(); err != nil {
+			return nil, err
+		} else {
+			var clusterAddrs []string
+			if cass := cfg.String("cluster::addrs"); cass != "" {
+				clusterAddrs = strings.Split(cass, ",")
+				Info("[cluster][%s]", clusterAddrs)
+				mux.cc = redis.NewClusterClient(&redis.ClusterOptions{
+					Addrs: clusterAddrs,
+				})
+			} else {
+				return nil, fmt.Errorf("[cluster]not found config info")
+			}
+		}
+	}
+
+	return mux.cc, nil
 }
 
 /* }}} */

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"reflect"
 	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -23,16 +24,75 @@ type StructColumn struct {
  * 默认从struct的FieldName读取, 如果tag里有db, 则以db为准
  */
 func ReadStructColumns(i interface{}, underscore bool, tags ...string) (cols []StructColumn) {
-	t, err := toType(i)
-	if err != nil {
+	if t := toType(i); t.Kind() != reflect.Struct {
 		return
+	} else {
+		return typeStructColumns(t, underscore, tags...)
 	}
-	return typeStructColumns(t, underscore, tags...)
 }
 
 /* }}} */
 
-/* {{{ func typeStructColumns(i interface{}, tag string, underscore bool) (cols []string)
+/* {{{ func FieldByIndex(v reflect.Value, index []int) reflect.Value
+ * 通过索引返回field
+ */
+func FieldByIndex(v reflect.Value, index []int) reflect.Value {
+	for _, i := range index {
+		if v.Kind() == reflect.Ptr {
+			if v.IsNil() {
+				return reflect.Value{}
+			}
+			v = v.Elem()
+		}
+		v = v.Field(i)
+	}
+	return v
+}
+
+/* }}} */
+
+/* {{{ func ImportVal(i interface{}, import map[string]string) (err error)
+ * 将tag匹配的值导入结构
+ */
+func ImportValue(i interface{}, is map[string]string) (err error) {
+	v := reflect.ValueOf(i)
+	if cols := ReadStructColumns(i, true); cols != nil {
+		for _, col := range cols {
+			for tag, iv := range is {
+				if col.TagOptions.Contains(tag) {
+					fv := FieldByIndex(v, col.Index)
+					switch fv.Type().String() {
+					case "*string":
+						fv.Set(reflect.ValueOf(&iv))
+					case "string":
+						fv.Set(reflect.ValueOf(iv))
+					case "*int64":
+						pv, _ := strconv.ParseInt(iv, 10, 64)
+						fv.Set(reflect.ValueOf(&pv))
+					case "int64":
+						pv, _ := strconv.ParseInt(iv, 10, 64)
+						fv.Set(reflect.ValueOf(pv))
+					case "*int":
+						tv, _ := strconv.ParseInt(iv, 10, 0)
+						pv := int(tv)
+						fv.Set(reflect.ValueOf(&pv))
+					case "int":
+						tv, _ := strconv.ParseInt(iv, 10, 0)
+						pv := int(tv)
+						fv.Set(reflect.ValueOf(pv))
+					default:
+						err = fmt.Errorf("field(%s) not support %s", col.Tag, fv.Kind().String())
+					}
+				}
+			}
+		}
+	}
+	return
+}
+
+/* }}} */
+
+/* {{{ func typeStructColumns(t reflect.Type, underscore bool, tags ...string) (cols []StructColumn)
  * 从struct中读取字段名
  * 默认从struct的FieldName读取, 如果tag里有db, 则以db为准
  */
@@ -110,10 +170,10 @@ func typeStructColumns(t reflect.Type, underscore bool, tags ...string) (cols []
 
 /* }}} */
 
-/* {{{ toType(i interface{}) (reflect.Type, error)
+/* {{{ func toType(i interface{}) reflect.Type
  * 如果是指针, 则调用Elem()至Type为止, 如果Type不是struct, 报错
  */
-func toType(i interface{}) (reflect.Type, error) {
+func toType(i interface{}) reflect.Type {
 	t := reflect.TypeOf(i)
 
 	// If a Pointer to a type, follow
@@ -121,10 +181,10 @@ func toType(i interface{}) (reflect.Type, error) {
 		t = t.Elem()
 	}
 
-	if t.Kind() != reflect.Struct {
-		return nil, fmt.Errorf("utils: Cannot SELECT into this type: %v", reflect.TypeOf(i))
-	}
-	return t, nil
+	//if t.Kind() != reflect.Struct {
+	//	return nil, fmt.Errorf("utils: Cannot SELECT into this type: %v", reflect.TypeOf(i))
+	//}
+	return t
 }
 
 /* }}} */
@@ -182,10 +242,41 @@ func IsEmptyValue(v reflect.Value) bool {
 
 /* }}} */
 
-/* {{{ func valueStructParse()
+/* {{{ func GetRealString(v reflect.Value) string
  *
  */
-func valueStructParse() {
+func GetRealString(v reflect.Value) string {
+	switch v.Kind() {
+	case reflect.String:
+		return v.String()
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return strconv.FormatInt(v.Int(), 10)
+	case reflect.Float32, reflect.Float64:
+		return strconv.FormatFloat(v.Float(), 'f', 2, 64)
+	case reflect.Ptr:
+		if v.IsNil() {
+			return ""
+		}
+		return GetRealString(v.Elem())
+	default:
+		//nothing
+	}
+	return ""
+}
+
+/* }}} */
+
+/* {{{ func FieldExists(i interface{},f string) bool
+ * 判断一个结构变量是否有某个字段
+ */
+func FieldExists(i interface{}, f string) bool {
+	r := reflect.ValueOf(i)
+	fv := reflect.Indirect(r).FieldByName(f)
+	if !fv.IsValid() {
+		return false
+	} else {
+		return true
+	}
 }
 
 /* }}} */

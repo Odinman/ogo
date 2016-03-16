@@ -10,24 +10,19 @@ import (
 
 const (
 	_DEF_PAGE     = 1 //1-base
-	_DEF_PER_PAGE = 25
-	_MAX_PER_PAGE = 100 //每页最大个数
+	_DEF_PER_PAGE = 100
+	_MAX_PER_PAGE = 1000 //每页最大个数
 
 	//time
 	_DATE_FORM  = "2006-01-02"
 	_DATE_FORM1 = "20060102"
+	_TIME_FORM  = "20060102150405"
 )
 
 //时间段
 type TimeRange struct {
 	Start time.Time
 	End   time.Time
-}
-
-//order by
-type OrderBy struct {
-	Field string
-	Sort  string
 }
 
 // 分页信息
@@ -38,16 +33,6 @@ type Pagination struct {
 }
 
 // 条件信息
-type Condition struct {
-	Field string
-	Is    interface{}
-	Not   interface{}
-	Like  interface{}
-	Join  interface{}
-}
-
-type Conditions map[string]*Condition
-
 /* {{{ func NewPagation(page, perPage string) (p *Pagination)
  */
 func NewPagination(page, perPage string) (p *Pagination) {
@@ -85,32 +70,36 @@ func NewPagination(page, perPage string) (p *Pagination) {
 func (rc *RESTContext) GetCondition(k string) (con *Condition, err error) {
 	if cs, ok := rc.Env[ConditionsKey]; !ok {
 		//没有conditions,自动初始化
-		rc.SetEnv(ConditionsKey, make(Conditions))
+		rc.SetEnv(ConditionsKey, make([]*Condition, 0))
 		return nil, fmt.Errorf("Not found conditions! %s", ConditionsKey)
 	} else {
-		conditions := cs.(Conditions)
-		if _, ok := conditions[k]; !ok {
-			return nil, fmt.Errorf("Not found condition: %s", k)
-		} else {
-			con = conditions[k]
-		}
+		return GetCondition(cs.([]*Condition), k)
 	}
 	return
 }
 
 /* }}} */
 
-/* {{{ func (rc *RESTContext) setCondition(k string, con *Condition) (err error) {
+/* {{{ func (rc *RESTContext) setCondition(con *Condition) (err error) {
 	return
  *
 */
-func (rc *RESTContext) setCondition(k string, con *Condition) {
-	if k != "" {
-		if _, ok := rc.Env[ConditionsKey]; !ok {
-			//没有conditions,自动初始化
-			rc.SetEnv(ConditionsKey, make(Conditions))
+func (rc *RESTContext) setCondition(con *Condition) {
+	//Debug("[setCondition][key: %s]%v", con.Field, con)
+	if _, ok := rc.Env[ConditionsKey]; !ok {
+		//没有conditions,自动初始化
+		rc.SetEnv(ConditionsKey, make([]*Condition, 0))
+	}
+	//rc.Env[ConditionsKey] = append(rc.Env[ConditionsKey].([]*Condition), con)
+	set := false
+	for _, ec := range rc.Env[ConditionsKey].([]*Condition) {
+		if ec.Field == con.Field {
+			ec.Merge(con)
+			set = true
 		}
-		rc.Env[ConditionsKey].(Conditions)[k] = con
+	}
+	if !set {
+		rc.Env[ConditionsKey] = append(rc.Env[ConditionsKey].([]*Condition), con)
 	}
 }
 
@@ -220,14 +209,78 @@ func (rc *RESTContext) setOrderBy(p []string) {
 		pieces := strings.SplitN(p[0], ",", 2)
 		ob.Field = pieces[0]
 		ob.Sort = "DESC" //默认降序
-		if len(pieces) > 1 {
-			if strings.ToUpper(pieces[1]) == "ASC" {
-				ob.Sort = "ASC"
-			}
+		if len(pieces) > 1 && strings.ToUpper(pieces[1]) == "ASC" {
+			ob.Sort = "ASC"
 		}
+		Debug("[orderby][field: %s][sort: %s]", ob.Field, ob.Sort)
 	}
 
 	return
+}
+
+/* }}} */
+
+/* {{{ func (rc *RESTContext) GetQueryParam(key string) (string, int)
+ */
+func (rc *RESTContext) GetQueryParam(key string) (r string, c int) {
+	v := rc.Request.Form[key]
+	c = len(v)
+	if c == 1 {
+		return string(v[0]), c
+	} else {
+		return string(strings.Join(v, ",")), c
+	}
+}
+
+/* }}} */
+
+/* {{{ func (rc *RESTContext) GetQueryParams(key string) (string, int)
+ */
+func (rc *RESTContext) GetQueryParams(key string) (rs []string) {
+	rs = rc.Request.Form[key]
+	return
+}
+
+/* }}} */
+
+/* {{{ func ParseCondition(typ string, con *Condition) *Condition
+ *
+ */
+func ParseCondition(typ string, con *Condition) *Condition {
+	switch typ {
+	case "*time.Time":
+		if con.Is != nil {
+			if cv, ok := con.Is.(string); ok {
+				if t, err := time.ParseInLocation(_TIME_FORM, cv, Env().Location); err == nil {
+					con.Is = t
+				}
+			}
+		}
+		if con.Not != nil {
+			if cv, ok := con.Not.(string); ok {
+				if t, err := time.ParseInLocation(_TIME_FORM, cv, Env().Location); err == nil {
+					con.Not = t
+				}
+			}
+		}
+		if con.Gt != nil {
+			if cv, ok := con.Gt.(string); ok {
+				if t, err := time.ParseInLocation(_TIME_FORM, cv, Env().Location); err == nil {
+					con.Gt = t
+				}
+			}
+		}
+		if con.Lt != nil {
+			if cv, ok := con.Lt.(string); ok {
+				if t, err := time.ParseInLocation(_TIME_FORM, cv, Env().Location); err == nil {
+					con.Lt = t
+				}
+			}
+		}
+		return con
+	default:
+		return con
+	}
 }
 
 /* }}} */

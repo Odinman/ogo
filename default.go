@@ -8,6 +8,8 @@ import (
 
 	"github.com/Odinman/ogo/libs/config"
 	"github.com/Odinman/ogo/libs/logs"
+	omq "github.com/Odinman/omq/utils"
+	"gopkg.in/redis.v3"
 )
 
 /* {{{ func init()
@@ -36,11 +38,11 @@ func Run() {
 
 /* }}} */
 
-/* {{{ func NewController(c ControllerInterface, endpoint string) ControllerInterface
- * 默认用DMux设置给controller
+/* {{{ func NewRouter(c interface{}, endpoint string) RouterInterface
+ * 默认用DMux设置给router
  */
-func NewController(c ControllerInterface, endpoint string) ControllerInterface {
-	return DMux.NewController(c, endpoint)
+func NewRouter(c interface{}, endpoint string) RouterInterface {
+	return DMux.NewRouter(c, endpoint)
 }
 
 /* }}} */
@@ -97,6 +99,32 @@ func Accessor() *logs.OLogger {
 
 /* }}} */
 
+/* {{{ func OmqPool() *omq.Pool
+ *
+ */
+func OmqPool() *omq.Pool {
+	if omqpool, err := DMux.OmqPool(); err != nil {
+		return nil
+	} else {
+		return omqpool
+	}
+}
+
+/* }}} */
+
+/* {{{ func ClusterClient() *redis.ClusterClient
+ *
+ */
+func ClusterClient() *redis.ClusterClient {
+	if cc, err := DMux.ClusterClient(); err != nil {
+		return nil
+	} else {
+		return cc
+	}
+}
+
+/* }}} */
+
 /* {{{ func PreHook(hook OgoHook)
  * 正式程序之前的钩子
  */
@@ -111,6 +139,15 @@ func PreHook(hook OgoHook) {
  */
 func PostHook(hook OgoHook) {
 	DMux.PostHook(hook)
+}
+
+/* }}} */
+
+/* {{{ func AddTagHook(tag string, hook TagHook)
+ * tag hook
+ */
+func AddTagHook(tag string, hook TagHook) {
+	DMux.AddTagHook(tag, hook)
 }
 
 /* }}} */

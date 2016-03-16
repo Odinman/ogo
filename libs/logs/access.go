@@ -62,9 +62,9 @@ func (l *AccessMuxWriter) SetFd(fd *os.File) {
 func NewAccessWriter() LoggerInterface {
 	w := &AccessLogWriter{
 		Filename:  "logs/access.log",
-		Maxsize:   1 << 27, //128 MB
+		Maxsize:   1 << 29, //512 MB
 		Daily:     false,
-		Maxdays:   3, //旧日志保存3天
+		Maxdays:   30, //旧日志保存30天
 		Rotate:    true,
 		MaxRotate: 10, //保持10个旧文件(与3天条件共存)
 		Level:     LevelTrace,
@@ -145,7 +145,7 @@ func (w *AccessLogWriter) createLogFile() (*os.File, error) {
 		}
 	}
 	// Open the log file
-	fd, err := os.OpenFile(w.Filename, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0660)
+	fd, err := os.OpenFile(w.Filename, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0755)
 	return fd, err
 }
 
