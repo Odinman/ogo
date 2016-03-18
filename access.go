@@ -17,7 +17,7 @@ type Access struct {
 	Session  string      `json:"s"`
 	Duration string      `json:"d"`
 	Http     *HTTPLog    `json:"http,omitempty"`
-	App      *AppLog     `json:"app,omitempty"`   //rest app日志
+	App      interface{} `json:"app,omitempty"`   //rest app日志
 	Debug    interface{} `json:"debug,omitempty"` //app debug日志
 }
 
@@ -43,13 +43,26 @@ type AppLog struct {
 	Result interface{} `json:"result,omitempty"`
 }
 
-/* {{{ func NewAccess() *Access
+/* {{{ func NewAccess(opts ...interface{}) *Access
  *
  */
-func NewAccess() *Access {
+func NewAccess(opts ...interface{}) *Access {
 	ac := new(Access) //access日志信息
 	ac.Time = time.Now()
-	//ac.App = new(AppLog)
+	if len(opts) > 0 {
+		for i, opt := range opts {
+			switch i {
+			case 0:
+				if sn, ok := opt.(string); ok {
+					ac.Service = sn
+				}
+			case 1:
+				if s, ok := opt.(string); ok {
+					ac.Session = s
+				}
+			}
+		}
+	}
 	return ac
 }
 
@@ -59,6 +72,8 @@ func NewAccess() *Access {
  * 记录access日志
  */
 func (ac *Access) Save() {
+	// duration
+	ac.Duration = time.Now().Sub(ac.Time).String()
 	if ab, err := json.Marshal(ac); err == nil {
 		accessor.Access(string(ab))
 	}
@@ -66,10 +81,10 @@ func (ac *Access) Save() {
 
 /* }}} */
 
-/* {{{ func (ac *Access) SaveApp(al *AppLog)
+/* {{{ func (ac *Access) SaveApp(al interface{})
  * 放置app日志
  */
-func (ac *Access) SaveApp(al *AppLog) {
+func (ac *Access) SaveApp(al interface{}) {
 	ac.App = al
 }
 

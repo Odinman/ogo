@@ -15,7 +15,7 @@ func (rc *RESTContext) SaveAccess() {
 /* }}} */
 
 /* {{{ func (rc *RESTContext) NewAppLogging(al *AppLog)
- * 设置环境变量
+ * 新建App日志
  */
 func (rc *RESTContext) NewAppLogging(al *AppLog) {
 	rc.Access.SaveApp(al)
@@ -27,34 +27,34 @@ func (rc *RESTContext) NewAppLogging(al *AppLog) {
  * 设置环境变量
  */
 func (rc *RESTContext) AppLoggingNew(i interface{}) {
-	rc.Access.App.New = i
+	rc.Access.App.(*AppLog).New = i
 }
 
 /* }}} */
 
 /* {{{ func (rc *RESTContext) AppLoggingCtag(ctag string)
- * 设置环境变量
+ * 新
  */
 func (rc *RESTContext) AppLoggingCtag(ctag string) {
-	rc.Access.App.Ctag = ctag
+	rc.Access.App.(*AppLog).Ctag = ctag
 }
 
 /* }}} */
 
 /* {{{ func (rc *RESTContext) AppLoggingOld(i interface{})
- * 设置环境变量
+ * 旧
  */
 func (rc *RESTContext) AppLoggingOld(i interface{}) {
-	rc.Access.App.Old = i
+	rc.Access.App.(*AppLog).Old = i
 }
 
 /* }}} */
 
 /* {{{ func (rc *RESTContext) AppLoggingResult(i interface{})
- * 设置环境变量
+ * 结果日志
  */
 func (rc *RESTContext) AppLoggingResult(i interface{}) {
-	rc.Access.App.Result = i
+	rc.Access.App.(*AppLog).Result = i
 }
 
 /* }}} */

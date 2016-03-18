@@ -7,7 +7,6 @@ import (
 	"regexp"
 	"runtime/debug"
 	"strings"
-	"time"
 
 	"github.com/Odinman/ogo/utils"
 	"github.com/dustin/randbo"
@@ -174,7 +173,7 @@ func Defer(c *web.C, h http.Handler) http.Handler {
 
 			// save access log here
 			ac := rc.Access
-			ac.Duration = time.Now().Sub(ac.Time).String()
+			//ac.Duration = time.Now().Sub(ac.Time).String()
 			ac.Http.Status = rc.Status
 			ac.Http.OutHeader = w.Header()
 			ac.Http.RepLength = rc.ContentLength
@@ -184,9 +183,9 @@ func Defer(c *web.C, h http.Handler) http.Handler {
 			}
 			//ac.App = string(rc.RequestBody)
 
-			rc.Debug("[%s %s] end:%d in %s", ac.Http.Method, ac.Http.URI, ac.Http.Status, ac.Duration)
 			// save access
 			rc.SaveAccess()
+			rc.Debug("[%s %s] end:%d in %s", ac.Http.Method, ac.Http.URI, ac.Http.Status, ac.Duration)
 		}()
 
 		h.ServeHTTP(w, r)
