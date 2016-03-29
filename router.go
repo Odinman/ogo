@@ -7,13 +7,14 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/Odinman/ogo/utils"
 	"github.com/zenazn/goji"
 	"github.com/zenazn/goji/web"
 )
 
 type Handler func(c *RESTContext)
 
-type RouteOption map[string]interface{}
+type RouteOption map[interface{}]interface{}
 
 type Route struct {
 	Key      string //独立标识
@@ -21,7 +22,7 @@ type Route struct {
 	Pattern  interface{}
 	Method   string
 	Handler  Handler
-	Options  RouteOption
+	Options  *utils.SafeMap
 	Updating bool
 	Creating bool
 }
@@ -38,7 +39,7 @@ type Router struct {
 
 type RouterInterface interface {
 	New(interface{}, *Mux, string)
-	AddRoute(m string, p interface{}, h Handler, options ...map[string]interface{})
+	AddRoute(m string, p interface{}, h Handler, options ...RouteOption)
 	DefaultRoutes() //默认路由
 	GetEndpoint() string
 	Init()
@@ -58,21 +59,21 @@ type RouterInterface interface {
 	CRUD(i interface{}, flag int) Handler
 }
 
-/* {{{ func NewRoute(p interface{}, ep string, m string, h Handler, options ...map[string]interface{}) *Route
+/* {{{ func NewRoute(p interface{}, ep string, m string, h Handler, options ...RouteOption) *Route
  *
  */
-func NewRoute(p interface{}, ep string, m string, h Handler, options ...map[string]interface{}) *Route {
+func NewRoute(p interface{}, ep string, m string, h Handler, options ...RouteOption) *Route {
 	r := &Route{
 		Key:      fmt.Sprint(strings.ToUpper(m), " ", p),
 		Endpoint: ep,
 		Pattern:  p,
 		Method:   m,
 		Handler:  h,
-		Options:  make(map[string]interface{}),
+		//Options:  make(map[string]interface{}),
 	}
 
 	if len(options) > 0 { //不管有几个,目前只有第一个有效
-		r.Options = options[0]
+		r.Options = utils.NewSafeMap(options[0])
 	}
 
 	//更新还是创建
@@ -98,7 +99,7 @@ func handlerWrap(rt *Route) web.HandlerFunc { //这里封装了webC到本地的�
 		//route
 		rc.Route = rt
 
-		if nl, ok := rt.Options[NoLogKey]; ok && nl == true {
+		if nl := rt.Options.Get(NoLogKey); nl != nil && nl.(bool) == true {
 			rc.SetEnv(NoLogKey, true)
 		}
 
@@ -181,7 +182,7 @@ func (rtr *Router) Init() {
 	// not found
 	notFoundRoute := &Route{
 		Handler: ri.NotFound,
-		Options: map[string]interface{}{NoLogKey: true},
+		Options: utils.NewSafeMap(map[interface{}]interface{}{NoLogKey: true}),
 	}
 	rtr.RouteNotFound(notFoundRoute)
 }
@@ -227,10 +228,10 @@ func (rtr *Router) EmptyGif(c *RESTContext) {
 
 /* }}} */
 
-/* {{{ func (rtr *Router) AddRoute(m string, p interface{}, h Handler, options ...map[string]interface{})
+/* {{{ func (rtr *Router) AddRoute(m string, p interface{}, h Handler, options ...RouteOption)
  *
  */
-func (rtr *Router) AddRoute(m string, p interface{}, h Handler, options ...map[string]interface{}) {
+func (rtr *Router) AddRoute(m string, p interface{}, h Handler, options ...RouteOption) {
 	if rtr.Routes == nil {
 		rtr.Routes = make(map[string]*Route)
 		rtr.SRoutes = make([]*Route, 0)

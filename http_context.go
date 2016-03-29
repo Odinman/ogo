@@ -41,7 +41,7 @@ func (rc *RESTContext) Output(data interface{}) (err error) {
 	if (rc.Status == 0 || (rc.Status >= 200 && rc.Status < 300)) && rc.Accept == ContentTypeHTML { //用户需要HTML
 		tplFile := ""
 		// tpl file
-		if ti, ok := rc.Route.Options[KEY_TPL]; ok && ti.(string) != "" && utils.FileExists(ti.(string)) { //定义了tpl文件, 并且文件存在
+		if ti := rc.Route.Options.Get(KEY_TPL); ti != nil && ti.(string) != "" && utils.FileExists(ti.(string)) { //定义了tpl文件, 并且文件存在
 			tplFile = ti.(string)
 		} else if dt := filepath.Join(env.TplDir, rc.Request.URL.Path+".html"); utils.FileExists(dt) { //默认tpl文件, 为: tpldir+url.Path+".html"
 			tplFile = dt
