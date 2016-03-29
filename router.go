@@ -73,6 +73,8 @@ func NewRoute(p interface{}, ep string, m string, h Handler, options ...RouteOpt
 
 	if len(options) > 0 { //不管有几个,目前只有第一个有效
 		r.Options = utils.NewSafeMap(options[0])
+	} else {
+		r.Options = utils.NewSafeMap()
 	}
 
 	//更新还是创建
