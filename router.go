@@ -69,7 +69,6 @@ func NewRoute(p interface{}, ep string, m string, h Handler, options ...RouteOpt
 		Pattern:  p,
 		Method:   m,
 		Handler:  h,
-		//Options:  make(map[string]interface{}),
 	}
 
 	if len(options) > 0 { //不管有几个,目前只有第一个有效
@@ -105,6 +104,8 @@ func handlerWrap(rt *Route) web.HandlerFunc { //这里封装了webC到本地的�
 
 		// pre hooks, 任何一个出错,都要结束
 		if hl := len(DMux.Hooks.preHooks); hl > 0 {
+			DMux.Hooks.lock.Lock()
+			defer DMux.Hooks.lock.Unlock()
 			for i := 0; i < hl; i++ {
 				if err := DMux.Hooks.preHooks[i](rc); err != nil {
 					rc.RESTError(err)
@@ -118,6 +119,8 @@ func handlerWrap(rt *Route) web.HandlerFunc { //这里封装了webC到本地的�
 
 		// post hooks
 		if hl := len(DMux.Hooks.postHooks); hl > 0 {
+			DMux.Hooks.lock.Lock()
+			defer DMux.Hooks.lock.Unlock()
 			for i := 0; i < hl; i++ {
 				DMux.Hooks.postHooks[i](rc)
 			}

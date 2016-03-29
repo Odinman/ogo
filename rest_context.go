@@ -12,22 +12,6 @@ import (
 )
 
 var (
-	SUCCODE = map[string]int{
-		"get":    http.StatusOK,
-		"delete": http.StatusNoContent,
-		"put":    http.StatusCreated,
-		"post":   http.StatusCreated,
-		"patch":  http.StatusResetContent,
-		"head":   http.StatusOK,
-	}
-	FAILCODE = map[string]int{ //定义正常出错
-		"get":    http.StatusNotFound,
-		"delete": http.StatusNotAcceptable,
-		"put":    http.StatusNotAcceptable,
-		"post":   http.StatusNotAcceptable, //冲突
-		"patch":  http.StatusNotAcceptable,
-		"head":   http.StatusConflict,
-	}
 	EmptyGifBytes, _ = base64.StdEncoding.DecodeString(base64GifPixel)
 )
 
@@ -69,6 +53,50 @@ type RESTError struct {
 
 // implement error interface
 func (re *RESTError) Error() string { return re.Message }
+
+/* {{{ func getCode(ifSuc bool, m string) (s int)
+ * 获取返回码
+ */
+func getCode(ifSuc bool, m string) (s int) {
+	method := strings.ToLower(m)
+	if ifSuc {
+		switch method {
+		case "get":
+			return http.StatusOK
+		case "delete":
+			return http.StatusNoContent
+		case "put":
+			return http.StatusCreated
+		case "post":
+			return http.StatusCreated
+		case "patch":
+			return http.StatusResetContent
+		case "head":
+			return http.StatusOK
+		default:
+			return http.StatusOK
+		}
+	} else {
+		switch method {
+		case "get":
+			return http.StatusNotFound
+		case "delete":
+			return http.StatusNotAcceptable
+		case "put":
+			return http.StatusNotAcceptable
+		case "post":
+			return http.StatusNotAcceptable
+		case "patch":
+			return http.StatusNotAcceptable
+		case "head":
+			return http.StatusConflict
+		default:
+			return http.StatusBadRequest
+		}
+	}
+}
+
+/* }}} */
 
 /* {{{ func newContext(c web.C, w http.ResponseWriter, r *http.Request) *RESTContext
  *
@@ -182,14 +210,7 @@ func (rc *RESTContext) RESTOK(data interface{}) (err error) {
 		if rc.OTP != nil {
 			return rc.RESTTFA(data)
 		} else {
-			var status int
-			method := strings.ToLower(rc.Request.Method)
-			if _, ok := SUCCODE[method]; !ok {
-				status = http.StatusOK //默认都是StatusOK
-			} else {
-				status = SUCCODE[method]
-			}
-			rc.SetStatus(status)
+			rc.SetStatus(getCode(true, rc.Request.Method))
 		}
 	}
 
@@ -222,13 +243,7 @@ func (rc *RESTContext) RESTTFA(data interface{}) (err error) {
  * 属于request的错误
  */
 func (rc *RESTContext) RESTNotOK(msg interface{}) (err error) {
-	var status int
-	method := strings.ToLower(rc.Request.Method)
-	if _, ok := FAILCODE[method]; !ok {
-		status = http.StatusBadRequest //默认都是StatusOK
-	} else {
-		status = FAILCODE[method]
-	}
+	status := getCode(false, rc.Request.Method)
 	rc.SetStatus(status)
 
 	// write data

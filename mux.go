@@ -58,7 +58,8 @@ type Mux struct {
 	Workers  map[string]*Worker
 	Routes   map[string]*Route
 	Hooks    HStack
-	TagHooks map[string]TagHook
+	//TagHooks map[string]TagHook
+	TagHooks *utils.SafeMap
 }
 
 /* }}} */
@@ -73,7 +74,8 @@ func New() *Mux {
 			preHooks:  make([]OgoHook, 0),
 			postHooks: make([]OgoHook, 0),
 		},
-		TagHooks: make(map[string]TagHook),
+		//TagHooks: make(map[string]TagHook),
+		TagHooks: utils.NewSafeMap(),
 	}
 }
 
@@ -83,6 +85,8 @@ func New() *Mux {
  * 正式程序之前的钩子
  */
 func (mux *Mux) PreHook(hook OgoHook) {
+	mux.Hooks.lock.Lock()
+	defer mux.Hooks.lock.Unlock()
 	mux.Hooks.preHooks = append(mux.Hooks.preHooks, hook)
 }
 
@@ -92,16 +96,18 @@ func (mux *Mux) PreHook(hook OgoHook) {
  * 正式程序之后的钩子
  */
 func (mux *Mux) PostHook(hook OgoHook) {
+	mux.Hooks.lock.Lock()
+	defer mux.Hooks.lock.Unlock()
 	mux.Hooks.postHooks = append(mux.Hooks.postHooks, hook)
 }
 
 /* }}} */
 
 /* {{{ func (mux *Mux) AddTagHook(tag string, hook TagHook)
- * 正式程序之后的钩子
+ * struct 中定义tag来调用钩子
  */
 func (mux *Mux) AddTagHook(tag string, hook TagHook) {
-	mux.TagHooks[tag] = hook
+	mux.TagHooks.Set(tag, hook)
 }
 
 /* }}} */
