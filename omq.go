@@ -153,3 +153,25 @@ func OmqPop(msg ...string) ([]string, error) {
 }
 
 /* }}} */
+
+func OmqBPop(msg string, timeout int) ([]string, error) {
+	if requester, e := OmqPool().Get(); e == nil && len(msg) > 0 {
+		defer requester.Close()
+		key := msg
+		if reply, e := requester.Do(10000*time.Millisecond, "BPOP", key, timeout); e == nil {
+			Debug("Received: %s", reply[0])
+			if reply[0] == "OK" {
+				return reply[1:], e
+			} else {
+				Info("task %s is empty", key)
+				return nil, nil
+			}
+		} else {
+			Info("task %s error: %s", key, e)
+			return nil, e
+		}
+	} else {
+		return nil, e
+	}
+	return nil, fmt.Errorf("bpop task failed")
+}
