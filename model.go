@@ -52,6 +52,7 @@ type List struct {
 	Total int64                  `json:"total"`
 	List  interface{}            `json:"list"`
 	Ext   map[string]interface{} `json:"ext,omitempty"`
+	Ctx   *RESTContext           `json:"-" db:"-"`
 }
 
 type ListInfo struct {
@@ -1114,6 +1115,7 @@ func (bm *BaseModel) GetRows() (l *List, err error) {
 
 		l.Total = count
 		l.List = ms
+		l.Ctx = c
 
 		return l, nil
 	} else {
