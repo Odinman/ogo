@@ -32,8 +32,9 @@ const (
 	TAG_TIMERANGE   = "TR"    // 时间范围条件
 	TAG_REPORT      = "RPT"   // 报表字段
 	TAG_CANGROUP    = "GRP"   // 可以group操作
-	TAG_ORDERBY     = "O"     // 可排序(默认DESC)
-	TAG_AORDERBY    = "AO"    // 正排序(默认DESC)
+	TAG_ORDERBY     = "O"     // 可排序(默认不排序)
+	TAG_AORDERBY    = "AO"    // 升序(默认ASC)
+	TAG_DORDERBY    = "DO"    // 降序(默认DESC)
 	TAG_VERIFIABLE  = "V"     // 验证后可修改
 	TAG_RETURN      = "RET"   // 返回,创建后需要返回数值
 	TAG_SUM         = "SUM"   // 求和
@@ -51,6 +52,7 @@ type List struct {
 	Total int64                  `json:"total"`
 	List  interface{}            `json:"list"`
 	Ext   map[string]interface{} `json:"ext,omitempty"`
+	Ctx   *RESTContext           `json:"-" db:"-"`
 }
 
 type ListInfo struct {
@@ -88,8 +90,9 @@ type Condition struct {
 
 //order by
 type OrderBy struct {
-	Field string
-	Sort  string
+	Field    string
+	Sort     string
+	Priority bool
 }
 
 func NewCondition(typ int, field string, cs ...interface{}) *Condition {
@@ -541,7 +544,19 @@ func (bm *BaseModel) SetConditions(cs ...*Condition) (cons []*Condition, err err
 				if condition, e := GetCondition(cs, TAG_ORDERBY); e == nil && condition.Order != nil {
 					//Debug("[SetConditions]order")
 					condition.Field = col.Tag
-					bm.conditions = append(bm.conditions, condition)
+					p := false
+					switch condition.Order.(type) {
+					case *OrderBy:
+						p = condition.Order.(*OrderBy).Priority
+					case OrderBy:
+						p = condition.Order.(OrderBy).Priority
+					}
+					if p { //如果Priority是true则表示该排序条件优先
+						tmpConditions := append(make([]*Condition, 0, 0), condition)
+						bm.conditions = append(tmpConditions, bm.conditions...)
+					} else {
+						bm.conditions = append(bm.conditions, condition)
+					}
 				} else {
 					Trace("get condition failed: %s", e)
 				}
@@ -1113,6 +1128,7 @@ func (bm *BaseModel) GetRows() (l *List, err error) {
 
 		l.Total = count
 		l.List = ms
+		l.Ctx = c
 
 		return l, nil
 	} else {
@@ -1425,10 +1441,12 @@ func (bm *BaseModel) ReadPrepare() (b *gorp.Builder, err error) {
 			//处理排序问题,如果之前有排序，这里就是二次排序,如果之前无排序,这里是首要排序
 			if col.TagOptions.Contains(DBTAG_PK) { // 默认为pk降序
 				pks = fmt.Sprintf("T.`%s` DESC", col.Tag)
-			} else if col.ExtOptions.Contains(TAG_ORDERBY) { // 默认为降序
+			} else if col.ExtOptions.Contains(TAG_DORDERBY) { // 默认为降序
 				b.Order(fmt.Sprintf("T.`%s` DESC", col.Tag))
-			} else if col.ExtOptions.Contains(TAG_AORDERBY) { //正排序
+			} else if col.ExtOptions.Contains(TAG_AORDERBY) { // 默认为升序
 				b.Order(fmt.Sprintf("T.`%s` ASC", col.Tag))
+			} else if col.ExtOptions.Contains(TAG_ORDERBY) {
+				//默认不参与排序
 			}
 			// 处理逻辑删除
 			if col.TagOptions.Contains(DBTAG_LOGIC) {
