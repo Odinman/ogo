@@ -90,8 +90,9 @@ type Condition struct {
 
 //order by
 type OrderBy struct {
-	Field string
-	Sort  string
+	Field    string
+	Sort     string
+	Priority bool
 }
 
 func NewCondition(typ int, field string, cs ...interface{}) *Condition {
@@ -543,7 +544,19 @@ func (bm *BaseModel) SetConditions(cs ...*Condition) (cons []*Condition, err err
 				if condition, e := GetCondition(cs, TAG_ORDERBY); e == nil && condition.Order != nil {
 					//Debug("[SetConditions]order")
 					condition.Field = col.Tag
-					bm.conditions = append(bm.conditions, condition)
+					p := false
+					switch condition.Order.(type) {
+					case *OrderBy:
+						p = condition.Order.(*OrderBy).Priority
+					case OrderBy:
+						p = condition.Order.(OrderBy).Priority
+					}
+					if p { //如果Priority是true则表示该排序条件优先
+						tmpConditions := append(make([]*Condition, 0, 0), condition)
+						bm.conditions = append(tmpConditions, bm.conditions...)
+					} else {
+						bm.conditions = append(bm.conditions, condition)
+					}
 				} else {
 					Trace("get condition failed: %s", e)
 				}
